@@ -24,6 +24,8 @@ import type {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  activeMode: "CLIENT" | "PROVIDER";
+  switchActiveMode: (mode: "CLIENT" | "PROVIDER") => void;
   services: Service[];
   leads: LeadUnlock[];
   transactions: Transaction[];
@@ -143,6 +145,7 @@ function makeDemoServices(): Service[] {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [activeMode, setActiveMode] = useState<"CLIENT" | "PROVIDER">("CLIENT");
   const [services, setServices] = useState<Service[]>([]);
   const [leads, setLeads] = useState<LeadUnlock[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -152,6 +155,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     loadAll();
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      const primaryMode = user.role === "PROVIDER" ? "PROVIDER" : "CLIENT";
+      setActiveMode(primaryMode);
+    }
+  }, [user?.id]);
+
+  function switchActiveMode(mode: "CLIENT" | "PROVIDER") {
+    setActiveMode(mode);
+  }
 
   async function loadAll() {
     try {
@@ -222,6 +236,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: userData.email,
       phone: "",
       role: "CLIENT",
+      roles: ["CLIENT"],
       creditBalance: WELCOME_BONUS_CREDITS,
       city: "",
       state: "GO",
@@ -248,6 +263,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function logout() {
     setUser(null);
+    setActiveMode("CLIENT");
     await AsyncStorage.removeItem("@trampai/user");
   }
 
@@ -423,6 +439,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isLoading,
+        activeMode,
+        switchActiveMode,
         services,
         leads,
         transactions,

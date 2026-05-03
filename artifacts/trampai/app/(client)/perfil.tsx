@@ -18,7 +18,7 @@ import { useColors } from "@/hooks/useColors";
 
 export default function ClientPerfil() {
   const colors = useColors();
-  const { user, logout, transactions } = useAuth();
+  const { user, logout, transactions, activeMode, switchActiveMode } = useAuth();
   const insets = useSafeAreaInsets();
   const [showReferral, setShowReferral] = useState(false);
 
@@ -26,6 +26,9 @@ export default function ClientPerfil() {
     .filter((t) => t.userId === user?.id)
     .slice(-5)
     .reverse();
+
+  const isDual =
+    user?.roles?.includes("CLIENT") && user?.roles?.includes("PROVIDER");
 
   function handleLogout() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -40,6 +43,12 @@ export default function ClientPerfil() {
         },
       },
     ]);
+  }
+
+  function handleSwitchMode() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    switchActiveMode("PROVIDER");
+    router.replace("/");
   }
 
   const initials = user?.name
@@ -73,10 +82,21 @@ export default function ClientPerfil() {
         <Text style={[styles.email, { fontFamily: "Inter_400Regular" }]}>
           {user?.email}
         </Text>
-        <View style={[styles.roleBadge, { backgroundColor: colors.accent }]}>
-          <Text style={[styles.roleText, { fontFamily: "Inter_600SemiBold" }]}>
-            Cliente
-          </Text>
+        <View style={styles.badgesRow}>
+          <View style={[styles.roleBadge, { backgroundColor: colors.accent }]}>
+            <MaterialCommunityIcons name="account-outline" size={12} color="#fff" />
+            <Text style={[styles.roleText, { fontFamily: "Inter_600SemiBold" }]}>
+              Cliente
+            </Text>
+          </View>
+          {isDual && (
+            <View style={[styles.roleBadge, { backgroundColor: colors.navy, borderColor: "#ffffff40", borderWidth: 1 }]}>
+              <MaterialCommunityIcons name="briefcase-outline" size={12} color="#ffffff80" />
+              <Text style={[styles.roleText, { color: "#ffffff80", fontFamily: "Inter_600SemiBold" }]}>
+                Prestador
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -84,6 +104,34 @@ export default function ClientPerfil() {
         contentContainerStyle={[styles.content, { paddingBottom: 100 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
+        {isDual && (
+          <TouchableOpacity
+            style={[
+              styles.switchModeCard,
+              {
+                backgroundColor: "#21284E08",
+                borderRadius: colors.radius,
+                borderColor: colors.navy + "30",
+              },
+            ]}
+            onPress={handleSwitchMode}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.switchModeIcon, { backgroundColor: colors.navy + "12" }]}>
+              <MaterialCommunityIcons name="account-switch-outline" size={22} color={colors.navy} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.switchModeTitle, { color: colors.navy, fontFamily: "Inter_600SemiBold" }]}>
+                Alternar para Modo Prestador
+              </Text>
+              <Text style={[styles.switchModeDesc, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+                Acesse o mural de leads e sua carteira de trabalho
+              </Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={20} color={colors.mutedForeground} />
+          </TouchableOpacity>
+        )}
+
         <View style={[styles.section, { backgroundColor: colors.card, borderRadius: colors.radius, borderColor: colors.border }]}>
           <View style={styles.infoRow}>
             <MaterialCommunityIcons name="star-circle" size={20} color={colors.accent} />
@@ -217,9 +265,26 @@ const styles = StyleSheet.create({
   avatarText: { color: "#fff", fontSize: 28 },
   name: { color: "#fff", fontSize: 20 },
   email: { color: "#ffffff80", fontSize: 14 },
-  roleBadge: { paddingHorizontal: 14, paddingVertical: 4, borderRadius: 12 },
+  badgesRow: { flexDirection: "row", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "center" },
+  roleBadge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
   roleText: { color: "#fff", fontSize: 12 },
   content: { padding: 16, gap: 16 },
+  switchModeCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    borderWidth: 1,
+    gap: 12,
+  },
+  switchModeIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  switchModeTitle: { fontSize: 14, marginBottom: 2 },
+  switchModeDesc: { fontSize: 12, lineHeight: 16 },
   section: { borderWidth: 1, overflow: "hidden" },
   infoRow: {
     flexDirection: "row",

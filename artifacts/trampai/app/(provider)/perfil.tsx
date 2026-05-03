@@ -10,11 +10,14 @@ import { useColors } from "@/hooks/useColors";
 
 export default function ProviderPerfil() {
   const colors = useColors();
-  const { user, logout, leads } = useAuth();
+  const { user, logout, leads, switchActiveMode } = useAuth();
   const insets = useSafeAreaInsets();
 
   const myLeads = leads.filter((l) => l.providerId === user?.id);
   const totalSpent = myLeads.reduce((sum, l) => sum + l.creditsSpent, 0);
+
+  const isDual =
+    user?.roles?.includes("CLIENT") && user?.roles?.includes("PROVIDER");
 
   const initials = user?.name
     ? user.name.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase()
@@ -49,6 +52,12 @@ export default function ProviderPerfil() {
     ]);
   }
 
+  function handleSwitchMode() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    switchActiveMode("CLIENT");
+    router.replace("/");
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.navy, paddingTop: insets.top + (Platform.OS === "web" ? 67 : 16) }]}>
@@ -57,19 +66,57 @@ export default function ProviderPerfil() {
         </View>
         <Text style={[styles.name, { fontFamily: "Inter_700Bold" }]}>{user?.name}</Text>
         <Text style={[styles.email, { fontFamily: "Inter_400Regular" }]}>{user?.email}</Text>
-        <View style={[styles.verificationBadge, { backgroundColor: verificationColor + "20", borderColor: verificationColor + "40" }]}>
-          <MaterialCommunityIcons
-            name={user?.verificationStatus === "APPROVED" ? "shield-check" : "shield-alert"}
-            size={14}
-            color={verificationColor}
-          />
-          <Text style={[styles.verificationText, { color: verificationColor, fontFamily: "Inter_600SemiBold" }]}>
-            {verificationLabel}
-          </Text>
+        <View style={styles.badgesRow}>
+          <View style={[styles.verificationBadge, { backgroundColor: verificationColor + "20", borderColor: verificationColor + "40" }]}>
+            <MaterialCommunityIcons
+              name={user?.verificationStatus === "APPROVED" ? "shield-check" : "shield-alert"}
+              size={14}
+              color={verificationColor}
+            />
+            <Text style={[styles.verificationText, { color: verificationColor, fontFamily: "Inter_600SemiBold" }]}>
+              {verificationLabel}
+            </Text>
+          </View>
+          {isDual && (
+            <View style={[styles.verificationBadge, { backgroundColor: "#ffffff15", borderColor: "#ffffff25" }]}>
+              <MaterialCommunityIcons name="account-outline" size={14} color="#ffffff80" />
+              <Text style={[styles.verificationText, { color: "#ffffff80", fontFamily: "Inter_600SemiBold" }]}>
+                Cliente
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 100 + insets.bottom }]} showsVerticalScrollIndicator={false}>
+        {isDual && (
+          <TouchableOpacity
+            style={[
+              styles.switchModeCard,
+              {
+                backgroundColor: colors.cyan + "10",
+                borderRadius: colors.radius,
+                borderColor: colors.cyan + "30",
+              },
+            ]}
+            onPress={handleSwitchMode}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.switchModeIcon, { backgroundColor: colors.cyan + "15" }]}>
+              <MaterialCommunityIcons name="account-switch-outline" size={22} color={colors.cyan} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.switchModeTitle, { color: colors.navy, fontFamily: "Inter_600SemiBold" }]}>
+                Alternar para Modo Cliente
+              </Text>
+              <Text style={[styles.switchModeDesc, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+                Poste serviços e receba propostas de prestadores
+              </Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={20} color={colors.mutedForeground} />
+          </TouchableOpacity>
+        )}
+
         <View style={styles.statsRow}>
           {[
             { label: "Leads", value: myLeads.length, icon: "briefcase-outline" as const },
@@ -147,9 +194,26 @@ const styles = StyleSheet.create({
   avatarText: { color: "#fff", fontSize: 28 },
   name: { color: "#fff", fontSize: 20 },
   email: { color: "#ffffff80", fontSize: 14 },
+  badgesRow: { flexDirection: "row", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "center" },
   verificationBadge: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 5, borderRadius: 16, borderWidth: 1, gap: 5 },
   verificationText: { fontSize: 12 },
   content: { padding: 16, gap: 16 },
+  switchModeCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    borderWidth: 1,
+    gap: 12,
+  },
+  switchModeIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  switchModeTitle: { fontSize: 14, marginBottom: 2 },
+  switchModeDesc: { fontSize: 12, lineHeight: 16 },
   statsRow: { flexDirection: "row", gap: 10 },
   statCard: { flex: 1, alignItems: "center", padding: 14, borderWidth: 1, gap: 4 },
   statValue: { fontSize: 22 },

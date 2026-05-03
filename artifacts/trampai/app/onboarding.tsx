@@ -17,9 +17,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
-import type { UserRole } from "@/types";
 
 const TOTAL_STEPS = 4;
+
+type ProfileRole = "CLIENT" | "PROVIDER";
 
 export default function OnboardingScreen() {
   const colors = useColors();
@@ -27,7 +28,7 @@ export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
 
   const [step, setStep] = useState(1);
-  const [role, setRole] = useState<UserRole>("CLIENT");
+  const [selectedRoles, setSelectedRoles] = useState<ProfileRole[]>(["CLIENT"]);
   const [phone, setPhone] = useState("");
   const [city, setCity] = useState("");
   const [neighborhood, setNeighborhood] = useState("");
@@ -37,6 +38,24 @@ export default function OnboardingScreen() {
   const [referralCode, setReferralCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  function toggleRole(role: ProfileRole) {
+    Haptics.selectionAsync();
+    setSelectedRoles((prev) => {
+      if (prev.includes(role)) {
+        if (prev.length === 1) return prev;
+        return prev.filter((r) => r !== role);
+      }
+      return [...prev, role];
+    });
+  }
+
+  function isRoleSelected(role: ProfileRole) {
+    return selectedRoles.includes(role);
+  }
+
+  const isDual = selectedRoles.includes("CLIENT") && selectedRoles.includes("PROVIDER");
+  const isProviderOnly = selectedRoles.includes("PROVIDER") && !selectedRoles.includes("CLIENT");
 
   function formatPhone(text: string) {
     const cleaned = text.replace(/\D/g, "").slice(0, 11);
@@ -67,14 +86,16 @@ export default function OnboardingScreen() {
   async function handleFinish() {
     setLoading(true);
     try {
+      const primaryRole = isProviderOnly ? "PROVIDER" : "CLIENT";
       await completeOnboarding({
-        role,
+        role: primaryRole,
+        roles: selectedRoles,
         phone: phone.replace(/\D/g, ""),
         city: city.trim(),
         neighborhood: neighborhood.trim(),
         state,
         acceptedTerms,
-        verificationStatus: role === "PROVIDER" ? "PENDING" : undefined,
+        verificationStatus: selectedRoles.includes("PROVIDER") ? "PENDING" : undefined,
         referredById: referralCode.trim() || undefined,
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -94,35 +115,26 @@ export default function OnboardingScreen() {
       style={[
         styles.container,
         {
-          paddingTop:
-            insets.top + (Platform.OS === "web" ? 67 : 16),
+          paddingTop: insets.top + (Platform.OS === "web" ? 67 : 16),
           paddingBottom: insets.bottom + 16,
         },
       ]}
     >
-      <View style={styles.progressRow}>
-        {[1, 2, 3, 4].map((s) => (
+      <View style={styles.progressBarWrapper}>
+        <View style={[styles.progressTrack, { backgroundColor: "#21284E30" }]}>
           <View
-            key={s}
             style={[
-              styles.progressDot,
+              styles.progressFill,
               {
-                backgroundColor:
-                  s <= step ? colors.navy : colors.navy + "30",
-                flex: s === 1 || s === TOTAL_STEPS ? 0 : 1,
+                width: `${progress * 100}%`,
+                backgroundColor: colors.accent,
               },
             ]}
           />
-        ))}
-        <View
-          style={[
-            styles.progressBar,
-            {
-              width: `${progress * 100}%`,
-              backgroundColor: colors.accent,
-            },
-          ]}
-        />
+        </View>
+        <Text style={[styles.stepCounter, { color: colors.navy, fontFamily: "Inter_500Medium" }]}>
+          {step} de {TOTAL_STEPS}
+        </Text>
       </View>
 
       <ScrollView
@@ -136,7 +148,7 @@ export default function OnboardingScreen() {
               Como quer usar o Trampaí?
             </Text>
             <Text style={[styles.stepSub, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-              Você pode mudar isso depois nas configurações
+              Selecione um ou os dois perfis — você pode trocar de modo a qualquer momento
             </Text>
 
             <View style={styles.roleCards}>
@@ -144,24 +156,29 @@ export default function OnboardingScreen() {
                 style={[
                   styles.roleCard,
                   {
-                    backgroundColor: role === "CLIENT" ? colors.navy : colors.card,
-                    borderColor: role === "CLIENT" ? colors.accent : colors.border,
+                    backgroundColor: isRoleSelected("CLIENT") ? colors.navy : colors.card,
+                    borderColor: isRoleSelected("CLIENT") ? colors.accent : colors.border,
                     borderRadius: colors.radius,
                   },
                 ]}
-                onPress={() => { setRole("CLIENT"); Haptics.selectionAsync(); }}
+                onPress={() => toggleRole("CLIENT")}
                 activeOpacity={0.8}
               >
+                {isRoleSelected("CLIENT") && (
+                  <View style={styles.checkBadge}>
+                    <MaterialCommunityIcons name="check-circle" size={18} color="#F69926" />
+                  </View>
+                )}
                 <MaterialCommunityIcons
                   name="account-outline"
                   size={40}
-                  color={role === "CLIENT" ? "#F69926" : colors.navy}
+                  color={isRoleSelected("CLIENT") ? "#F69926" : colors.navy}
                 />
                 <Text
                   style={[
                     styles.roleTitle,
                     {
-                      color: role === "CLIENT" ? "#fff" : colors.foreground,
+                      color: isRoleSelected("CLIENT") ? "#fff" : colors.foreground,
                       fontFamily: "Inter_700Bold",
                     },
                   ]}
@@ -172,7 +189,7 @@ export default function OnboardingScreen() {
                   style={[
                     styles.roleDesc,
                     {
-                      color: role === "CLIENT" ? "#ffffff90" : colors.mutedForeground,
+                      color: isRoleSelected("CLIENT") ? "#ffffff90" : colors.mutedForeground,
                       fontFamily: "Inter_400Regular",
                     },
                   ]}
@@ -185,24 +202,29 @@ export default function OnboardingScreen() {
                 style={[
                   styles.roleCard,
                   {
-                    backgroundColor: role === "PROVIDER" ? colors.navy : colors.card,
-                    borderColor: role === "PROVIDER" ? colors.accent : colors.border,
+                    backgroundColor: isRoleSelected("PROVIDER") ? colors.navy : colors.card,
+                    borderColor: isRoleSelected("PROVIDER") ? colors.accent : colors.border,
                     borderRadius: colors.radius,
                   },
                 ]}
-                onPress={() => { setRole("PROVIDER"); Haptics.selectionAsync(); }}
+                onPress={() => toggleRole("PROVIDER")}
                 activeOpacity={0.8}
               >
+                {isRoleSelected("PROVIDER") && (
+                  <View style={styles.checkBadge}>
+                    <MaterialCommunityIcons name="check-circle" size={18} color="#F69926" />
+                  </View>
+                )}
                 <MaterialCommunityIcons
                   name="briefcase-outline"
                   size={40}
-                  color={role === "PROVIDER" ? "#F69926" : colors.navy}
+                  color={isRoleSelected("PROVIDER") ? "#F69926" : colors.navy}
                 />
                 <Text
                   style={[
                     styles.roleTitle,
                     {
-                      color: role === "PROVIDER" ? "#fff" : colors.foreground,
+                      color: isRoleSelected("PROVIDER") ? "#fff" : colors.foreground,
                       fontFamily: "Inter_700Bold",
                     },
                   ]}
@@ -213,7 +235,7 @@ export default function OnboardingScreen() {
                   style={[
                     styles.roleDesc,
                     {
-                      color: role === "PROVIDER" ? "#ffffff90" : colors.mutedForeground,
+                      color: isRoleSelected("PROVIDER") ? "#ffffff90" : colors.mutedForeground,
                       fontFamily: "Inter_400Regular",
                     },
                   ]}
@@ -222,6 +244,24 @@ export default function OnboardingScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+
+            {isDual && (
+              <View
+                style={[
+                  styles.dualBadge,
+                  {
+                    backgroundColor: colors.accent + "18",
+                    borderColor: colors.accent + "40",
+                    borderRadius: colors.radius,
+                  },
+                ]}
+              >
+                <MaterialCommunityIcons name="account-switch-outline" size={18} color={colors.accent} />
+                <Text style={[styles.dualText, { color: colors.navy, fontFamily: "Inter_500Medium" }]}>
+                  Perfil duplo ativo! Você poderá trocar de modo a qualquer hora nas configurações do perfil.
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -312,16 +352,18 @@ export default function OnboardingScreen() {
               </Text>
             </TouchableOpacity>
 
-            {role === "PROVIDER" && (
+            {selectedRoles.includes("PROVIDER") && (
               <View style={[styles.infoBox, { backgroundColor: colors.accent + "15", borderRadius: colors.radius, borderColor: colors.accent + "40" }]}>
-                <MaterialCommunityIcons name="information-outline" size={18} color={colors.accent} />
+                <MaterialCommunityIcons name="shield-check-outline" size={18} color={colors.accent} />
                 <Text style={[styles.infoText, { color: colors.navy, fontFamily: "Inter_400Regular" }]}>
-                  Como prestador, você precisará enviar documentos para verificação antes de desbloquear leads. Seus dados estão seguros.
+                  {isDual
+                    ? "Como prestador, você precisará enviar documentos para verificação antes de desbloquear leads. Como cliente, já pode postar serviços agora!"
+                    : "Como prestador, você precisará enviar documentos para verificação antes de desbloquear leads. Seus dados estão seguros."}
                 </Text>
               </View>
             )}
 
-            {role === "CLIENT" && (
+            {!selectedRoles.includes("PROVIDER") && (
               <View style={[styles.infoBox, { backgroundColor: colors.cyan + "15", borderRadius: colors.radius, borderColor: colors.cyan + "40" }]}>
                 <MaterialCommunityIcons name="gift-outline" size={18} color={colors.cyan} />
                 <Text style={[styles.infoText, { color: colors.navy, fontFamily: "Inter_400Regular" }]}>
@@ -362,6 +404,41 @@ export default function OnboardingScreen() {
                 {user?.referralCode}
               </Text>
             </Text>
+
+            <View
+              style={[
+                styles.summaryCard,
+                {
+                  backgroundColor: colors.navy + "10",
+                  borderRadius: colors.radius,
+                  borderColor: colors.navy + "25",
+                },
+              ]}
+            >
+              <Text style={[styles.summaryTitle, { color: colors.navy, fontFamily: "Inter_600SemiBold" }]}>
+                Resumo do seu perfil
+              </Text>
+              <View style={styles.summaryRow}>
+                <MaterialCommunityIcons
+                  name={isDual ? "account-switch-outline" : selectedRoles.includes("PROVIDER") ? "briefcase-outline" : "account-outline"}
+                  size={16}
+                  color={colors.navy}
+                />
+                <Text style={[styles.summaryText, { color: colors.navy, fontFamily: "Inter_400Regular" }]}>
+                  {isDual
+                    ? "Cliente + Prestador (perfil duplo)"
+                    : selectedRoles.includes("PROVIDER")
+                    ? "Prestador de serviços"
+                    : "Cliente"}
+                </Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <MaterialCommunityIcons name="map-marker-outline" size={16} color={colors.navy} />
+                <Text style={[styles.summaryText, { color: colors.navy, fontFamily: "Inter_400Regular" }]}>
+                  {city || "Cidade não informada"}{neighborhood ? `, ${neighborhood}` : ""}
+                </Text>
+              </View>
+            </View>
           </View>
         )}
 
@@ -409,24 +486,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  progressRow: {
-    height: 4,
+  progressBarWrapper: {
     flexDirection: "row",
-    marginHorizontal: 24,
-    marginBottom: 8,
+    alignItems: "center",
+    paddingHorizontal: 24,
+    gap: 10,
+    marginBottom: 4,
+  },
+  progressTrack: {
+    flex: 1,
+    height: 4,
     borderRadius: 2,
     overflow: "hidden",
-    backgroundColor: "#21284E30",
   },
-  progressDot: {
+  progressFill: {
     height: 4,
-  },
-  progressBar: {
-    height: 4,
-    position: "absolute",
-    left: 0,
-    top: 0,
     borderRadius: 2,
+  },
+  stepCounter: {
+    fontSize: 12,
   },
   content: {
     padding: 24,
@@ -442,6 +520,7 @@ const styles = StyleSheet.create({
   stepSub: {
     fontSize: 14,
     marginTop: -12,
+    lineHeight: 20,
   },
   roleCards: {
     flexDirection: "row",
@@ -453,6 +532,12 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 2,
     gap: 8,
+    position: "relative",
+  },
+  checkBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
   },
   roleTitle: {
     fontSize: 16,
@@ -460,6 +545,18 @@ const styles = StyleSheet.create({
   roleDesc: {
     fontSize: 12,
     textAlign: "center",
+  },
+  dualBadge: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    padding: 14,
+    borderWidth: 1,
+  },
+  dualText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
   },
   inputGroup: {
     gap: 6,
@@ -508,6 +605,23 @@ const styles = StyleSheet.create({
   shareCode: {
     fontSize: 14,
     textAlign: "center",
+  },
+  summaryCard: {
+    padding: 16,
+    borderWidth: 1,
+    gap: 10,
+  },
+  summaryTitle: {
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  summaryText: {
+    fontSize: 13,
   },
   error: {
     color: "#ef4444",

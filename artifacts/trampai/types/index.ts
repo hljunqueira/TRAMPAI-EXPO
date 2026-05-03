@@ -16,6 +16,7 @@ export interface User {
   email: string;
   phone: string;
   role: UserRole;
+  roles?: ("CLIENT" | "PROVIDER")[];
   creditBalance: number;
   city: string;
   state: string;
