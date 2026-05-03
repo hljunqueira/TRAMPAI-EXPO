@@ -92,7 +92,7 @@ export default function WelcomeScreen() {
 
   async function handleStart() {
     await AsyncStorage.setItem("@trampai/welcomeSeen", "true");
-    router.replace("/login");
+    router.replace("/onboarding");
   }
 
   function goToSlide(index: number) {
