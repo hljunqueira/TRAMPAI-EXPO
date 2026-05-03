@@ -38,7 +38,7 @@ const SLIDES: Slide[] = [
     title: "Bem-vindo ao Trampaí!",
     subtitle: "Serviços locais, do jeito certo",
     description:
-      "O marketplace de serviços de Goiás que conecta quem precisa de ajuda com quem faz acontecer.",
+      "O marketplace que conecta quem precisa de ajuda com quem faz acontecer.",
   },
   {
     id: "client",
@@ -46,12 +46,12 @@ const SLIDES: Slide[] = [
     icon: "account-search-outline",
     iconColor: "#fff",
     title: "Precisa de ajuda?",
-    subtitle: "Encontre profissionais locais",
+    subtitle: "Encontre profissionais perto de você",
     description:
-      "Poste o que você precisa de graça e receba contatos de prestadores da sua cidade, no horário que precisar.",
+      "Publique o que você precisa e receba contatos de prestadores no momento certo.",
     features: [
       "Publicação gratuita",
-      "Profissionais verificados da sua região",
+      "Profissionais verificados",
       "Contato direto pelo WhatsApp",
     ],
   },
@@ -63,7 +63,7 @@ const SLIDES: Slide[] = [
     title: "Quer trabalhar mais?",
     subtitle: "Monte sua carteira de clientes",
     description:
-      "Encontre clientes que precisam exatamente do que você faz, no bairro e na cidade em que você atua.",
+      "Encontre clientes que precisam exatamente do que você faz, na sua região de atuação.",
     features: [
       "Acesse leads qualificados",
       "Pague só pelo que desbloquear",
@@ -78,7 +78,7 @@ const SLIDES: Slide[] = [
     title: "Você decide!",
     subtitle: "Um perfil, duas possibilidades",
     description:
-      "Seja cliente quando precisar e prestador quando quiser. Troque de modo a qualquer momento, sem criar uma nova conta.",
+      "Seja cliente quando precisar e prestador quando quiser. Troque de modo a qualquer momento, sem criar outra conta.",
   },
 ];
 
@@ -145,9 +145,7 @@ export default function WelcomeScreen() {
         scrollEnabled={false}
         showsHorizontalScrollIndicator={false}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={{ width: SCREEN_WIDTH }} />
-        )}
+        renderItem={({ item }) => <View style={{ width: SCREEN_WIDTH }} />}
         style={{ height: 0 }}
       />
 
@@ -157,7 +155,7 @@ export default function WelcomeScreen() {
         </TouchableOpacity>
       )}
 
-      <Animated.View style={[styles.slideContent, { opacity: fadeAnim }]}>
+      <Animated.View style={[styles.slideContent, { opacity: fadeAnim }]}> 
         <View style={styles.iconWrapper}>
           <View
             style={[
@@ -213,7 +211,7 @@ export default function WelcomeScreen() {
           <View style={styles.bothBadge}>
             <MaterialCommunityIcons name="star-four-points" size={16} color="#F69926" />
             <Text style={styles.bothBadgeText}>
-              Crie uma conta e comece agora — é gratuito
+              Crie sua conta e comece agora — é gratuito
             </Text>
           </View>
         )}
@@ -233,9 +231,7 @@ export default function WelcomeScreen() {
                   {
                     width: i === currentIndex ? 22 : 8,
                     backgroundColor:
-                      i === currentIndex
-                        ? "#fff"
-                        : "rgba(255,255,255,0.35)",
+                      i === currentIndex ? "#fff" : "rgba(255,255,255,0.35)",
                   },
                 ]}
               />
