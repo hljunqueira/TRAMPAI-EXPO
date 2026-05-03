@@ -107,7 +107,9 @@ export default function Carteira() {
               </Text>
             </View>
 
-            <Text style={[styles.pixInstructions, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Abra seu banco e escaneie o QR Code ou use o código copia-e-cola. Após o pagamento, os créditos serão adicionados automaticamente.</Text>
+            <Text style={[styles.pixInstructions, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+              Abra seu banco e escaneie o QR Code ou use o código copia-e-cola. Após o pagamento, os créditos serão adicionados automaticamente.
+            </Text>
           </View>
 
           <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: "#22c55e", borderRadius: colors.radius }]} onPress={confirmPix} disabled={buying} activeOpacity={0.85}>
@@ -143,7 +145,11 @@ export default function Carteira() {
         <Text style={[styles.sectionTitle, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>Pacotes de créditos</Text>
 
         <View style={styles.packagesRow}>
-          {CREDIT_PACKAGES.map((pkg) => <CreditPackageCard key={pkg.id} pkg={pkg} onSelect={() => handleBuyPackage(pkg.id)} />)}
+          {CREDIT_PACKAGES.map((pkg) => (
+            <View key={pkg.id} style={styles.packageItem}>
+              <CreditPackageCard pkg={pkg} onSelect={() => handleBuyPackage(pkg.id)} />
+            </View>
+          ))}
         </View>
 
         <View style={[styles.customSection, { backgroundColor: colors.card, borderRadius: colors.radius, borderColor: colors.border }]}>
@@ -197,7 +203,8 @@ const styles = StyleSheet.create({
   balanceSub: { color: "#ffffff60", fontSize: 12, textAlign: "center", marginTop: 8 },
   content: { padding: 16, gap: 20 },
   sectionTitle: { fontSize: 18, textAlign: "center" },
-  packagesRow: { flexDirection: "row", gap: 10 },
+  packagesRow: { flexDirection: "row", gap: 10, flexWrap: "wrap" },
+  packageItem: { flex: 1, minWidth: 140 },
   customSection: { padding: 16, borderWidth: 1, gap: 10 },
   customTitle: { fontSize: 15, textAlign: "center" },
   customSub: { fontSize: 12, textAlign: "center" },
