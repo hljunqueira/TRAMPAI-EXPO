@@ -60,9 +60,7 @@ export default function RootLayout() {
             <GestureHandlerRootView style={{ flex: 1 }}>
               <KeyboardProvider>
                 <RootLayoutNav />
-                {showSplash && (
-                  <TrampaISplash onHide={() => setShowSplash(false)} />
-                )}
+                {showSplash && <TrampaISplash onHide={() => setShowSplash(false)} />}
               </KeyboardProvider>
             </GestureHandlerRootView>
           </QueryClientProvider>
