@@ -83,68 +83,45 @@ export default function Carteira() {
           <TouchableOpacity onPress={() => setShowPix(false)}>
             <MaterialCommunityIcons name="arrow-left" size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { fontFamily: "Inter_700Bold" }]}>
-            Pagamento via PIX
-          </Text>
+          <Text style={[styles.headerTitle, { fontFamily: "Inter_700Bold" }]}>Pagamento via PIX</Text>
           <View style={{ width: 22 }} />
         </View>
 
         <ScrollView contentContainerStyle={[styles.pixContent, { paddingBottom: insets.bottom + 40 }]}>
           <View style={[styles.pixSummary, { backgroundColor: colors.card, borderRadius: colors.radius, borderColor: colors.border }]}>
-            <Text style={[styles.pixSummaryLabel, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-              Você está comprando
-            </Text>
-            <Text style={[styles.pixSummaryCredits, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>
-              {pixFor.credits} créditos
-            </Text>
-            <Text style={[styles.pixSummaryPrice, { color: colors.accent, fontFamily: "Inter_700Bold" }]}>
-              {formatCurrency(pixFor.price)}
-            </Text>
+            <Text style={[styles.pixSummaryLabel, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Você está comprando</Text>
+            <Text style={[styles.pixSummaryCredits, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>{pixFor.credits} créditos</Text>
+            <Text style={[styles.pixSummaryPrice, { color: colors.accent, fontFamily: "Inter_700Bold" }]}>{formatCurrency(pixFor.price)}</Text>
           </View>
 
           <View style={[styles.pixBox, { backgroundColor: colors.card, borderRadius: colors.radius, borderColor: colors.border }]}>
             <View style={[styles.qrPlaceholder, { backgroundColor: colors.muted, borderRadius: 8 }]}>
               <MaterialCommunityIcons name="qrcode" size={120} color={colors.navy} />
-              <Text style={[styles.qrText, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-                QR Code PIX
-              </Text>
+              <Text style={[styles.qrText, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>QR Code PIX</Text>
             </View>
 
             <View style={[styles.copyPasteBox, { backgroundColor: colors.muted, borderRadius: 8 }]}>
-              <Text style={[styles.copyPasteLabel, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-                Copia e Cola
-              </Text>
+              <Text style={[styles.copyPasteLabel, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Copia e Cola</Text>
               <Text style={[styles.copyPasteCode, { color: colors.foreground, fontFamily: "Inter_400Regular" }]} selectable>
-                00020126580014BR.GOV.BCB.PIX0136trampa-i-mock-key-demo-pix@trampai.app5204000053039865802BR5925Trampa{"\u00ed"} Tecnologia6009SAO PAULO62070503***63044A9E
+                00020126580014BR.GOV.BCB.PIX0136trampa-i-mock-key-demo-pix@trampai.app5204000053039865802BR5925Trampaí Tecnologia6009SAO PAULO62070503***63044A9E
               </Text>
             </View>
 
-            <Text style={[styles.pixInstructions, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-              Abra seu banco e escaneie o QR Code ou use o código copia-e-cola. Após o pagamento, seus créditos serão adicionados automaticamente.
-            </Text>
+            <Text style={[styles.pixInstructions, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Abra seu banco e escaneie o QR Code ou use o código copia-e-cola. Após o pagamento, os créditos serão adicionados automaticamente.</Text>
           </View>
 
-          <TouchableOpacity
-            style={[styles.confirmBtn, { backgroundColor: "#22c55e", borderRadius: colors.radius }]}
-            onPress={confirmPix}
-            disabled={buying}
-            activeOpacity={0.85}
-          >
+          <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: "#22c55e", borderRadius: colors.radius }]} onPress={confirmPix} disabled={buying} activeOpacity={0.85}>
             {buying ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <>
                 <MaterialCommunityIcons name="check-circle-outline" size={20} color="#fff" />
-                <Text style={[styles.confirmBtnText, { fontFamily: "Inter_600SemiBold" }]}>
-                  Confirmar Pagamento
-                </Text>
+                <Text style={[styles.confirmBtnText, { fontFamily: "Inter_600SemiBold" }]}>Confirmar pagamento</Text>
               </>
             )}
           </TouchableOpacity>
 
-          <Text style={[styles.pixNote, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-            Demo: ao confirmar, os créditos são adicionados imediatamente.
-          </Text>
+          <Text style={[styles.pixNote, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Demo: ao confirmar, os créditos são adicionados imediatamente.</Text>
         </ScrollView>
       </View>
     );
@@ -152,109 +129,52 @@ export default function Carteira() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <LinearGradient
-        colors={[colors.navy, colors.navy + "EE"]}
-        style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 16) }]}
-      >
-        <Text style={[styles.headerTitle, { fontFamily: "Inter_700Bold" }]}>
-          Carteira
-        </Text>
+      <LinearGradient colors={[colors.navy, colors.navy + "EE"]} style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 16) }]}>
+        <Text style={[styles.headerTitle, { fontFamily: "Inter_700Bold" }]}>Carteira</Text>
         <View style={styles.balanceSection}>
-          <Text style={[styles.balanceLabel, { fontFamily: "Inter_400Regular" }]}>
-            Saldo disponível
-          </Text>
-          <Text style={[styles.balanceAmount, { fontFamily: "Inter_700Bold" }]}>
-            {user?.creditBalance ?? 0}
-          </Text>
-          <Text style={[styles.balanceUnit, { fontFamily: "Inter_400Regular" }]}>
-            créditos
-          </Text>
-          <Text style={[styles.balanceSub, { fontFamily: "Inter_400Regular" }]}>
-            1 crédito = 1 desbloqueio normal · 3 créditos = exclusivo
-          </Text>
+          <Text style={[styles.balanceLabel, { fontFamily: "Inter_400Regular" }]}>Saldo disponível</Text>
+          <Text style={[styles.balanceAmount, { fontFamily: "Inter_700Bold" }]}>{user?.creditBalance ?? 0}</Text>
+          <Text style={[styles.balanceUnit, { fontFamily: "Inter_400Regular" }]}>créditos</Text>
+          <Text style={[styles.balanceSub, { fontFamily: "Inter_400Regular" }]}>1 crédito = 1 desbloqueio normal · 3 créditos = exclusivo</Text>
         </View>
       </LinearGradient>
 
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: 100 + insets.bottom }]}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={[styles.sectionTitle, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>
-          Pacotes de Créditos
-        </Text>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 100 + insets.bottom }]} showsVerticalScrollIndicator={false}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>Pacotes de créditos</Text>
 
         <View style={styles.packagesRow}>
-          {CREDIT_PACKAGES.map((pkg) => (
-            <CreditPackageCard
-              key={pkg.id}
-              pkg={pkg}
-              onSelect={() => handleBuyPackage(pkg.id)}
-            />
-          ))}
+          {CREDIT_PACKAGES.map((pkg) => <CreditPackageCard key={pkg.id} pkg={pkg} onSelect={() => handleBuyPackage(pkg.id)} />)}
         </View>
 
         <View style={[styles.customSection, { backgroundColor: colors.card, borderRadius: colors.radius, borderColor: colors.border }]}>
-          <Text style={[styles.customTitle, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>
-            Quantidade personalizada
-          </Text>
-          <Text style={[styles.customSub, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-            Mínimo {MIN_CUSTOM_CREDITS} créditos · R$ 1,00 por crédito
-          </Text>
+          <Text style={[styles.customTitle, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>Quantidade personalizada</Text>
+          <Text style={[styles.customSub, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Mínimo {MIN_CUSTOM_CREDITS} créditos · R$ 1,00 por crédito</Text>
           <View style={styles.customInputRow}>
-            <TextInput
-              style={[styles.customInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground, borderRadius: colors.radius, fontFamily: "Inter_400Regular" }]}
-              placeholder={`Min. ${MIN_CUSTOM_CREDITS}`}
-              placeholderTextColor={colors.mutedForeground}
-              value={customAmount}
-              onChangeText={(t) => setCustomAmount(t.replace(/\D/g, ""))}
-              keyboardType="number-pad"
-            />
-            {customAmount && parseInt(customAmount) >= MIN_CUSTOM_CREDITS && (
-              <Text style={[styles.customPrice, { color: colors.accent, fontFamily: "Inter_700Bold" }]}>
-                = R$ {customAmount},00
-              </Text>
-            )}
+            <TextInput style={[styles.customInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground, borderRadius: colors.radius, fontFamily: "Inter_400Regular" }]} placeholder={`Min. ${MIN_CUSTOM_CREDITS}`} placeholderTextColor={colors.mutedForeground} value={customAmount} onChangeText={(t) => setCustomAmount(t.replace(/\D/g, ""))} keyboardType="number-pad" />
+            {customAmount && parseInt(customAmount) >= MIN_CUSTOM_CREDITS && <Text style={[styles.customPrice, { color: colors.accent, fontFamily: "Inter_700Bold" }]}>= R$ {customAmount},00</Text>}
           </View>
-          <TouchableOpacity
-            style={[styles.customBtn, { backgroundColor: colors.navy, borderRadius: colors.radius }]}
-            onPress={handleBuyCustom}
-            activeOpacity={0.85}
-          >
+          <TouchableOpacity style={[styles.customBtn, { backgroundColor: colors.navy, borderRadius: colors.radius }]} onPress={handleBuyCustom} activeOpacity={0.85}>
             <MaterialCommunityIcons name="plus-circle-outline" size={18} color="#fff" />
-            <Text style={[styles.customBtnText, { fontFamily: "Inter_600SemiBold" }]}>
-              Comprar via PIX
-            </Text>
+            <Text style={[styles.customBtnText, { fontFamily: "Inter_600SemiBold" }]}>Comprar via PIX</Text>
           </TouchableOpacity>
         </View>
 
         {myTxs.length > 0 && (
           <View>
-            <Text style={[styles.sectionTitle, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>
-              Extrato
-            </Text>
+            <Text style={[styles.sectionTitle, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>Extrato</Text>
             <View style={[styles.txList, { backgroundColor: colors.card, borderRadius: colors.radius, borderColor: colors.border }]}>
               {myTxs.slice(0, 10).map((tx, i) => (
                 <View key={tx.id}>
                   {i > 0 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
                   <View style={styles.txRow}>
                     <View style={[styles.txIcon, { backgroundColor: tx.credits > 0 ? "#22c55e15" : "#ef444415" }]}>
-                      <MaterialCommunityIcons
-                        name={tx.credits > 0 ? "plus" : "minus"}
-                        size={14}
-                        color={tx.credits > 0 ? "#22c55e" : "#ef4444"}
-                      />
+                      <MaterialCommunityIcons name={tx.credits > 0 ? "plus" : "minus"} size={14} color={tx.credits > 0 ? "#22c55e" : "#ef4444"} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.txDesc, { color: colors.foreground, fontFamily: "Inter_400Regular" }]} numberOfLines={1}>
-                        {tx.description}
-                      </Text>
-                      <Text style={[styles.txDate, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-                        {new Date(tx.createdAt).toLocaleDateString("pt-BR")}
-                      </Text>
+                      <Text style={[styles.txDesc, { color: colors.foreground, fontFamily: "Inter_400Regular" }]} numberOfLines={1}>{tx.description}</Text>
+                      <Text style={[styles.txDate, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>{new Date(tx.createdAt).toLocaleDateString("pt-BR")}</Text>
                     </View>
-                    <Text style={[styles.txAmount, { color: tx.credits > 0 ? "#22c55e" : "#ef4444", fontFamily: "Inter_700Bold" }]}>
-                      {tx.credits > 0 ? "+" : ""}{tx.credits}
-                    </Text>
+                    <Text style={[styles.txAmount, { color: tx.credits > 0 ? "#22c55e" : "#ef4444", fontFamily: "Inter_700Bold" }]}>{tx.credits > 0 ? "+" : ""}{tx.credits}</Text>
                   </View>
                 </View>
               ))}
@@ -269,20 +189,20 @@ export default function Carteira() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { paddingHorizontal: 20, paddingBottom: 28 },
-  headerTitle: { color: "#fff", fontSize: 22, marginBottom: 16 },
+  headerTitle: { color: "#fff", fontSize: 22, marginBottom: 16, textAlign: "center" },
   balanceSection: { alignItems: "center", gap: 4 },
   balanceLabel: { color: "#ffffff80", fontSize: 13 },
   balanceAmount: { color: "#fff", fontSize: 64, lineHeight: 70 },
   balanceUnit: { color: "#ffffff80", fontSize: 16 },
   balanceSub: { color: "#ffffff60", fontSize: 12, textAlign: "center", marginTop: 8 },
   content: { padding: 16, gap: 20 },
-  sectionTitle: { fontSize: 18 },
+  sectionTitle: { fontSize: 18, textAlign: "center" },
   packagesRow: { flexDirection: "row", gap: 10 },
   customSection: { padding: 16, borderWidth: 1, gap: 10 },
-  customTitle: { fontSize: 15 },
-  customSub: { fontSize: 12 },
+  customTitle: { fontSize: 15, textAlign: "center" },
+  customSub: { fontSize: 12, textAlign: "center" },
   customInputRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  customInput: { flex: 1, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
+  customInput: { flex: 1, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, textAlign: "center" },
   customPrice: { fontSize: 16 },
   customBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 12, gap: 8 },
   customBtnText: { color: "#fff", fontSize: 15 },
