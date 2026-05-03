@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "acXOn3DWjVq-CqsFIxE2l"
+uri = "file://artifacts/trampai/assets/images/icon.png"
+type = "image"
+title = "generated_image"
