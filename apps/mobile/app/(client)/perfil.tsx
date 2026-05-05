@@ -49,7 +49,7 @@ export default function ClientPerfil() {
       router.replace("/(admin)");
     } else {
       switchActiveMode("PROVIDER");
-      router.replace("/");
+      router.replace("/(provider)/mural");
     }
   }
 

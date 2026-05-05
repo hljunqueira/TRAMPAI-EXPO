@@ -125,7 +125,11 @@ export default function OnboardingScreen() {
     }
     
     if (step === 2) { // Localização
+      if (cep.replace(/\D/g, "").length < 8) return setError("Informe um CEP válido");
       if (!city.trim()) return setError("Informe sua cidade");
+      if (!neighborhood.trim()) return setError("Informe o bairro");
+      if (!address.trim()) return setError("Informe o endereço");
+      if (!number.trim()) return setError("Informe o número");
       if (!phone.replace(/\D/g, "") || phone.replace(/\D/g, "").length < 10)
         return setError("Informe um WhatsApp válido");
     }

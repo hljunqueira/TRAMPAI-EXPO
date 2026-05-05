@@ -17,6 +17,8 @@ export interface User {
   phone?: string;
   role: UserRole;
   roles?: UserRole[];
+  isProvider?: boolean;
+  isVerifiedProvider?: boolean;
   creditBalance: number;
   city?: string;
   state?: string;

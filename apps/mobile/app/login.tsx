@@ -96,12 +96,12 @@ export default function LoginScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.logoSection}>
-          <View style={styles.gearsRow}>
+          <Text style={styles.appName}>Trampaí</Text>
+          <Text style={styles.slogan}>Faz tua grana,{"\n"}no teu tempo, do teu jeito.</Text>
+          <View style={[styles.gearsRow, { marginTop: 20, marginBottom: 0 }]}>
             <MaterialCommunityIcons name="cog" size={48} color="#F69926" />
             <MaterialCommunityIcons name="cog" size={48} color="#5EB4B8" style={styles.gear2} />
           </View>
-          <Text style={styles.appName}>Trampaí</Text>
-          <Text style={styles.slogan}>Faz tua grana,{"\n"}no teu tempo, do teu jeito.</Text>
         </View>
 
         <KeyboardAvoidingView 
