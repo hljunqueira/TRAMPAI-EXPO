@@ -198,6 +198,11 @@ router.patch("/auth/me", authenticate, async (req: AuthRequest, res: any) => {
     if (body.phone !== undefined) updateData.phone = body.phone;
     if (body.city !== undefined) updateData.city = body.city;
     if (body.neighborhood !== undefined) updateData.neighborhood = body.neighborhood;
+    if (body.state !== undefined) updateData.state = body.state;
+    if (body.cep !== undefined) updateData.cep = body.cep;
+    if (body.address !== undefined) updateData.address = body.address;
+    if (body.number !== undefined) updateData.number = body.number;
+    if (body.complement !== undefined) updateData.complement = body.complement;
     if (body.role !== undefined) updateData.role = body.role;
     if (body.isProvider !== undefined) updateData.isProvider = body.isProvider;
     if (body.providerBio !== undefined) updateData.providerBio = body.providerBio;

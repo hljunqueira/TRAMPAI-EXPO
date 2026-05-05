@@ -27,6 +27,10 @@ export const users = pgTable("users", {
   city: text("city"),
   neighborhood: text("neighborhood"),
   state: text("state"),
+  cep: text("cep"),
+  address: text("address"),
+  number: text("number"),
+  complement: text("complement"),
   
   // Créditos e Indicação
   creditBalance: integer("credit_balance").notNull().default(0),

@@ -22,7 +22,11 @@ export interface User {
   state?: string;
   neighborhood?: string;
   cep?: string;
+  address?: string;
+  number?: string;
+  complement?: string;
   onboardingComplete?: boolean;
+  onboardingCompletedAt?: string;
   acceptedTerms?: boolean;
   referralCode?: string;
   welcomeBonusGrantedAt?: string;

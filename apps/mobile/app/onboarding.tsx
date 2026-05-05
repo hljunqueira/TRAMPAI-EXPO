@@ -39,6 +39,12 @@ export default function OnboardingScreen() {
   const [phone, setPhone] = useState("");
   const [city, setCity] = useState("");
   const [neighborhood, setNeighborhood] = useState("");
+  const [cep, setCep] = useState("");
+  const [address, setAddress] = useState("");
+  const [number, setNumber] = useState("");
+  const [complement, setComplement] = useState("");
+  const [state, setState] = useState("");
+  const [isFetchingCep, setIsFetchingCep] = useState(false);
   
   // Dados Prestador
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -56,6 +62,43 @@ export default function OnboardingScreen() {
     if (cleaned.length <= 2) return cleaned;
     if (cleaned.length <= 7) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
     return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
+  }
+
+  function formatCep(text: string) {
+    const cleaned = text.replace(/\D/g, "").slice(0, 8);
+    if (cleaned.length <= 5) return cleaned;
+    return `${cleaned.slice(0, 5)}-${cleaned.slice(5)}`;
+  }
+
+  async function handleCepChange(text: string) {
+    const formatted = formatCep(text);
+    setCep(formatted);
+
+    const cleaned = formatted.replace(/\D/g, "");
+    if (cleaned.length === 8) {
+      setIsFetchingCep(true);
+      try {
+        const response = await fetch(`https://viacep.com.br/ws/${cleaned}/json/`);
+        const data = await response.json();
+        
+        if (!data.erro) {
+          setCity(data.localidade);
+          setNeighborhood(data.bairro);
+          setAddress(data.logradouro);
+          setState(data.uf);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          
+          // Se o CEP for único para a cidade, os campos bairro e logradouro virão vazios
+          // O usuário precisará preencher manualmente, o que o ViaCEP já sinaliza.
+        } else {
+          setError("CEP não encontrado");
+        }
+      } catch (e) {
+        console.error("Erro ao buscar CEP:", e);
+      } finally {
+        setIsFetchingCep(false);
+      }
+    }
   }
 
   async function pickImage(type: 'doc' | 'selfie') {
@@ -114,6 +157,11 @@ export default function OnboardingScreen() {
         phone: phone.replace(/\D/g, ""),
         city: city.trim(),
         neighborhood: neighborhood.trim(),
+        state: state.trim(),
+        cep: cep.replace(/\D/g, ""),
+        address: address.trim(),
+        number: number.trim(),
+        complement: complement.trim(),
         isProvider,
         role: isProvider ? "provider" : "client",
         onboardingCompletedAt: new Date().toISOString(),
@@ -199,11 +247,79 @@ export default function OnboardingScreen() {
           {step === 2 && (
             <View style={styles.stepContainer}>
               <Text style={[styles.stepTitle, { color: "#FFFFFF", fontFamily: "Inter_700Bold" }]}>Onde você está?</Text>
-              <Text style={[styles.stepSub, { color: "#FFFFFF90", fontFamily: "Inter_400Regular" }]}>Para encontrar serviços e clientes próximos</Text>
+              <Text style={[styles.stepSub, { color: "#FFFFFF90", fontFamily: "Inter_400Regular" }]}>Informe seu CEP para facilitar o preenchimento</Text>
 
               <View style={styles.inputGroup}>
-                <TextInput style={styles.input} placeholder="Cidade" placeholderTextColor="#999" value={city} onChangeText={setCity} />
-                <TextInput style={styles.input} placeholder="Bairro" placeholderTextColor="#999" value={neighborhood} onChangeText={setNeighborhood} />
+                <View style={{ position: 'relative' }}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="CEP"
+                    placeholderTextColor="#999"
+                    value={cep}
+                    onChangeText={handleCepChange}
+                    keyboardType="numeric"
+                  />
+                  {isFetchingCep && (
+                    <ActivityIndicator 
+                      style={{ position: 'absolute', right: 16, top: 18 }} 
+                      color="#F69926" 
+                    />
+                  )}
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <TextInput 
+                    style={[styles.input, { flex: 2 }]} 
+                    placeholder="Cidade" 
+                    placeholderTextColor="#999" 
+                    value={city} 
+                    onChangeText={setCity} 
+                  />
+                  <TextInput 
+                    style={[styles.input, { flex: 1 }]} 
+                    placeholder="UF" 
+                    placeholderTextColor="#999" 
+                    value={state} 
+                    onChangeText={setState} 
+                    maxLength={2}
+                    autoCapitalize="characters"
+                  />
+                </View>
+
+                <TextInput 
+                  style={styles.input} 
+                  placeholder="Bairro" 
+                  placeholderTextColor="#999" 
+                  value={neighborhood} 
+                  onChangeText={setNeighborhood} 
+                />
+                
+                <TextInput 
+                  style={styles.input} 
+                  placeholder="Endereço (Rua/Av)" 
+                  placeholderTextColor="#999" 
+                  value={address} 
+                  onChangeText={setAddress} 
+                />
+
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <TextInput 
+                    style={[styles.input, { flex: 1 }]} 
+                    placeholder="Número" 
+                    placeholderTextColor="#999" 
+                    value={number} 
+                    onChangeText={setNumber} 
+                    keyboardType="numeric"
+                  />
+                  <TextInput 
+                    style={[styles.input, { flex: 2 }]} 
+                    placeholder="Complemento" 
+                    placeholderTextColor="#999" 
+                    value={complement} 
+                    onChangeText={setComplement} 
+                  />
+                </View>
+
                 <TextInput
                   style={styles.input}
                   placeholder="WhatsApp"
