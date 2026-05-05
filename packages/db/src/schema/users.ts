@@ -18,6 +18,8 @@ export const users = pgTable("users", {
   isVerifiedProvider: boolean("is_verified_provider").notNull().default(false),
   providerBio: text("provider_bio"),
   providerCategories: text("provider_categories").array(), // IDs das categorias
+  rating: text("rating").default("0.0"),
+  reviewCount: integer("review_count").notNull().default(0),
   
   // Documentos para verificação
   documentUrl: text("document_url"),

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, users, jobs, leads, transactions, appConfig, creditPackages, categories } from "@workspace/db";
 import { CONFIG_KEYS, CONFIG_DEFAULTS } from "@workspace/db/schema";
-import { eq, desc, sql, and } from "drizzle-orm";
+import { eq, desc, sql, and, inArray } from "drizzle-orm";
 import { authenticate, isAdmin, AuthRequest } from "../middlewares/auth";
 
 const router = Router();
@@ -28,7 +28,7 @@ router.get("/config", async (req, res) => {
       CONFIG_KEYS.APP_MAINTENANCE_MODE
     ];
     
-    const rows = await db.select().from(appConfig).where(sql`key = ANY(${keys})`);
+    const rows = await db.select().from(appConfig).where(inArray(appConfig.key, keys as any));
     
     const result: Record<string, string> = {};
     keys.forEach(k => { result[k] = CONFIG_DEFAULTS[k]; });

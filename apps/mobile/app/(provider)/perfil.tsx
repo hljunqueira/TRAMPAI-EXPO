@@ -17,8 +17,11 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
-import { Image } from "expo-image";
+import { 
+  Image 
+} from "expo-image";
 import * as ImagePicker from "expo-image-picker";
+import { KeyboardAvoidingView } from "react-native";
 
 import { useAuth, API_BASE_URL } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
@@ -73,7 +76,7 @@ export default function ProviderPerfil() {
   async function confirmBoost() {
     setBoostModalVisible(false);
     try {
-      const token = await SecureStore.getItemAsync("userToken");
+      const token = await SecureStore.getItemAsync("trampai_auth_token");
       const response = await fetch(`${API_BASE_URL}/api/users/me/boost`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -97,7 +100,7 @@ export default function ProviderPerfil() {
   async function confirmPremium() {
     setPremiumModalVisible(false);
     try {
-      const token = await SecureStore.getItemAsync("userToken");
+      const token = await SecureStore.getItemAsync("trampai_auth_token");
       const response = await fetch(`${API_BASE_URL}/api/users/me/premium`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -116,7 +119,7 @@ export default function ProviderPerfil() {
   async function saveBio() {
     setSavingBio(true);
     try {
-      const token = await SecureStore.getItemAsync("userToken");
+      const token = await SecureStore.getItemAsync("trampai_auth_token");
       const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
         method: "PATCH",
         headers: {
@@ -127,9 +130,14 @@ export default function ProviderPerfil() {
       });
       if (res.ok) {
         setBioModalVisible(false);
+        Alert.alert("Sucesso", "Biografia profissional atualizada com sucesso!");
         fetchMyData();
+      } else {
+        const error = await res.json();
+        Alert.alert("Erro", error.error || "Erro ao salvar biografia.");
       }
     } catch (e) {
+      console.error(e);
       Alert.alert("Erro", "Falha ao salvar biografia.");
     } finally {
       setSavingBio(false);
@@ -196,6 +204,13 @@ export default function ProviderPerfil() {
 
   async function pickPortfolioImage(isPaid = false) {
     const currentImages = user?.portfolioImages || [];
+    if (isPaid) {
+      if ((user?.creditBalance || 0) < 5) {
+        Alert.alert("Créditos Insuficientes", "Você precisa de 5 créditos para desbloquear o pacote de 6 fotos.");
+        return;
+      }
+    }
+
     if (!isPaid && currentImages.length >= 1 && !user?.hasUnlockedPortfolio) {
       Alert.alert("Limite Atingido", "Você já usou sua foto gratuita. Desbloqueie o pacote de 6 fotos por 5 créditos.");
       return;
@@ -294,7 +309,9 @@ export default function ProviderPerfil() {
               )}
               <View style={[styles.ratingChip, { backgroundColor: colors.secondary + "15" }]}>
                 <MaterialCommunityIcons name="star" size={12} color={colors.secondary} />
-                <Text style={[styles.ratingText, { color: colors.secondary, fontFamily: "Inter_700Bold" }]}>{user?.rating || "5.0"}</Text>
+                <Text style={[styles.ratingText, { color: colors.secondary, fontFamily: "Inter_700Bold" }]}>
+                  {user?.reviewCount && user.reviewCount > 0 ? user.rating : "Novo"}
+                </Text>
               </View>
             </View>
             
@@ -332,33 +349,36 @@ export default function ProviderPerfil() {
           </View>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickActions}>
-          <TouchableOpacity style={[styles.primaryAction, { backgroundColor: "#e8c08a" }]} onPress={() => router.push("/editar-perfil")}>
-            <MaterialCommunityIcons name="account-edit" size={20} color={colors.primary} />
-            <View>
+        <View style={styles.quickActionsVertical}>
+          <TouchableOpacity style={[styles.primaryActionFull, { backgroundColor: "#e8c08a" }]} onPress={() => router.push("/editar-perfil")}>
+            <MaterialCommunityIcons name="account-edit" size={22} color={colors.primary} />
+            <View style={{ flex: 1 }}>
                <Text style={[styles.actionText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Editar Perfil</Text>
-               <Text style={{ color: colors.primary, fontSize: 11, opacity: 0.8 }}>Atualize seus dados</Text>
+               <Text style={{ color: colors.primary, fontSize: 11, opacity: 0.8 }}>Atualize seus dados pessoais e contato</Text>
             </View>
+            <MaterialCommunityIcons name="chevron-right" size={20} color={colors.primary + "40"} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.secondaryAction, { borderColor: colors.primary + "30" }]} onPress={() => router.push("/(provider)/carteira")}>
-            <MaterialCommunityIcons name="wallet" size={20} color={colors.primary} />
-            <View>
+          <TouchableOpacity style={[styles.secondaryActionFull, { borderColor: colors.primary + "15", backgroundColor: "#fff" }]} onPress={() => router.push("/(provider)/carteira")}>
+            <MaterialCommunityIcons name="wallet" size={22} color={colors.primary} />
+            <View style={{ flex: 1 }}>
                <Text style={[styles.actionText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Minha Carteira</Text>
-               <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Comprar créditos</Text>
+               <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Saldo de créditos: {user?.creditBalance || 0}</Text>
             </View>
+            <MaterialCommunityIcons name="chevron-right" size={20} color={colors.primary + "40"} />
           </TouchableOpacity>
           
-          <TouchableOpacity style={[styles.secondaryAction, { borderColor: colors.primary + "30" }]} onPress={handleSwitchMode}>
-            <MaterialCommunityIcons name="shield-account" size={20} color={colors.primary} />
-            <View>
+          <TouchableOpacity style={[styles.outlineActionFull, { borderColor: colors.primary + "15", backgroundColor: "#fff" }]} onPress={handleSwitchMode}>
+            <MaterialCommunityIcons name="swap-horizontal" size={22} color={colors.primary} />
+            <View style={{ flex: 1 }}>
                <Text style={[styles.actionText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>
                  {user?.role === "admin" ? "Painel Admin" : "Sou Cliente"}
                </Text>
-               <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Alternar visão</Text>
+               <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Alternar visão do aplicativo</Text>
             </View>
+            <MaterialCommunityIcons name="chevron-right" size={20} color={colors.primary + "40"} />
           </TouchableOpacity>
-        </ScrollView>
+        </View>
 
         <View style={[styles.sectionCard, { backgroundColor: colors.navy, borderColor: colors.accent, borderWidth: 1 }]}>
           <Text style={[styles.sectionTitle, { color: "#FFF", fontFamily: "Inter_700Bold" }]}>Crescimento e Destaque 🚀</Text>
@@ -432,21 +452,23 @@ export default function ProviderPerfil() {
       </ScrollView>
 
       <Modal visible={bioModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: "#FFF" }]}>
-            <Text style={[styles.modalTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Sobre o Profissional</Text>
-            <Text style={[styles.modalSub, { color: colors.mutedForeground }]}>Conte aos clientes sobre sua experiência e diferenciais.</Text>
-            <TextInput style={[styles.bioInput, { borderColor: colors.border, color: colors.primary }]} multiline value={tempBio} onChangeText={setTempBio} placeholder="Digite aqui sua biografia profissional..." />
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalCancel} onPress={() => setBioModalVisible(false)} disabled={savingBio}>
-                <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalConfirm, { backgroundColor: colors.secondary }]} onPress={saveBio} disabled={savingBio}>
-                {savingBio ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: "#FFF", fontFamily: "Inter_700Bold" }}>Salvar</Text>}
-              </TouchableOpacity>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { backgroundColor: "#FFF" }]}>
+              <Text style={[styles.modalTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Sobre o Profissional</Text>
+              <Text style={[styles.modalSub, { color: colors.mutedForeground }]}>Conte aos clientes sobre sua experiência e diferenciais.</Text>
+              <TextInput style={[styles.bioInput, { borderColor: colors.border, color: colors.primary }]} multiline value={tempBio} onChangeText={setTempBio} placeholder="Digite aqui sua biografia profissional..." />
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={styles.modalCancel} onPress={() => setBioModalVisible(false)} disabled={savingBio}>
+                  <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.modalConfirm, { backgroundColor: colors.secondary }]} onPress={saveBio} disabled={savingBio}>
+                  {savingBio ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: "#FFF", fontFamily: "Inter_700Bold" }}>Salvar</Text>}
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={portfolioModalVisible} transparent animationType="fade">
@@ -549,15 +571,16 @@ const styles = StyleSheet.create({
   chipsRow: { flexDirection: "row", gap: 10 },
   chip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 100 },
   chipText: { fontSize: 12 },
-  quickActions: { flexDirection: "row", paddingHorizontal: 20, paddingRight: 40, gap: 12, marginBottom: 20 },
-  primaryAction: { flexDirection: "row", height: 50, paddingHorizontal: 16, alignItems: "center", justifyContent: "center", borderRadius: 16, gap: 8, shadowColor: "#e8c08a", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 3 },
-  secondaryAction: { flexDirection: "row", height: 50, paddingHorizontal: 16, alignItems: "center", justifyContent: "center", borderRadius: 16, borderWidth: 1.5, gap: 8 },
-  actionText: { fontSize: 14 },
+  statDivider: { width: 1, height: 24 },
   statsGrid: { flexDirection: "row", alignItems: "center", marginHorizontal: 20, padding: 20, borderRadius: 24, marginBottom: 20, shadowColor: "#0b1339", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
   statBox: { flex: 1, alignItems: "center" },
   statValue: { fontSize: 20, marginBottom: 2 },
   statLabel: { fontSize: 11 },
-  statDivider: { width: 1, height: 24 },
+  actionText: { fontSize: 15 },
+  quickActionsVertical: { paddingHorizontal: 20, gap: 12, marginBottom: 24 },
+  primaryActionFull: { flexDirection: "row", padding: 16, alignItems: "center", borderRadius: 20, gap: 16, shadowColor: "#e8c08a", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 10, elevation: 3 },
+  secondaryActionFull: { flexDirection: "row", padding: 16, alignItems: "center", borderRadius: 20, borderWidth: 1.5, gap: 16 },
+  outlineActionFull: { flexDirection: "row", padding: 16, alignItems: "center", borderRadius: 20, borderWidth: 1.5, gap: 16 },
   sectionCard: { marginHorizontal: 20, borderRadius: 24, padding: 20, marginBottom: 16, shadowColor: "#0b1339", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
   sectionTitle: { fontSize: 16, marginBottom: 8 },
   sectionDesc: { fontSize: 13, lineHeight: 20 },
