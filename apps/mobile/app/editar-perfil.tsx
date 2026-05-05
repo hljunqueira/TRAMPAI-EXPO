@@ -40,7 +40,7 @@ export default function EditarPerfil() {
     
     setLoading(true);
     try {
-      const token = await SecureStore.getItemAsync("userToken");
+      const token = await SecureStore.getItemAsync("trampai_auth_token");
       const res = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/auth/me`, {
         method: "PATCH",
         headers: {
@@ -58,7 +58,7 @@ export default function EditarPerfil() {
       if (res.ok) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setSuccess(true);
-        // Recarregar os dados do AuthContext (pode precisar do loadSession ou fetchMyData)
+        fetchMyData(); // Atualiza o estado global
         setTimeout(() => {
           router.back();
         }, 1500);

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { boolean, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 import { jobs } from "./jobs";
@@ -24,7 +24,7 @@ export const users = pgTable("users", {
   // Documentos para verificação
   documentUrl: text("document_url"),
   selfieUrl: text("selfie_url"),
-  portfolioImages: text("portfolio_images").array(),
+   portfolioImages: jsonb("portfolio_images").$type<{url: string, description?: string}[]>(),
   
   // Localização
   city: text("city"),

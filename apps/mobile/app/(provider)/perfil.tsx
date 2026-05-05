@@ -38,6 +38,10 @@ export default function ProviderPerfil() {
   const [portfolioModalVisible, setPortfolioModalVisible] = React.useState(false);
   const [boostModalVisible, setBoostModalVisible] = React.useState(false);
   const [premiumModalVisible, setPremiumModalVisible] = React.useState(false);
+  const [descModalVisible, setDescModalVisible] = React.useState(false);
+  const [tempPortfolioDesc, setTempPortfolioDesc] = React.useState("");
+  const [pendingImageUrl, setPendingImageUrl] = React.useState("");
+  const [isPaidUpload, setIsPaidUpload] = React.useState(false);
 
   const myLeads = leads.filter((l) => l.providerId === user?.id);
   const isVerified = user?.verificationStatus === "APPROVED" || user?.role === "admin";
@@ -180,7 +184,7 @@ export default function ProviderPerfil() {
     if (!result.canceled && result.assets[0].base64) {
       setSavingBio(true);
       try {
-        const token = await SecureStore.getItemAsync("userToken");
+        const token = await SecureStore.getItemAsync("trampai_auth_token");
         const uploadRes = await fetch(`${API_BASE_URL}/api/upload`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -227,33 +231,55 @@ export default function ProviderPerfil() {
     if (!result.canceled && result.assets[0].base64) {
       setSavingBio(true);
       try {
-        const token = await SecureStore.getItemAsync("userToken");
+        const token = await SecureStore.getItemAsync("trampai_auth_token");
         const uploadRes = await fetch(`${API_BASE_URL}/api/upload`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ imageBase64: result.assets[0].base64, ext: "jpg" }),
         });
         const { url } = await uploadRes.json();
-
-        const newImages = [...currentImages, url];
-        const updateRes = await fetch(`${API_BASE_URL}/api/auth/me`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ portfolioImages: newImages }),
-        });
-
-        if (updateRes.ok) {
-          setPortfolioModalVisible(false);
-          fetchMyData();
-        } else {
-          const err = await updateRes.json();
-          Alert.alert("Erro", err.error || "Erro ao salvar foto no portfólio.");
-        }
+        
+        setPendingImageUrl(url);
+        setIsPaidUpload(isPaid);
+        setPortfolioModalVisible(false);
+        setDescModalVisible(true);
       } catch (e) {
-        Alert.alert("Erro", "Falha no processo de upload.");
-      } finally {
+        Alert.alert("Erro", "Falha ao fazer upload.");
         setSavingBio(false);
       }
+    }
+  }
+
+  async function savePortfolioItem() {
+    setSavingBio(true);
+    try {
+      const token = await SecureStore.getItemAsync("trampai_auth_token");
+      const currentImages = user?.portfolioImages || [];
+      const newItem = { url: pendingImageUrl, description: tempPortfolioDesc };
+      
+      // Normalizar imagens antigas se necessário
+      const normalizedImages = currentImages.map(img => typeof img === 'string' ? { url: img, description: "" } : img);
+      const newImages = [...normalizedImages, newItem];
+
+      const updateRes = await fetch(`${API_BASE_URL}/api/auth/me`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ portfolioImages: newImages }),
+      });
+
+      if (updateRes.ok) {
+        setDescModalVisible(false);
+        setTempPortfolioDesc("");
+        setPendingImageUrl("");
+        fetchMyData();
+      } else {
+        const err = await updateRes.json();
+        Alert.alert("Erro", err.error || "Erro ao salvar portfólio.");
+      }
+    } catch (e) {
+      Alert.alert("Erro", "Falha ao salvar portfólio.");
+    } finally {
+      setSavingBio(false);
     }
   }
 
@@ -428,9 +454,16 @@ export default function ProviderPerfil() {
           
           {user?.portfolioImages && user.portfolioImages.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
-              {user.portfolioImages.map((img: string, idx: number) => (
-                <Image key={idx} source={{ uri: img }} style={styles.portfolioImg} contentFit="cover" />
-              ))}
+              {user.portfolioImages.map((item: any, idx: number) => {
+                const url = typeof item === 'string' ? item : item.url;
+                const desc = typeof item === 'string' ? '' : item.description;
+                return (
+                  <View key={idx} style={{ width: 140 }}>
+                    <Image source={{ uri: url }} style={[styles.portfolioImg, { width: 140, height: 140 }]} contentFit="cover" />
+                    {desc ? <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 4, textAlign: 'center' }} numberOfLines={2}>{desc}</Text> : null}
+                  </View>
+                );
+              })}
             </ScrollView>
           ) : (
             <View style={styles.emptyPortfolio}>
@@ -496,6 +529,34 @@ export default function ProviderPerfil() {
               <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }}>Fechar</Text>
             </TouchableOpacity>
           </View>
+        </View>
+      </Modal>
+
+      <Modal visible={descModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ width: "100%" }}>
+            <View style={[styles.modalContent, { backgroundColor: "#FFF" }]}>
+              <Text style={[styles.modalTitle, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>Legenda da Foto</Text>
+              <Text style={[styles.modalSub, { color: colors.mutedForeground }]}>Adicione uma breve descrição para este trabalho em seu portfólio.</Text>
+              
+              <TextInput
+                style={[styles.bioInput, { borderColor: colors.border, height: 80 }]}
+                value={tempPortfolioDesc}
+                onChangeText={setTempPortfolioDesc}
+                placeholder="Ex: Reforma de quadro elétrico em condomínio..."
+                multiline
+              />
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={styles.modalCancel} onPress={() => { setDescModalVisible(false); setPendingImageUrl(""); }}>
+                  <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.modalConfirm, { backgroundColor: colors.navy }]} onPress={savePortfolioItem} disabled={savingBio}>
+                  {savingBio ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: "#FFF", fontFamily: "Inter_700Bold" }}>Salvar no Portfólio</Text>}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
 

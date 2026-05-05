@@ -26,7 +26,7 @@ export default function ClientDashboard() {
 
   async function handleRespondExclusive(jobId: string, action: 'ACCEPT' | 'DECLINE') {
     try {
-      const token = await SecureStore.getItemAsync("userToken"); // assuming TOKEN_KEY is 'userToken' or similar. We can also just omit Auth if api-client handles it.
+      const token = await SecureStore.getItemAsync("trampai_auth_token");
       // Usar fetch direto para simplicidade ou o api-client se disponível
       const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/jobs/${jobId}/respond-exclusive`, {
         method: 'POST',

@@ -63,7 +63,7 @@ export default function ClientPerfil() {
     if (!result.canceled && result.assets[0].base64) {
       setUploading(true);
       try {
-        const token = await SecureStore.getItemAsync("userToken");
+        const token = await SecureStore.getItemAsync("trampai_auth_token");
         
         // Fazer upload da imagem
         const uploadRes = await fetch(`${API_BASE_URL}/api/upload`, {

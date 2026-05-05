@@ -118,7 +118,7 @@ export default function NovoServico() {
     // Se o cliente digitou uma categoria personalizada, criar via API
     if (showCustomInput && customCategory.trim()) {
       try {
-        const token = await SecureStore.getItemAsync("userToken");
+        const token = await SecureStore.getItemAsync("trampai_auth_token");
         const catRes = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/categories`, {
           method: 'POST',
           headers: {
