@@ -11,16 +11,96 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
+import * as SecureStore from "expo-secure-store";
 
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, API_BASE_URL } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
 export default function ClientPerfil() {
   const colors = useColors();
-  const { user, logout, transactions, activeMode, switchActiveMode } = useAuth();
+  const { user, logout, transactions, activeMode, switchActiveMode, fetchMyData } = useAuth();
   const insets = useSafeAreaInsets();
+  const [uploading, setUploading] = React.useState(false);
+
+  async function pickAvatarImage() {
+    Alert.alert(
+      "Selecionar Foto",
+      "Escolha a origem da sua foto de perfil",
+      [
+        { text: "Câmera", onPress: () => openPicker("camera") },
+        { text: "Galeria", onPress: () => openPicker("gallery") },
+        { text: "Cancelar", style: "cancel" },
+      ]
+    );
+  }
+
+  async function openPicker(type: "camera" | "gallery") {
+    let result;
+    const options: ImagePicker.ImagePickerOptions = {
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+      base64: true,
+    };
+
+    if (type === "camera") {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert("Permissão necessária", "Precisamos de acesso à câmera.");
+        return;
+      }
+      result = await ImagePicker.launchCameraAsync(options);
+    } else {
+      result = await ImagePicker.launchImageLibraryAsync(options);
+    }
+
+    if (!result.canceled && result.assets[0].base64) {
+      setUploading(true);
+      try {
+        const token = await SecureStore.getItemAsync("userToken");
+        
+        // Fazer upload da imagem
+        const uploadRes = await fetch(`${API_BASE_URL}/api/upload`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            imageBase64: result.assets[0].base64,
+            ext: "jpg",
+          }),
+        });
+
+        if (!uploadRes.ok) throw new Error("Erro no upload");
+        const { url } = await uploadRes.json();
+
+        // Salvar no perfil do usuário
+        const updateRes = await fetch(`${API_BASE_URL}/api/auth/me`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ avatarUrl: url }),
+        });
+
+        if (updateRes.ok) {
+          fetchMyData(); // recarregar usuário
+        }
+      } catch (e) {
+        Alert.alert("Erro", "Não foi possível atualizar a foto de perfil.");
+      } finally {
+        setUploading(false);
+      }
+    }
+  }
 
   const myTransactions = transactions
     .filter((t) => t.userId === user?.id)
@@ -70,15 +150,10 @@ export default function ClientPerfil() {
         <View style={styles.headerLeft}>
           <Text style={[styles.headerLogo, { fontFamily: "Inter_800ExtraBold", color: colors.primary }]}>Trampaí</Text>
         </View>
-
         <View style={styles.headerRight}>
-          {user?.role === "admin" && (
-            <TouchableOpacity style={styles.iconBtn} onPress={handleSwitchMode}>
-              <MaterialCommunityIcons name="swap-horizontal" size={22} color={colors.primary} />
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity style={styles.iconBtn} onPress={handleLogout}>
-            <MaterialCommunityIcons name="logout" size={22} color={colors.primary} />
+          <TouchableOpacity style={[styles.iconBtn, { flexDirection: "row", width: "auto", paddingHorizontal: 12, gap: 6, backgroundColor: colors.primary + "10" }]} onPress={handleLogout}>
+            <MaterialCommunityIcons name="logout" size={18} color={colors.primary} />
+            <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold", fontSize: 14 }}>Sair</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -86,9 +161,22 @@ export default function ClientPerfil() {
       <ScrollView contentContainerStyle={{ paddingBottom: 40 + insets.bottom }} showsVerticalScrollIndicator={false}>
         {/* Profile Section */}
         <View style={[styles.profileHero, { backgroundColor: "#FFF" }]}>
-          <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
-            <Text style={[styles.avatarText, { color: "#FFF", fontFamily: "Inter_700Bold" }]}>{initials}</Text>
-          </View>
+          <TouchableOpacity style={styles.avatarWrapper} onPress={pickAvatarImage} disabled={uploading}>
+            <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
+              {user?.avatarUrl ? (
+                <Image source={{ uri: user.avatarUrl }} style={{ width: 90, height: 90, borderRadius: 45 }} contentFit="cover" />
+              ) : (
+                <Text style={[styles.avatarText, { color: "#FFF", fontFamily: "Inter_700Bold" }]}>{initials}</Text>
+              )}
+            </View>
+            <View style={styles.editBadge}>
+              {uploading ? (
+                <ActivityIndicator size="small" color="#FFF" />
+              ) : (
+                <MaterialCommunityIcons name="camera-plus" size={16} color="#FFF" />
+              )}
+            </View>
+          </TouchableOpacity>
           <Text style={[styles.userName, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{user?.name}</Text>
           <Text style={[styles.userEmail, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>{user?.email}</Text>
           
@@ -99,21 +187,31 @@ export default function ClientPerfil() {
         </View>
 
         {/* Action Buttons */}
-        <View style={styles.quickActions}>
-          <TouchableOpacity style={[styles.primaryAction, { backgroundColor: "#e8c08a" }]}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickActions}>
+          <TouchableOpacity 
+            style={[styles.primaryAction, { backgroundColor: "#e8c08a" }]}
+            onPress={() => router.push("/editar-perfil")}
+          >
             <MaterialCommunityIcons name="account-edit" size={20} color={colors.primary} />
-            <Text style={[styles.actionText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Editar Perfil</Text>
+            <View>
+              <Text style={[styles.actionText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Editar Perfil</Text>
+              <Text style={{ color: colors.primary, fontSize: 11, opacity: 0.8 }}>Atualize seus dados</Text>
+            </View>
           </TouchableOpacity>
+          
           <TouchableOpacity 
             style={[styles.secondaryAction, { borderColor: colors.primary + "30" }]}
             onPress={handleSwitchMode}
           >
             <MaterialCommunityIcons name="shield-account" size={20} color={colors.primary} />
-            <Text style={[styles.actionText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>
-              {user?.role === "admin" ? "Painel Admin" : "Ser Prestador"}
-            </Text>
+            <View>
+              <Text style={[styles.actionText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>
+                {user?.role === "admin" ? "Painel Admin" : "Ser Prestador"}
+              </Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Alternar visão</Text>
+            </View>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
 
         {/* Credits Card */}
         <View style={styles.creditsCard}>
@@ -212,21 +310,39 @@ const styles = StyleSheet.create({
   },
   profileHero: {
     alignItems: "center",
-    paddingVertical: 32,
+    paddingTop: 24,
+    paddingBottom: 20,
     paddingHorizontal: 20,
   },
+  avatarWrapper: {
+    position: "relative",
+    marginBottom: 12,
+  },
   avatarCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
     shadowColor: "#0b1339",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 4,
+    overflow: "hidden",
+  },
+  editBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#e8c08a",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 3,
+    borderColor: "#FFF",
   },
   avatarText: {
     fontSize: 32,
@@ -253,13 +369,14 @@ const styles = StyleSheet.create({
   quickActions: {
     flexDirection: "row",
     paddingHorizontal: 20,
+    paddingRight: 40,
     gap: 12,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   primaryAction: {
-    flex: 1,
     flexDirection: "row",
-    height: 54,
+    height: 50,
+    paddingHorizontal: 16,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 16,
@@ -271,9 +388,9 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   secondaryAction: {
-    flex: 1,
     flexDirection: "row",
-    height: 54,
+    height: 50,
+    paddingHorizontal: 16,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 16,

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, users, creditPackages, transactions, leads, jobs, categories } from "@workspace/db";
+import { db, users, creditPackages, transactions, leads, jobs, categories, reviews } from "@workspace/db";
 import { eq, sql, desc } from "drizzle-orm";
 import { authenticate, AuthRequest } from "../middlewares/auth";
 import { supabase } from "../lib/supabase";
@@ -148,6 +148,7 @@ router.get("/leads/me", authenticate, async (req: AuthRequest, res: any) => {
       .select({
         id: leads.id,
         jobId: leads.jobId,
+        providerId: leads.providerId,
         type: leads.type,
         cost: leads.cost,
         whatsappLink: leads.whatsappLink,
@@ -188,6 +189,118 @@ router.get("/transactions/me", authenticate, async (req: AuthRequest, res: any) 
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Erro ao buscar transações" });
+  }
+});
+
+router.patch("/users/me/boost", authenticate, async (req: AuthRequest, res: any) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ error: "Não autorizado" });
+
+    const [user] = await db.select().from(users).where(eq(users.id, userId as string));
+    const cost = 5; // 5 créditos por 24h de boost
+
+    if (user.creditBalance < cost) {
+      return res.status(400).json({ error: "Créditos insuficientes" });
+    }
+
+    const boostUntil = new Date();
+    boostUntil.setHours(boostUntil.getHours() + 24);
+
+    await db.transaction(async (tx) => {
+      await tx.update(users)
+        .set({ 
+          creditBalance: user.creditBalance - cost,
+          boostedUntil: boostUntil,
+          updatedAt: new Date() 
+        })
+        .where(eq(users.id, userId as string));
+
+      await tx.insert(transactions).values({
+        userId: userId as string,
+        type: "BOOST_SPEND",
+        credits: -cost,
+        amountCents: 0,
+        description: "Impulsionamento de perfil (24h)",
+      });
+    });
+
+    return res.json({ success: true, boostedUntil: boostUntil });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erro ao impulsionar perfil" });
+  }
+});
+
+router.patch("/users/me/premium", authenticate, async (req: AuthRequest, res: any) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ error: "Não autorizado" });
+
+    const [user] = await db.select().from(users).where(eq(users.id, userId as string));
+    const cost = 20; // 20 créditos por 30 dias de Premium
+
+    if (user.creditBalance < cost) {
+      return res.status(400).json({ error: "Créditos insuficientes" });
+    }
+
+    await db.transaction(async (tx) => {
+      await tx.update(users)
+        .set({ 
+          creditBalance: user.creditBalance - cost,
+          isPremium: true,
+          updatedAt: new Date() 
+        })
+        .where(eq(users.id, userId as string));
+
+      await tx.insert(transactions).values({
+        userId: userId as string,
+        type: "PREMIUM_SPEND",
+        credits: -cost,
+        amountCents: 0,
+        description: "Assinatura Selo Premium (30 dias)",
+      });
+    });
+
+    return res.json({ success: true, isPremium: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erro ao assinar premium" });
+  }
+});
+
+// Buscar avaliações de um usuário (para Lead Plus/Exclusivo)
+router.get("/users/:id/reviews", authenticate, async (req: AuthRequest, res: any) => {
+  try {
+    const targetUserId = req.params.id;
+
+    const userReviews = await db
+      .select({
+        id: reviews.id,
+        rating: reviews.rating,
+        comment: reviews.comment,
+        createdAt: reviews.createdAt,
+        fromUser: {
+          id: users.id,
+          name: users.name,
+          avatarUrl: users.avatarUrl,
+        },
+      })
+      .from(reviews)
+      .innerJoin(users, eq(reviews.fromUserId, users.id))
+      .where(eq(reviews.toUserId, targetUserId as string))
+      .orderBy(desc(reviews.createdAt))
+      .limit(10);
+
+    // Calcular a média
+    const avgRating = userReviews.length > 0
+      ? (userReviews.reduce((acc, r) => acc + r.rating, 0) / userReviews.length).toFixed(1)
+      : null;
+
+    return res.json({ reviews: userReviews, avgRating, total: userReviews.length });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erro ao buscar avaliações" });
   }
 });
 

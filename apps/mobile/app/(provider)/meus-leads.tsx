@@ -36,11 +36,14 @@ export default function MeusLeads() {
     setRefreshing(false);
   };
 
+  const now = Date.now();
+  const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
   const filteredLeads = leads
     .filter((l) => {
-      // Por enquanto, consideramos todos como ativos
-      if (activeTab === "active") return true;
-      return false; 
+      const age = now - new Date(l.createdAt).getTime();
+      if (activeTab === "active") return age <= THIRTY_DAYS_MS;
+      return age > THIRTY_DAYS_MS;
     })
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
@@ -126,9 +129,27 @@ export default function MeusLeads() {
             <View style={styles.cardMain}>
               <View style={styles.cardHeader}>
                 <View style={styles.cardHeaderLeft}>
-                  <View style={[styles.statusBadge, { backgroundColor: colors.cyan + "20" }]}>
-                    <MaterialCommunityIcons name="clock-outline" size={12} color={colors.cyan} />
-                    <Text style={[styles.statusText, { color: colors.cyan, fontFamily: "Inter_700Bold" }]}>Em Aberto</Text>
+                  <View style={styles.badgesRow}>
+                    <View style={[styles.statusBadge, { backgroundColor: colors.cyan + "20" }]}>
+                      <MaterialCommunityIcons name="clock-outline" size={12} color={colors.cyan} />
+                      <Text style={[styles.statusText, { color: colors.cyan, fontFamily: "Inter_700Bold" }]}>Em Aberto</Text>
+                    </View>
+                    {/* Badge de tipo do lead */}
+                    <View style={[styles.statusBadge, { 
+                      backgroundColor: item.type === "EXCLUSIVE" ? "#e8c08a30" : item.type === "PLUS" ? colors.secondary + "20" : "#00000008"
+                    }]}>
+                      <MaterialCommunityIcons 
+                        name={item.type === "EXCLUSIVE" ? "crown" : item.type === "PLUS" ? "shield-check" : "lock-open"} 
+                        size={12} 
+                        color={item.type === "EXCLUSIVE" ? "#b8860b" : item.type === "PLUS" ? colors.secondary : colors.mutedForeground} 
+                      />
+                      <Text style={[styles.statusText, { 
+                        color: item.type === "EXCLUSIVE" ? "#b8860b" : item.type === "PLUS" ? colors.secondary : colors.mutedForeground, 
+                        fontFamily: "Inter_700Bold" 
+                      }]}>
+                        {item.type === "EXCLUSIVE" ? "Exclusivo" : item.type === "PLUS" ? "Plus" : "Normal"}
+                      </Text>
+                    </View>
                   </View>
                   <Text style={[styles.title, { color: colors.navy, fontFamily: "Inter_800ExtraBold" }]}>{item.jobTitle}</Text>
                 </View>
@@ -202,6 +223,7 @@ const styles = StyleSheet.create({
   tabItem: { flex: 1, alignItems: "center", paddingVertical: 15 },
   tabText: { fontSize: 14 },
   list: { padding: 20 },
+  badgesRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   card: {
     backgroundColor: "#fff",
     borderRadius: 24,

@@ -1,3 +1,4 @@
+import * as SecureStore from "expo-secure-store";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React from "react";
@@ -16,12 +17,34 @@ import { useColors } from "@/hooks/useColors";
 
 export default function ClientDashboard() {
   const colors = useColors();
-  const { user, services, activeMode, switchActiveMode } = useAuth();
+  const { user, services, activeMode, switchActiveMode, fetchMyData } = useAuth();
   const insets = useSafeAreaInsets();
 
   const myServices = services.filter((s) => s.clientId === user?.id);
   const openServices = myServices.filter((s) => s.status === "open");
   const closedServices = myServices.filter((s) => s.status === "completed");
+
+  async function handleRespondExclusive(jobId: string, action: 'ACCEPT' | 'DECLINE') {
+    try {
+      const token = await SecureStore.getItemAsync("userToken"); // assuming TOKEN_KEY is 'userToken' or similar. We can also just omit Auth if api-client handles it.
+      // Usar fetch direto para simplicidade ou o api-client se disponível
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/jobs/${jobId}/respond-exclusive`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ action })
+      });
+
+      if (response.ok) {
+        // Recarregar os serviços
+        await fetchMyData();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -100,6 +123,44 @@ export default function ClientDashboard() {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Solicitações Exclusivas Pendentes */}
+        {myServices.some(s => s.status === 'exclusive_pending') && (
+          <View style={styles.exclusiveSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.exclusiveTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Solicitações Exclusivas 💎</Text>
+            </View>
+            <Text style={[styles.exclusiveSub, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+              Profissionais querem te atender com exclusividade. Aprove o perfil para liberar o contato.
+            </Text>
+            
+            {myServices.filter(s => s.status === 'exclusive_pending').map(s => (
+              <View key={s.id} style={[styles.exclusiveCard, { backgroundColor: colors.navy + "05", borderColor: colors.navy + "20" }]}>
+                <View style={styles.exclusiveHeader}>
+                  <Text style={[styles.exclusiveJobTitle, { color: colors.navy, fontFamily: "Inter_600SemiBold" }]}>{s.title}</Text>
+                  <View style={[styles.badge, { backgroundColor: colors.accent }]}>
+                    <Text style={[styles.badgeText, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>EXCLUSIVO</Text>
+                  </View>
+                </View>
+                
+                <View style={styles.exclusiveActions}>
+                  <TouchableOpacity 
+                    style={[styles.actionBtn, { backgroundColor: colors.navy }]}
+                    onPress={() => handleRespondExclusive(s.id, 'ACCEPT')}
+                  >
+                    <Text style={[styles.actionBtnText, { color: "#FFF", fontFamily: "Inter_600SemiBold" }]}>Aceitar Profissional</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.actionBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.border }]}
+                    onPress={() => handleRespondExclusive(s.id, 'DECLINE')}
+                  >
+                    <Text style={[styles.actionBtnText, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>Recusar</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
         {openServices.length === 0 ? (
           <View style={[styles.emptyState, { backgroundColor: "#FFF", borderRadius: 20 }]}>
@@ -305,4 +366,44 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   tipText: { flex: 1, fontSize: 13, lineHeight: 18 },
+  exclusiveSection: {
+    padding: 20,
+    backgroundColor: "#FFF",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "#00000005",
+    gap: 12,
+  },
+  exclusiveTitle: { fontSize: 18 },
+  exclusiveSub: { fontSize: 13, marginBottom: 8 },
+  exclusiveCard: {
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    gap: 16,
+  },
+  exclusiveHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  exclusiveJobTitle: { fontSize: 15, flex: 1, marginRight: 8 },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  badgeText: { fontSize: 10 },
+  exclusiveActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  actionBtn: {
+    flex: 1,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+  },
+  actionBtnText: { fontSize: 14 },
 });

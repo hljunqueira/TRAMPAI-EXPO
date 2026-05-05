@@ -12,7 +12,10 @@ export const transactions = pgTable("transactions", {
     "WELCOME_BONUS", 
     "REFUND_ANTIVACUO", 
     "ADMIN_GRANT", 
-    "REFERRAL_BONUS"
+    "REFERRAL_BONUS",
+    "BOOST_SPEND",
+    "PREMIUM_SPEND",
+    "REFUND"
   ] }).notNull(),
   credits: integer("credits").notNull(),
   amountCents: integer("amount_cents").notNull().default(0),

@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, jobs, categories, users, leads, transactions } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { db, jobs, categories, users, leads, transactions, reviews } from "@workspace/db";
+import { eq, desc, sql } from "drizzle-orm";
 import { authenticate, AuthRequest } from "../middlewares/auth";
 import { getConfig } from "./admin";
 import { CONFIG_KEYS } from "@workspace/db/schema";
@@ -77,7 +77,7 @@ router.post("/jobs/:id/unlock", authenticate, async (req: AuthRequest, res: any)
   try {
     const jobId = req.params.id as string;
     const providerId = req.user?.userId;
-    const { type } = req.body; // NORMAL ou EXCLUSIVE
+    const { type } = req.body; // NORMAL, PLUS ou EXCLUSIVE
 
     if (!providerId) return res.status(401).json({ error: "Não autorizado" });
 
@@ -87,9 +87,13 @@ router.post("/jobs/:id/unlock", authenticate, async (req: AuthRequest, res: any)
         id: jobs.id,
         title: jobs.title,
         status: jobs.status,
+        clientId: jobs.clientId,
         client: {
+          id: users.id,
           phone: users.phone,
           name: users.name,
+          jobsPostedCount: users.jobsPostedCount,
+          jobsCompletedCount: users.jobsCompletedCount,
         }
       })
       .from(jobs)
@@ -99,26 +103,27 @@ router.post("/jobs/:id/unlock", authenticate, async (req: AuthRequest, res: any)
     if (!job) return res.status(404).json({ error: "Trabalho não encontrado" });
     if (job.status !== "open") return res.status(400).json({ error: "Este lead já não está mais disponível" });
 
-    // 2. Buscar o prestador (para créditos)
+    // 2. Definir custo
+    let cost = 1;
+    if (type === "PLUS") cost = 3;
+    if (type === "EXCLUSIVE") cost = 5;
+
+    // 3. Buscar o prestador (para créditos)
     const [provider] = await db.select().from(users).where(eq(users.id, providerId));
     if (!provider) return res.status(404).json({ error: "Prestador não encontrado" });
-
-    const cost = type === "EXCLUSIVE"
-      ? Number(await getConfig(CONFIG_KEYS.LEAD_EXCLUSIVE_COST))
-      : Number(await getConfig(CONFIG_KEYS.LEAD_NORMAL_COST));
 
     if (provider.creditBalance < cost) {
       return res.status(400).json({ error: "Créditos insuficientes" });
     }
 
-    // 3. Gerar link do WhatsApp
+    // 4. Gerar link do WhatsApp
     const phone = job.client.phone?.replace(/\D/g, "");
     if (!phone) return res.status(400).json({ error: "Cliente não possui telefone cadastrado" });
     
     const message = encodeURIComponent(`Olá ${job.client.name}, vi seu pedido no Trampaí: "${job.title}". Tenho interesse em ajudar!`);
     const whatsappLink = `https://wa.me/55${phone}?text=${message}`;
 
-    // 4. Transação: Deduzir créditos e criar lead
+    // 5. Transação: Deduzir créditos e criar lead
     await db.transaction(async (tx) => {
       // Deduzir créditos
       await tx.update(users)
@@ -131,7 +136,7 @@ router.post("/jobs/:id/unlock", authenticate, async (req: AuthRequest, res: any)
         type: "UNLOCK_SPEND",
         credits: -cost,
         amountCents: 0,
-        description: `Lead ${type === "EXCLUSIVE" ? "exclusivo" : "normal"}: ${job.title}`,
+        description: `Lead ${type}: ${job.title}`,
       });
 
       // Criar lead
@@ -143,19 +148,103 @@ router.post("/jobs/:id/unlock", authenticate, async (req: AuthRequest, res: any)
         whatsappLink,
       });
 
-      // Se for exclusivo, fecha o job para outros
+      // Lógica de Exclusividade
       if (type === "EXCLUSIVE") {
+        // Coloca o job em pendência de match
         await tx.update(jobs)
-          .set({ status: "in_progress" })
+          .set({ status: "exclusive_pending" })
           .where(eq(jobs.id, jobId));
       }
     });
 
+    // Se for PLUS ou EXCLUSIVE, buscamos as avaliações do cliente para retornar
+    let clientReviews: any[] = [];
+    if (type === "PLUS" || type === "EXCLUSIVE") {
+      clientReviews = await db
+        .select()
+        .from(reviews)
+        .where(eq(reviews.toUserId, job.clientId))
+        .orderBy(desc(reviews.createdAt))
+        .limit(5);
+    }
 
-    return res.json({ whatsappLink, job });
+    return res.json({ 
+      whatsappLink, 
+      job: {
+        ...job,
+        clientReviews
+      } 
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Erro ao desbloquear lead" });
+  }
+});
+
+// Aceitar ou Recusar Lead Exclusivo (Visão do Cliente)
+router.post("/jobs/:id/respond-exclusive", authenticate, async (req: AuthRequest, res: any) => {
+  try {
+    const jobId = req.params.id;
+    const { action } = req.body; // ACCEPT ou DECLINE
+    const clientId = req.user?.userId;
+
+    if (!clientId) return res.status(401).json({ error: "Não autorizado" });
+
+    const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId as string));
+    if (!job) return res.status(404).json({ error: "Serviço não encontrado" });
+    if (job.clientId !== clientId) return res.status(403).json({ error: "Apenas o dono do serviço pode responder" });
+    if (job.status !== "exclusive_pending") return res.status(400).json({ error: "Este serviço não possui uma solicitação exclusiva pendente" });
+
+    // Buscar o lead exclusivo pendente
+    const [lead] = await db
+      .select()
+      .from(leads)
+      .where(sql`${leads.jobId} = ${jobId} AND ${leads.type} = 'EXCLUSIVE'`)
+      .orderBy(desc(leads.createdAt))
+      .limit(1);
+
+    if (!lead) return res.status(404).json({ error: "Lead não encontrado" });
+
+    if (action === "ACCEPT") {
+      await db.update(jobs)
+        .set({ status: "in_progress", updatedAt: new Date() })
+        .where(eq(jobs.id, jobId as string));
+      
+      return res.json({ success: true, message: "Lead aceito com sucesso!" });
+    } else {
+      // RECUSOU: Reembolsar prestador e reabrir job
+      await db.transaction(async (tx) => {
+        // Reabrir job
+        await tx.update(jobs)
+          .set({ status: "open", updatedAt: new Date() })
+          .where(eq(jobs.id, jobId as string));
+
+        // Buscar prestador
+        const [provider] = await tx.select().from(users).where(eq(users.id, lead.providerId));
+        
+        // Reembolsar créditos
+        await tx.update(users)
+          .set({ creditBalance: provider.creditBalance + lead.cost })
+          .where(eq(users.id, lead.providerId));
+
+        // Registrar transação de reembolso
+        await tx.insert(transactions).values({
+          userId: lead.providerId,
+          type: "REFUND",
+          credits: lead.cost,
+          amountCents: 0,
+          description: `Estorno Lead Exclusivo Recusado: ${job.title}`,
+        });
+        
+        // Deletar o lead para o job voltar ao mural para outros
+        await tx.delete(leads).where(eq(leads.id, lead.id));
+      });
+
+      return res.json({ success: true, message: "Lead recusado e prestador reembolsado." });
+    }
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erro ao responder solicitação exclusiva" });
   }
 });
 

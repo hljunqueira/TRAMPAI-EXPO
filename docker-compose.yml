@@ -34,6 +34,8 @@ services:
         condition: service_healthy
     networks:
       - trampai-network
+    volumes:
+      - trampai-api-uploads:/app/public/uploads
 
   # ── SUPABASE DATABASE ─────────────────────────
   supabase-db-trampai:
@@ -160,6 +162,7 @@ services:
 
 volumes:
   supabase-db-trampai-data:
+  trampai-api-uploads:
 
 networks:
   trampai-network:

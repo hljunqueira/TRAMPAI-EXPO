@@ -12,7 +12,7 @@ export const jobs = pgTable("jobs", {
   categoryId: uuid("category_id").references(() => categories.id).notNull(),
   clientId: uuid("client_id").references(() => users.id).notNull(),
   budget: integer("budget"), // em centavos
-  status: text("status", { enum: ["open", "in_progress", "completed", "cancelled"] }).notNull().default("open"),
+  status: text("status", { enum: ["open", "in_progress", "completed", "cancelled", "exclusive_pending"] }).notNull().default("open"),
   location: text("location").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

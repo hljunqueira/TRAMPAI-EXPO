@@ -22,6 +22,7 @@ export const users = pgTable("users", {
   // Documentos para verificação
   documentUrl: text("document_url"),
   selfieUrl: text("selfie_url"),
+  portfolioImages: text("portfolio_images").array(),
   
   // Localização
   city: text("city"),
@@ -42,6 +43,10 @@ export const users = pgTable("users", {
   bannedAt: timestamp("banned_at"),
   banReason: text("ban_reason"),
   pushToken: text("push_token"),
+  boostedUntil: timestamp("boosted_until"),
+  isPremium: boolean("is_premium").notNull().default(false),
+  jobsPostedCount: integer("jobs_posted_count").notNull().default(0),
+  jobsCompletedCount: integer("jobs_completed_count").notNull().default(0),
   onboardingCompletedAt: timestamp("onboarding_completed_at"),
   
   emailVerifiedAt: timestamp("email_verified_at"),

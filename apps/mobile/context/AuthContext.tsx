@@ -87,7 +87,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 // const API_BASE_URL = "https://ready-boxes-march.loca.lt/api";
-const API_BASE_URL = "https://api.trampai.com.br";
+export const API_BASE_URL = "https://api.trampai.com.br";
 const TOKEN_KEY = "trampai_auth_token";
 const USER_KEY = "trampai_user_data";
 
@@ -420,18 +420,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function unlockService(
     serviceId: string,
-    type: "NORMAL" | "EXCLUSIVE"
-  ): Promise<{ whatsappLink: string } | { error: string }> {
+    type: "NORMAL" | "PLUS" | "EXCLUSIVE"
+  ): Promise<any> {
     try {
       const result = await unlockMutation.mutateAsync({
         id: serviceId,
-        data: { type }
+        data: { type: type as any }
       });
       
-      // Atualiza o usuário localmente para refletir o novo saldo se a API retornar o job/user
-      // Mas o ideal é que o componente de Mural faça o refetch do usuário ou use o retorno.
-      // Por enquanto, vamos retornar o link.
-      return { whatsappLink: result.whatsappLink || "" };
+      // Atualiza os dados do usuário para refletir o novo saldo
+      fetchMyData();
+      
+      return result;
     } catch (error: any) {
       console.error(error);
       return { error: error.data?.error || "Erro ao desbloquear lead" };

@@ -16,8 +16,10 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import * as SecureStore from "expo-secure-store";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { SUGGESTED_CATEGORIES } from "@/constants/categories";
 import { useCreateJob, useListCategories, useListJobs } from "@workspace/api-client-react";
 
 export default function NovoServico() {
@@ -31,6 +33,8 @@ export default function NovoServico() {
 
   const [title, setTitle] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
+  const [customCategory, setCustomCategory] = useState("");
+  const [showCustomInput, setShowCustomInput] = useState(false);
   const [description, setDescription] = useState("");
   const [cep, setCep] = useState("");
   const [address, setAddress] = useState("");
@@ -43,9 +47,18 @@ export default function NovoServico() {
   const [success, setSuccess] = useState(false);
   const [loadingCep, setLoadingCep] = useState(false);
 
+  // Mescla categorias do banco com fallback de categorias fixas
+  const allCategories = useMemo(() => {
+    const apiCats = categoriesData || [];
+    if (apiCats.length > 0) return apiCats;
+    // Fallback: montar lista a partir das categorias fixas
+    return SUGGESTED_CATEGORIES.map((name, i) => ({ id: `local-${i}`, name }));
+  }, [categoriesData]);
+
   const selectedCategoryName = useMemo(() => {
-    return categoriesData?.find(c => c.id === selectedCategoryId)?.name || "";
-  }, [categoriesData, selectedCategoryId]);
+    if (showCustomInput) return customCategory || "";
+    return allCategories.find(c => c.id === selectedCategoryId)?.name || "";
+  }, [allCategories, selectedCategoryId, showCustomInput, customCategory]);
 
   const myOpenServices = useMemo(() => {
     return jobs?.filter(s => s.clientId === user?.id && s.status === "open") || [];
@@ -92,13 +105,38 @@ export default function NovoServico() {
   async function handleSubmit() {
     setError("");
     if (!title.trim()) return setError("Informe o título do serviço");
-    if (!selectedCategoryId) return setError("Selecione a categoria");
+    if (!selectedCategoryId && !customCategory.trim()) return setError("Selecione ou informe uma categoria");
     if (!description.trim() || description.length < 20)
       return setError("Descreva o serviço com pelo menos 20 caracteres");
     if (!city.trim()) return setError("Informe a cidade");
     
     if (myOpenServices.length >= 3)
       return setError("Você já tem 3 serviços abertos. Feche um antes de postar outro.");
+
+    let categoryIdToUse = selectedCategoryId;
+
+    // Se o cliente digitou uma categoria personalizada, criar via API
+    if (showCustomInput && customCategory.trim()) {
+      try {
+        const token = await SecureStore.getItemAsync("userToken");
+        const catRes = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/categories`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ name: customCategory.trim() }),
+        });
+        if (catRes.ok) {
+          const newCat = await catRes.json();
+          categoryIdToUse = newCat.id;
+        } else {
+          return setError("Não foi possível criar a categoria. Tente selecionar uma da lista.");
+        }
+      } catch {
+        return setError("Erro ao criar categoria personalizada.");
+      }
+    }
 
     try {
       const fullLocation = address ? `${address}, ${city} - CEP: ${cep}` : city;
@@ -107,7 +145,7 @@ export default function NovoServico() {
         data: {
           title: title.trim(),
           description: description.trim(),
-          categoryId: selectedCategoryId,
+          categoryId: categoryIdToUse,
           budget: 0, 
           location: fullLocation,
         }
@@ -200,23 +238,59 @@ export default function NovoServico() {
                 <MaterialCommunityIcons name="chevron-down" size={20} color={colors.mutedForeground} />
               </TouchableOpacity>
 
-              {showCategories && categoriesData && (
+              {showCategories && (
                 <View style={[styles.dropdown, { borderColor: colors.border }]}>
-                  {categoriesData.map((cat) => (
-                    <TouchableOpacity
-                      key={cat.id}
-                      style={styles.dropdownItem}
-                      onPress={() => {
-                        setSelectedCategoryId(cat.id);
-                        setShowCategories(false);
-                      }}
-                    >
-                      <Text style={[styles.dropdownItemText, { color: selectedCategoryId === cat.id ? colors.accent : colors.foreground }]}>
-                        {cat.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                  {loadingCats ? (
+                    <View style={styles.dropdownItem}>
+                      <Text style={{ color: colors.mutedForeground, fontSize: 14 }}>Carregando categorias...</Text>
+                    </View>
+                  ) : (
+                    <>
+                      {allCategories.map((cat) => (
+                        <TouchableOpacity
+                          key={cat.id}
+                          style={styles.dropdownItem}
+                          onPress={() => {
+                            setSelectedCategoryId(cat.id);
+                            setShowCustomInput(false);
+                            setCustomCategory("");
+                            setShowCategories(false);
+                          }}
+                        >
+                          <Text style={[styles.dropdownItemText, { color: selectedCategoryId === cat.id ? colors.accent : colors.foreground }]}>
+                            {cat.name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+
+                      {/* Opção: Outra categoria */}
+                      <TouchableOpacity
+                        style={[styles.dropdownItem, { borderTopWidth: 1, borderTopColor: colors.border + "30" }]}
+                        onPress={() => {
+                          setShowCustomInput(true);
+                          setSelectedCategoryId("");
+                          setShowCategories(false);
+                        }}
+                      >
+                        <Text style={[styles.dropdownItemText, { color: colors.primary }]}>
+                          ✏️ Outra (digitar)
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
                 </View>
+              )}
+
+              {/* Input de categoria customizada */}
+              {showCustomInput && (
+                <TextInput
+                  style={[styles.input, { borderColor: colors.accent, marginTop: 8, color: colors.foreground }]}
+                  placeholder="Digite a categoria..."
+                  placeholderTextColor={colors.mutedForeground}
+                  value={customCategory}
+                  onChangeText={setCustomCategory}
+                  autoFocus
+                />
               )}
             </View>
 

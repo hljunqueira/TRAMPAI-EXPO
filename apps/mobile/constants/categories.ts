@@ -24,20 +24,21 @@ export const CATEGORIES = SUGGESTED_CATEGORIES.map((name) => ({
 }));
 
 export const CREDIT_PACKAGES: CreditPackage[] = [
-  { id: "basico", label: "Básico", credits: 30, priceCents: 2999 },
+  { id: "basico", name: "Básico", credits: 30, priceCents: 2999 },
   {
     id: "profissional",
-    label: "Profissional",
+    name: "Profissional",
     credits: 50,
     priceCents: 4999,
-    highlight: true,
+    isHighlighted: true,
   },
-  { id: "prime", label: "Prime", credits: 100, priceCents: 9999 },
+  { id: "prime", name: "Prime", credits: 100, priceCents: 9999 },
 ];
 
 export const UNLOCK_COSTS = {
   NORMAL: 1,
-  EXCLUSIVE: 3,
+  PLUS: 3,
+  EXCLUSIVE: 5,
 } as const;
 
 export const WELCOME_BONUS_CREDITS = 5;

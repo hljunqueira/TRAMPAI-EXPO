@@ -1,6 +1,6 @@
 export type UserRole = "client" | "provider" | "admin";
-export type ServiceStatus = "open" | "in_progress" | "completed" | "cancelled";
-export type UnlockType = "NORMAL" | "EXCLUSIVE";
+export type ServiceStatus = "open" | "in_progress" | "completed" | "cancelled" | "exclusive_pending";
+export type UnlockType = "NORMAL" | "PLUS" | "EXCLUSIVE";
 export type VerificationStatus = "PENDING" | "APPROVED" | "REJECTED";
 export type TransactionType =
   | "PURCHASE"
@@ -42,6 +42,10 @@ export interface User {
   providerCategories?: string[];
   rating?: string;
   reviewCount?: number;
+  token?: string;
+  isPremium?: boolean;
+  portfolioImages?: string[];
+  hasUnlockedPortfolio?: boolean;
 }
 
 export interface Service {
@@ -96,11 +100,11 @@ export interface Transaction {
 
 export interface CreditPackage {
   id: string;
-  label: string;
+  name: string;
   credits: number;
   priceCents: number;
   bonusCredits?: number;
-  highlight?: boolean;
+  isHighlighted?: boolean;
 }
 
 export interface LoginBody {

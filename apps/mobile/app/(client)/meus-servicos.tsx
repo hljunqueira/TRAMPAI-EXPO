@@ -39,7 +39,7 @@ export default function MeusServicos() {
     .filter((s) => s.clientId === user?.id)
     .filter((s) => {
       const status = s.status.toLowerCase();
-      if (activeTab === "active") return status === "open" || status === "in_progress";
+      if (activeTab === "active") return status === "open" || status === "in_progress" || status === "exclusive_pending";
       return status === "closed" || status === "completed" || status === "expired";
     })
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -125,6 +125,7 @@ export default function MeusServicos() {
           const status = item.status.toLowerCase();
           const isClosed = status === "closed" || status === "completed";
           const inProgress = status === "in_progress";
+          const isExclusivePending = status === "exclusive_pending";
           const proposalsCount = item.unlockedByProviders?.length || 0;
 
           return (
@@ -139,19 +140,19 @@ export default function MeusServicos() {
                     <View style={[
                       styles.statusBadge, 
                       { 
-                        backgroundColor: isClosed ? "#e2e8f0" : inProgress ? colors.cyan + "20" : colors.orange + "20" 
+                        backgroundColor: isClosed ? "#e2e8f0" : isExclusivePending ? "#e8c08a30" : inProgress ? colors.cyan + "20" : colors.orange + "20" 
                       }
                     ]}>
                       <MaterialCommunityIcons 
-                        name={isClosed ? "check-all" : inProgress ? "wrench" : "lightning-bolt"} 
+                        name={isClosed ? "check-all" : isExclusivePending ? "crown" : inProgress ? "wrench" : "lightning-bolt"} 
                         size={12} 
-                        color={isClosed ? "#64748b" : inProgress ? colors.cyan : colors.orange} 
+                        color={isClosed ? "#64748b" : isExclusivePending ? "#b8860b" : inProgress ? colors.cyan : colors.orange} 
                       />
                       <Text style={[
                         styles.statusText, 
-                        { color: isClosed ? "#64748b" : inProgress ? colors.cyan : colors.orange, fontFamily: "Inter_700Bold" }
+                        { color: isClosed ? "#64748b" : isExclusivePending ? "#b8860b" : inProgress ? colors.cyan : colors.orange, fontFamily: "Inter_700Bold" }
                       ]}>
-                        {isClosed ? "Finalizado" : inProgress ? "Em Atendimento" : "Aberto"}
+                        {isClosed ? "Finalizado" : isExclusivePending ? "Match Exclusivo ⏳" : inProgress ? "Em Atendimento" : "Aberto"}
                       </Text>
                     </View>
                     <Text style={[styles.title, { color: colors.navy, fontFamily: "Inter_800ExtraBold" }]}>{item.title}</Text>
@@ -165,8 +166,18 @@ export default function MeusServicos() {
                   )}
                 </View>
 
+                {/* Exclusive Pending Banner */}
+                {isExclusivePending && (
+                  <View style={[styles.proposalsBanner, { backgroundColor: "#e8c08a20", borderColor: "#e8c08a50", borderWidth: 1 }]}>
+                    <MaterialCommunityIcons name="clock-outline" size={18} color="#b8860b" />
+                    <Text style={[styles.proposalsText, { color: "#b8860b", fontFamily: "Inter_700Bold", flex: 1 }]}>
+                      Um profissional pediu exclusividade. Responda!
+                    </Text>
+                  </View>
+                )}
+
                 {/* Conditional Content */}
-                {!isClosed && !inProgress && (
+                {!isClosed && !inProgress && !isExclusivePending && (
                   <View style={[styles.proposalsBanner, { backgroundColor: colors.navy + "08" }]}>
                     <MaterialCommunityIcons name="account-group" size={18} color={colors.navy} />
                     <Text style={[styles.proposalsText, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>

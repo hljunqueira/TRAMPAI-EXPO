@@ -207,6 +207,8 @@ router.patch("/auth/me", authenticate, async (req: AuthRequest, res: any) => {
     if (body.isProvider !== undefined) updateData.isProvider = body.isProvider;
     if (body.providerBio !== undefined) updateData.providerBio = body.providerBio;
     if (body.providerCategories !== undefined) updateData.providerCategories = body.providerCategories;
+    if (body.avatarUrl !== undefined) updateData.avatarUrl = body.avatarUrl;
+    if (body.portfolioImages !== undefined) updateData.portfolioImages = body.portfolioImages;
     if (body.onboardingCompletedAt !== undefined) {
       updateData.onboardingCompletedAt = new Date(body.onboardingCompletedAt);
     }

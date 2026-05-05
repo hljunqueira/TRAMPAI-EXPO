@@ -41,9 +41,10 @@ export default function Carteira() {
 
   async function loadData() {
     try {
+      const baseUrl = process.env.EXPO_PUBLIC_API_URL || "https://api.trampai.com.br";
       const [pkgRes, configRes] = await Promise.all([
-        fetch("https://api.trampai.com.br/api/packages"),
-        fetch("https://api.trampai.com.br/api/config")
+        fetch(`${baseUrl}/api/packages`),
+        fetch(`${baseUrl}/api/config`)
       ]);
       if (pkgRes.ok) setDbPackages(await pkgRes.json());
       if (configRes.ok) setAppConfig(await configRes.json());
@@ -197,14 +198,19 @@ export default function Carteira() {
 
         <Text style={[styles.sectionTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Pacotes de Créditos</Text>
 
-        <View style={styles.packagesRow}>
+        <View style={styles.packagesGrid}>
           {loading ? (
             <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
           ) : (
             dbPackages.map((pkg) => (
-              <View key={pkg.id} style={styles.packageItem}>
+              <TouchableOpacity 
+                key={pkg.id} 
+                style={styles.packageCardWrapper}
+                onPress={() => handleBuyPackage(pkg.id)}
+                activeOpacity={0.8}
+              >
                 <CreditPackageCard pkg={pkg} onSelect={() => handleBuyPackage(pkg.id)} />
-              </View>
+              </TouchableOpacity>
             ))
           )}
         </View>
@@ -325,8 +331,15 @@ const styles = StyleSheet.create({
   },
   balanceSub: { fontSize: 12 },
   sectionTitle: { fontSize: 20 },
-  packagesRow: { flexDirection: "row", gap: 12, flexWrap: "wrap" },
-  packageItem: { flex: 1, minWidth: 150 },
+  packagesGrid: { 
+    flexDirection: "row", 
+    flexWrap: "wrap",
+    marginHorizontal: -6,
+  },
+  packageCardWrapper: { 
+    width: "50%", 
+    padding: 8,
+  },
   customSection: {
     padding: 24,
     borderWidth: 1,

@@ -35,7 +35,7 @@ export default function Mural() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedService, setSelectedService] = useState<Job | null>(null);
   const [unlocking, setUnlocking] = useState(false);
-  const [unlockResult, setUnlockResult] = useState<{ whatsappLink: string } | null>(null);
+  const [unlockResult, setUnlockResult] = useState<any | null>(null);
   const [unlockError, setUnlockError] = useState("");
 
   const isVerified = user?.verificationStatus === "APPROVED" || user?.role === "admin";
@@ -213,26 +213,61 @@ export default function Mural() {
                 ) : null}
 
                 <View style={styles.unlockOptions}>
-                  <TouchableOpacity style={[styles.unlockOption, { backgroundColor: colors.background, borderColor: colors.border, borderRadius: 16 }]} onPress={() => handleUnlock("NORMAL")} disabled={unlocking} activeOpacity={0.8}>
+                  {/* Nível 1: Normal */}
+                  <TouchableOpacity 
+                    style={[styles.unlockOption, { backgroundColor: colors.background, borderColor: colors.border, borderRadius: 16 }]} 
+                    onPress={() => handleUnlock("NORMAL")} 
+                    disabled={unlocking} 
+                    activeOpacity={0.8}
+                  >
                     <View style={styles.unlockOptionHeader}>
                       <MaterialCommunityIcons name="lock-open-outline" size={24} color={colors.navy} />
                       <View>
-                        <Text style={[styles.unlockOptionTitle, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>Acesso Normal</Text>
+                        <Text style={[styles.unlockOptionTitle, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>Básico</Text>
                         <Text style={[styles.unlockOptionCredits, { color: colors.accent, fontFamily: "Inter_700Bold" }]}>{UNLOCK_COSTS.NORMAL} crédito</Text>
                       </View>
                     </View>
-                    <Text style={[styles.unlockOptionDesc, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Veja o WhatsApp do cliente. Outros profissionais também podem ver.</Text>
+                    <Text style={[styles.unlockOptionDesc, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+                      Libera apenas o WhatsApp do cliente. Risco de concorrência com outros prestadores.
+                    </Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity style={[styles.unlockOption, { backgroundColor: colors.navy, borderColor: colors.accent, borderRadius: 16, borderWidth: 1.5 }]} onPress={() => handleUnlock("EXCLUSIVE")} disabled={unlocking} activeOpacity={0.8}>
+                  {/* Nível 2: Plus (Anti-Furada) */}
+                  <TouchableOpacity 
+                    style={[styles.unlockOption, { backgroundColor: colors.surface, borderColor: colors.secondary, borderRadius: 16, borderWidth: 1 }]} 
+                    onPress={() => handleUnlock("PLUS")} 
+                    disabled={unlocking} 
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.unlockOptionHeader}>
+                      <MaterialCommunityIcons name="shield-check-outline" size={24} color={colors.secondary} />
+                      <View>
+                        <Text style={[styles.unlockOptionTitle, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>Plus (Anti-Furada)</Text>
+                        <Text style={[styles.unlockOptionCredits, { color: colors.secondary, fontFamily: "Inter_700Bold" }]}>{UNLOCK_COSTS.PLUS} créditos</Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.unlockOptionDesc, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+                      WhatsApp + <Text style={{fontFamily: "Inter_700Bold"}}>Histórico do Cliente</Text>. Saiba se ele é confiável e se costuma fechar serviços antes de investir.
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Nível 3: Exclusivo (Match) */}
+                  <TouchableOpacity 
+                    style={[styles.unlockOption, { backgroundColor: colors.navy, borderColor: colors.accent, borderRadius: 16, borderWidth: 2 }]} 
+                    onPress={() => handleUnlock("EXCLUSIVE")} 
+                    disabled={unlocking} 
+                    activeOpacity={0.8}
+                  >
                     <View style={styles.unlockOptionHeader}>
                       <MaterialCommunityIcons name="crown-outline" size={24} color={colors.accent} />
                       <View>
-                        <Text style={[styles.unlockOptionTitle, { color: "#fff", fontFamily: "Inter_600SemiBold" }]}>Exclusivo (24h)</Text>
+                        <Text style={[styles.unlockOptionTitle, { color: "#fff", fontFamily: "Inter_600SemiBold" }]}>Exclusivo (Garantido)</Text>
                         <Text style={[styles.unlockOptionCredits, { color: colors.accent, fontFamily: "Inter_700Bold" }]}>{UNLOCK_COSTS.EXCLUSIVE} créditos</Text>
                       </View>
                     </View>
-                    <Text style={[styles.unlockOptionDesc, { color: "#ffffff80", fontFamily: "Inter_400Regular" }]}>O serviço sai do mural por 24h só pra você. Contato garantido.</Text>
+                    <Text style={[styles.unlockOptionDesc, { color: "#ffffff90", fontFamily: "Inter_400Regular" }]}>
+                      Peça exclusividade ao cliente. Se ele recusar ou não responder, seus <Text style={{fontFamily: "Inter_700Bold"}}>créditos são estornados na hora</Text>.
+                    </Text>
                   </TouchableOpacity>
                 </View>
 
@@ -246,15 +281,65 @@ export default function Mural() {
               </View>
             ) : (
               <View style={styles.successContent}>
-                <View style={[styles.successIcon, { backgroundColor: "#22c55e15" }]}>
-                  <MaterialCommunityIcons name="check-circle" size={64} color="#22c55e" />
+                <View style={[styles.successIcon, { backgroundColor: unlockResult?.job?.status === 'exclusive_pending' ? colors.navy + "10" : "#22c55e15" }]}>
+                  <MaterialCommunityIcons 
+                    name={unlockResult?.job?.status === 'exclusive_pending' ? "timer-sand" : "check-circle"} 
+                    size={64} 
+                    color={unlockResult?.job?.status === 'exclusive_pending' ? colors.navy : "#22c55e"} 
+                  />
                 </View>
-                <Text style={[styles.successTitle, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>Tudo pronto!</Text>
-                <Text style={[styles.successDesc, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>O contato do cliente já está liberado pra você.</Text>
-                <TouchableOpacity style={[styles.whatsappBtn, { backgroundColor: "#25D366", borderRadius: 16 }]} onPress={() => { Linking.openURL(unlockResult.whatsappLink); setSelectedService(null); }} activeOpacity={0.85}>
-                  <MaterialCommunityIcons name="whatsapp" size={24} color="#fff" />
-                  <Text style={[styles.whatsappBtnText, { fontFamily: "Inter_700Bold" }]}>Enviar Mensagem</Text>
-                </TouchableOpacity>
+                <Text style={[styles.successTitle, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>
+                  {unlockResult?.job?.status === 'exclusive_pending' ? "Solicitado!" : "Tudo pronto!"}
+                </Text>
+                <Text style={[styles.successDesc, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+                  {unlockResult?.job?.status === 'exclusive_pending' 
+                    ? "O cliente foi notificado. Se ele aceitar, o WhatsApp será liberado aqui." 
+                    : "O contato do cliente já está liberado pra você."}
+                </Text>
+
+                {unlockResult?.job?.status !== 'exclusive_pending' && (
+                  <TouchableOpacity 
+                    style={[styles.whatsappBtn, { backgroundColor: "#25D366", borderRadius: 16 }]} 
+                    onPress={() => { Linking.openURL(unlockResult.whatsappLink); setSelectedService(null); }} 
+                    activeOpacity={0.85}
+                  >
+                    <MaterialCommunityIcons name="whatsapp" size={24} color="#fff" />
+                    <Text style={[styles.whatsappBtnText, { fontFamily: "Inter_700Bold" }]}>Enviar Mensagem</Text>
+                  </TouchableOpacity>
+                )}
+                {unlockResult?.job?.client && (
+                  <View style={[styles.clientStats, { backgroundColor: colors.surface, borderRadius: 16 }]}>
+                    <Text style={[styles.statsTitle, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Histórico do Cliente</Text>
+                    <View style={styles.statsRow}>
+                      <View style={styles.statItem}>
+                        <Text style={[styles.statValue, { color: colors.primary }]}>{unlockResult.job.client.jobsPostedCount}</Text>
+                        <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Pedidos</Text>
+                      </View>
+                      <View style={styles.statDivider} />
+                      <View style={styles.statItem}>
+                        <Text style={[styles.statValue, { color: colors.secondary }]}>{unlockResult.job.client.jobsCompletedCount}</Text>
+                        <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Fechados</Text>
+                      </View>
+                    </View>
+                    
+                    {unlockResult.job.clientReviews?.length > 0 && (
+                      <View style={styles.reviewsList}>
+                        <Text style={[styles.reviewsTitle, { color: colors.mutedForeground }]}>Últimas avaliações:</Text>
+                        {unlockResult.job.clientReviews.map((r: any) => (
+                          <View key={r.id} style={styles.reviewItem}>
+                            <View style={styles.stars}>
+                              {[1,2,3,4,5].map(s => (
+                                <MaterialCommunityIcons key={s} name="star" size={12} color={s <= r.rating ? colors.accent : colors.border} />
+                              ))}
+                            </View>
+                            <Text style={[styles.reviewComment, { color: colors.foreground }]} numberOfLines={2}>"{r.comment}"</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                )}
+
                 <TouchableOpacity onPress={() => setSelectedService(null)} style={styles.cancelBtn}>
                   <Text style={[styles.cancelBtnText, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Fechar</Text>
                 </TouchableOpacity>
@@ -361,4 +446,16 @@ const styles = StyleSheet.create({
   successDesc: { fontSize: 16, textAlign: "center", lineHeight: 24 },
   whatsappBtn: { flexDirection: "row", alignItems: "center", paddingVertical: 18, paddingHorizontal: 48, gap: 10, marginTop: 12 },
   whatsappBtnText: { color: "#fff", fontSize: 18 },
+  clientStats: { width: "100%", padding: 20, gap: 16, marginTop: 8 },
+  statsTitle: { fontSize: 16, textAlign: "center" },
+  statsRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 30 },
+  statItem: { alignItems: "center" },
+  statValue: { fontSize: 24, fontFamily: "Inter_700Bold" },
+  statLabel: { fontSize: 12, marginTop: 2 },
+  statDivider: { width: 1, height: 30, backgroundColor: "#00000010" },
+  reviewsList: { gap: 12, borderTopWidth: 1, borderTopColor: "#00000005", paddingTop: 16 },
+  reviewsTitle: { fontSize: 12, fontFamily: "Inter_600SemiBold", marginBottom: 4 },
+  reviewItem: { gap: 4 },
+  stars: { flexDirection: "row", gap: 2 },
+  reviewComment: { fontSize: 13, fontStyle: "italic", lineHeight: 18 },
 });
