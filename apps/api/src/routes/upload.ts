@@ -2,12 +2,12 @@ import { Router } from "express";
 import fs from "fs/promises";
 import path from "path";
 import crypto from "crypto";
-import { requireAuth } from "../middlewares/auth";
+import { authenticate } from "../middlewares/auth";
 import { logger } from "../lib/logger";
 
 const router = Router();
 
-router.post("/", requireAuth, async (req, res) => {
+router.post("/", authenticate, async (req, res) => {
   try {
     const { imageBase64, ext = "jpg" } = req.body;
     
