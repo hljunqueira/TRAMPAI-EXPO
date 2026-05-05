@@ -137,8 +137,15 @@ export default function ProviderPerfil() {
         Alert.alert("Sucesso", "Biografia profissional atualizada com sucesso!");
         fetchMyData();
       } else {
-        const error = await res.json();
-        Alert.alert("Erro", error.error || "Erro ao salvar biografia.");
+        const text = await res.text();
+        let errorMsg = "Erro ao salvar biografia.";
+        try {
+          if (text) {
+            const errJson = JSON.parse(text);
+            errorMsg = errJson.error || errorMsg;
+          }
+        } catch (e) {}
+        Alert.alert("Erro", errorMsg);
       }
     } catch (e) {
       console.error(e);
@@ -237,7 +244,12 @@ export default function ProviderPerfil() {
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ imageBase64: result.assets[0].base64, ext: "jpg" }),
         });
-        const { url } = await uploadRes.json();
+        
+        const uploadText = await uploadRes.text();
+        if (!uploadRes.ok || !uploadText) {
+          throw new Error("Falha no upload da imagem");
+        }
+        const { url } = JSON.parse(uploadText);
         
         setPendingImageUrl(url);
         setIsPaidUpload(isPaid);
@@ -273,8 +285,15 @@ export default function ProviderPerfil() {
         setPendingImageUrl("");
         fetchMyData();
       } else {
-        const err = await updateRes.json();
-        Alert.alert("Erro", err.error || "Erro ao salvar portfólio.");
+        const text = await updateRes.text();
+        let errorMsg = "Erro ao salvar portfólio.";
+        try {
+          if (text) {
+            const errJson = JSON.parse(text);
+            errorMsg = errJson.error || errorMsg;
+          }
+        } catch (e) {}
+        Alert.alert("Erro", errorMsg);
       }
     } catch (e) {
       Alert.alert("Erro", "Falha ao salvar portfólio.");

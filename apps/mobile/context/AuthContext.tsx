@@ -161,15 +161,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userData = await SecureStore.getItemAsync(USER_KEY);
       
       if (token && userData) {
-        const parsedUser = JSON.parse(userData);
-        setUser(parsedUser);
-        const role = parsedUser.role?.toLowerCase();
-        if (role === "admin") {
-          setActiveMode("ADMIN");
-        } else {
-          setActiveMode(role === "provider" ? "PROVIDER" : "CLIENT");
+        try {
+          const parsedUser = JSON.parse(userData);
+          setUser(parsedUser);
+          const role = parsedUser.role?.toLowerCase();
+          if (role === "admin") {
+            setActiveMode("ADMIN");
+          } else {
+            setActiveMode(role === "provider" ? "PROVIDER" : "CLIENT");
+          }
+          fetchMyData(); // Buscar dados do usuário logado
+        } catch (e) {
+          console.error("Dados de usuário corrompidos:", e);
+          await SecureStore.deleteItemAsync(USER_KEY);
         }
-        fetchMyData(); // Buscar dados do usuário logado
       }
     } catch (e) {
       console.error("Erro ao carregar sessão:", e);
@@ -228,8 +233,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (jobsRes.ok) {
-        const data = await jobsRes.json();
-        setServices(data);
+        const text = await jobsRes.text();
+        if (text) setServices(JSON.parse(text));
       }
 
       // Buscar Meus Leads (Prestador)
@@ -237,8 +242,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (leadsRes.ok) {
-        const data = await leadsRes.json();
-        setLeads(data);
+        const text = await leadsRes.text();
+        if (text) setLeads(JSON.parse(text));
       }
 
       // Buscar Minhas Transações
@@ -246,8 +251,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (transRes.ok) {
-        const data = await transRes.json();
-        setTransactions(data);
+        const text = await transRes.text();
+        if (text) setTransactions(JSON.parse(text));
       }
     } catch (e) {
       console.error("Erro ao buscar dados do usuário:", e);

@@ -63,8 +63,15 @@ export default function EditarPerfil() {
           router.back();
         }, 1500);
       } else {
-        const errData = await res.json();
-        setError(errData.error || "Erro ao salvar perfil");
+        const text = await res.text();
+        let errorMsg = "Erro ao salvar perfil";
+        try {
+          if (text) {
+            const errJson = JSON.parse(text);
+            errorMsg = errJson.error || errorMsg;
+          }
+        } catch (e) {}
+        setError(errorMsg);
       }
     } catch (err) {
       console.error(err);
