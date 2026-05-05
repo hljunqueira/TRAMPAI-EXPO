@@ -2,9 +2,10 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   ScrollView,
   StyleSheet,
@@ -12,15 +13,18 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as ImagePicker from "expo-image-picker";
 
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { CATEGORIES } from "@/constants/categories";
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 6;
 
-type ProfileRole = "CLIENT" | "PROVIDER";
+type ProfileGoal = "CLIENT" | "PROVIDER" | "BOTH";
 
 export default function OnboardingScreen() {
   const colors = useColors();
@@ -28,34 +32,24 @@ export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
 
   const [step, setStep] = useState(1);
-  const [selectedRoles, setSelectedRoles] = useState<ProfileRole[]>(["CLIENT"]);
+  const [goal, setGoal] = useState<ProfileGoal>("CLIENT");
+  
+  // Dados Comuns
+  const [name, setName] = useState(user?.name || "");
   const [phone, setPhone] = useState("");
   const [city, setCity] = useState("");
   const [neighborhood, setNeighborhood] = useState("");
-  const [state, setState] = useState("GO");
-  const [isAdult, setIsAdult] = useState(false);
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [referralCode, setReferralCode] = useState("");
+  
+  // Dados Prestador
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [bio, setBio] = useState("");
+  const [docPhoto, setDocPhoto] = useState<string | null>(null);
+  const [selfiePhoto, setSelfiePhoto] = useState<string | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  function toggleRole(role: ProfileRole) {
-    Haptics.selectionAsync();
-    setSelectedRoles((prev) => {
-      if (prev.includes(role)) {
-        if (prev.length === 1) return prev;
-        return prev.filter((r) => r !== role);
-      }
-      return [...prev, role];
-    });
-  }
-
-  function isRoleSelected(role: ProfileRole) {
-    return selectedRoles.includes(role);
-  }
-
-  const isDual = selectedRoles.includes("CLIENT") && selectedRoles.includes("PROVIDER");
-  const isProviderOnly = selectedRoles.includes("PROVIDER") && !selectedRoles.includes("CLIENT");
+  const isProvider = goal === "PROVIDER" || goal === "BOTH";
 
   function formatPhone(text: string) {
     const cleaned = text.replace(/\D/g, "").slice(0, 11);
@@ -64,17 +58,46 @@ export default function OnboardingScreen() {
     return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
   }
 
+  async function pickImage(type: 'doc' | 'selfie') {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.5,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets[0].base64) {
+      if (type === 'doc') setDocPhoto(result.assets[0].base64);
+      else setSelfiePhoto(result.assets[0].base64);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  }
+
   function nextStep() {
     setError("");
-    if (step === 2) {
-      if (!phone.replace(/\D/g, "") || phone.replace(/\D/g, "").length < 10)
-        return setError("Informe um telefone válido");
+    
+    if (step === 1) { // Perfil
+      if (!name.trim()) return setError("Informe seu nome");
+    }
+    
+    if (step === 2) { // Localização
       if (!city.trim()) return setError("Informe sua cidade");
+      if (!phone.replace(/\D/g, "") || phone.replace(/\D/g, "").length < 10)
+        return setError("Informe um WhatsApp válido");
     }
-    if (step === 3) {
-      if (!isAdult) return setError("Você deve ter 18 anos ou mais");
-      if (!acceptedTerms) return setError("Aceite os termos para continuar");
+
+    // Passos de Prestador
+    if (isProvider) {
+      if (step === 4 && selectedCategories.length === 0) return setError("Selecione pelo menos uma categoria");
+      if (step === 5 && bio.length < 20) return setError("Sua bio deve ter pelo menos 20 caracteres");
+    } else {
+      // Se for só cliente, pula os passos de prestador
+      if (step === 3) {
+        return handleFinish();
+      }
     }
+
     if (step < TOTAL_STEPS) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setStep((s) => s + 1);
@@ -86,32 +109,46 @@ export default function OnboardingScreen() {
   async function handleFinish() {
     setLoading(true);
     try {
-      const primaryRole = isProviderOnly ? "PROVIDER" : "CLIENT";
       await completeOnboarding({
-        role: primaryRole,
-        roles: selectedRoles,
+        name: name.trim(),
         phone: phone.replace(/\D/g, ""),
         city: city.trim(),
         neighborhood: neighborhood.trim(),
-        state,
-        acceptedTerms,
-        verificationStatus: selectedRoles.includes("PROVIDER") ? "PENDING" : undefined,
-        referredById: referralCode.trim() || undefined,
+        isProvider,
+        role: isProvider ? "provider" : "client",
+        onboardingCompletedAt: new Date().toISOString(),
+        providerBio: isProvider ? bio : undefined,
+        providerCategories: isProvider ? selectedCategories : undefined,
       });
+
+      // Se enviou fotos, chamar endpoint de documentos
+      if (isProvider && (docPhoto || selfiePhoto)) {
+        const token = await (require("expo-secure-store").getItemAsync("trampai_auth_token"));
+        await fetch("https://api.trampai.com.br/api/users/me/documents", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ documentBase64: docPhoto, selfieBase64: selfiePhoto })
+        });
+      }
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/");
-    } catch {
+    } catch (e) {
+      console.error(e);
       setError("Erro ao salvar. Tente novamente.");
     } finally {
       setLoading(false);
     }
   }
 
-  const progress = step / TOTAL_STEPS;
+  const progress = step / (isProvider ? TOTAL_STEPS : 3);
 
   return (
     <LinearGradient
-      colors={["#5EB4B8", "#F7EFCF"]}
+      colors={["#21284E", "#1a2040", "#0f1530"]}
       style={[
         styles.container,
         {
@@ -121,19 +158,19 @@ export default function OnboardingScreen() {
       ]}
     >
       <View style={styles.progressBarWrapper}>
-        <View style={[styles.progressTrack, { backgroundColor: "#21284E30" }]}>
+        <View style={[styles.progressTrack, { backgroundColor: "#FFFFFF20" }]}>
           <View
             style={[
               styles.progressFill,
               {
                 width: `${progress * 100}%`,
-                backgroundColor: colors.accent,
+                backgroundColor: "#F69926",
               },
             ]}
           />
         </View>
-        <Text style={[styles.stepCounter, { color: colors.navy, fontFamily: "Inter_500Medium" }]}>
-          {step} de {TOTAL_STEPS}
+        <Text style={[styles.stepCounter, { color: "#FFFFFF90", fontFamily: "Inter_500Medium" }]}>
+          Passo {step} de {isProvider ? TOTAL_STEPS : 3}
         </Text>
       </View>
 
@@ -145,102 +182,35 @@ export default function OnboardingScreen() {
         <View style={styles.centerBlock}>
           {step === 1 && (
             <View style={styles.stepContainer}>
-              <Text style={[styles.stepTitle, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Como quer usar o Trampaí?</Text>
-              <Text style={[styles.stepSub, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-                Selecione um ou os dois perfis — você pode trocar de modo a qualquer momento
-              </Text>
-
-              <View style={styles.roleCards}>
-                <TouchableOpacity
-                  style={[
-                    styles.roleCard,
-                    {
-                      backgroundColor: isRoleSelected("CLIENT") ? colors.navy : colors.card,
-                      borderColor: isRoleSelected("CLIENT") ? colors.accent : colors.border,
-                      borderRadius: colors.radius,
-                    },
-                  ]}
-                  onPress={() => toggleRole("CLIENT")}
-                  activeOpacity={0.8}
-                >
-                  {isRoleSelected("CLIENT") && (
-                    <View style={styles.checkBadge}>
-                      <MaterialCommunityIcons name="check-circle" size={18} color="#F69926" />
-                    </View>
-                  )}
-                  <MaterialCommunityIcons name="account-outline" size={40} color={isRoleSelected("CLIENT") ? "#F69926" : colors.navy} />
-                  <Text style={[styles.roleTitle, { color: isRoleSelected("CLIENT") ? "#fff" : colors.foreground, fontFamily: "Inter_700Bold" }]}>Cliente</Text>
-                  <Text style={[styles.roleDesc, { color: isRoleSelected("CLIENT") ? "#ffffff90" : colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Quero contratar serviços</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.roleCard,
-                    {
-                      backgroundColor: isRoleSelected("PROVIDER") ? colors.navy : colors.card,
-                      borderColor: isRoleSelected("PROVIDER") ? colors.accent : colors.border,
-                      borderRadius: colors.radius,
-                    },
-                  ]}
-                  onPress={() => toggleRole("PROVIDER")}
-                  activeOpacity={0.8}
-                >
-                  {isRoleSelected("PROVIDER") && (
-                    <View style={styles.checkBadge}>
-                      <MaterialCommunityIcons name="check-circle" size={18} color="#F69926" />
-                    </View>
-                  )}
-                  <MaterialCommunityIcons name="briefcase-outline" size={40} color={isRoleSelected("PROVIDER") ? "#F69926" : colors.navy} />
-                  <Text style={[styles.roleTitle, { color: isRoleSelected("PROVIDER") ? "#fff" : colors.foreground, fontFamily: "Inter_700Bold" }]}>Prestador</Text>
-                  <Text style={[styles.roleDesc, { color: isRoleSelected("PROVIDER") ? "#ffffff90" : colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Quero oferecer serviços</Text>
-                </TouchableOpacity>
+              <Text style={[styles.stepTitle, { color: "#FFFFFF", fontFamily: "Inter_700Bold" }]}>Como quer ser chamado?</Text>
+              <Text style={[styles.stepSub, { color: "#FFFFFF90", fontFamily: "Inter_400Regular" }]}>Use seu nome real para gerar confiança</Text>
+              <View style={styles.inputGroup}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Seu nome completo"
+                  placeholderTextColor="#999"
+                  value={name}
+                  onChangeText={setName}
+                />
               </View>
-
-              {isDual && (
-                <View style={[styles.dualBadge, { backgroundColor: colors.accent + "18", borderColor: colors.accent + "40", borderRadius: colors.radius }]}>
-                  <MaterialCommunityIcons name="account-switch-outline" size={18} color={colors.accent} />
-                  <Text style={[styles.dualText, { color: colors.navy, fontFamily: "Inter_500Medium" }]}>Perfil duplo ativo! Você poderá trocar de modo a qualquer hora nas configurações do perfil.</Text>
-                </View>
-              )}
             </View>
           )}
 
           {step === 2 && (
             <View style={styles.stepContainer}>
-              <Text style={[styles.stepTitle, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Seus dados</Text>
-              <Text style={[styles.stepSub, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Para conectar você às oportunidades certas</Text>
+              <Text style={[styles.stepTitle, { color: "#FFFFFF", fontFamily: "Inter_700Bold" }]}>Onde você está?</Text>
+              <Text style={[styles.stepSub, { color: "#FFFFFF90", fontFamily: "Inter_400Regular" }]}>Para encontrar serviços e clientes próximos</Text>
 
               <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: colors.navy, fontFamily: "Inter_500Medium" }]}>Telefone (WhatsApp)</Text>
+                <TextInput style={styles.input} placeholder="Cidade" placeholderTextColor="#999" value={city} onChangeText={setCity} />
+                <TextInput style={styles.input} placeholder="Bairro" placeholderTextColor="#999" value={neighborhood} onChangeText={setNeighborhood} />
                 <TextInput
-                  style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground, borderRadius: colors.radius, fontFamily: "Inter_400Regular" }]}
-                  placeholder="(00) 00000-0000"
-                  placeholderTextColor={colors.mutedForeground}
+                  style={styles.input}
+                  placeholder="WhatsApp"
+                  placeholderTextColor="#999"
                   value={phone}
                   onChangeText={(t) => setPhone(formatPhone(t))}
                   keyboardType="phone-pad"
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: colors.navy, fontFamily: "Inter_500Medium" }]}>Cidade</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground, borderRadius: colors.radius, fontFamily: "Inter_400Regular" }]}
-                  placeholder="Ex: Belo Horizonte"
-                  placeholderTextColor={colors.mutedForeground}
-                  value={city}
-                  onChangeText={setCity}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: colors.navy, fontFamily: "Inter_500Medium" }]}>Bairro</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground, borderRadius: colors.radius, fontFamily: "Inter_400Regular" }]}
-                  placeholder="Ex: Centro"
-                  placeholderTextColor={colors.mutedForeground}
-                  value={neighborhood}
-                  onChangeText={setNeighborhood}
                 />
               </View>
             </View>
@@ -248,103 +218,101 @@ export default function OnboardingScreen() {
 
           {step === 3 && (
             <View style={styles.stepContainer}>
-              <Text style={[styles.stepTitle, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Confirmação</Text>
-              <Text style={[styles.stepSub, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Leia e confirme antes de prosseguir</Text>
-
-              <TouchableOpacity style={[styles.checkRow, { backgroundColor: colors.card, borderRadius: colors.radius }]} onPress={() => { setIsAdult(!isAdult); Haptics.selectionAsync(); }}>
-                <View style={[styles.checkbox, { borderColor: isAdult ? colors.accent : colors.border, backgroundColor: isAdult ? colors.accent : "transparent" }]}>
-                  {isAdult && <MaterialCommunityIcons name="check" size={14} color="#fff" />}
-                </View>
-                <Text style={[styles.checkText, { color: colors.foreground, fontFamily: "Inter_400Regular" }]}>Confirmo que tenho 18 anos ou mais</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={[styles.checkRow, { backgroundColor: colors.card, borderRadius: colors.radius }]} onPress={() => { setAcceptedTerms(!acceptedTerms); Haptics.selectionAsync(); }}>
-                <View style={[styles.checkbox, { borderColor: acceptedTerms ? colors.accent : colors.border, backgroundColor: acceptedTerms ? colors.accent : "transparent" }]}>
-                  {acceptedTerms && <MaterialCommunityIcons name="check" size={14} color="#fff" />}
-                </View>
-                <Text style={[styles.checkText, { color: colors.foreground, fontFamily: "Inter_400Regular" }]}>
-                  Li e aceito os{" "}
-                  <Text style={{ color: colors.cyan, textDecorationLine: "underline" }}>Termos de Uso</Text>
-                </Text>
-              </TouchableOpacity>
-
-              {selectedRoles.includes("PROVIDER") && (
-                <View style={[styles.infoBox, { backgroundColor: colors.accent + "15", borderRadius: colors.radius, borderColor: colors.accent + "40" }]}>
-                  <MaterialCommunityIcons name="shield-check-outline" size={18} color={colors.accent} />
-                  <Text style={[styles.infoText, { color: colors.navy, fontFamily: "Inter_400Regular" }]}>
-                    {isDual
-                      ? "Como prestador, você precisará enviar documentos para verificação antes de desbloquear leads. Como cliente, já pode postar serviços agora!"
-                      : "Como prestador, você precisará enviar documentos para verificação antes de desbloquear leads. Seus dados estão seguros."}
-                  </Text>
-                </View>
-              )}
-
-              {!selectedRoles.includes("PROVIDER") && (
-                <View style={[styles.infoBox, { backgroundColor: colors.cyan + "15", borderRadius: colors.radius, borderColor: colors.cyan + "40" }]}>
-                  <MaterialCommunityIcons name="gift-outline" size={18} color={colors.cyan} />
-                  <Text style={[styles.infoText, { color: colors.navy, fontFamily: "Inter_400Regular" }]}>Você recebeu 5 créditos de boas-vindas para começar.</Text>
-                </View>
-              )}
+              <Text style={[styles.stepTitle, { color: "#FFFFFF", fontFamily: "Inter_700Bold" }]}>Qual seu objetivo?</Text>
+              <View style={styles.goalOptions}>
+                {[
+                  { id: "CLIENT", label: "Contratar", icon: "account-search-outline", desc: "Quero encontrar profissionais" },
+                  { id: "PROVIDER", label: "Trabalhar", icon: "briefcase-outline", desc: "Quero oferecer meus serviços" },
+                  { id: "BOTH", label: "Os Dois!", icon: "account-switch-outline", desc: "Quero contratar e trabalhar" },
+                ].map((opt) => (
+                  <TouchableOpacity
+                    key={opt.id}
+                    style={[styles.goalCard, goal === opt.id && styles.goalCardActive]}
+                    onPress={() => setGoal(opt.id as ProfileGoal)}
+                  >
+                    <MaterialCommunityIcons name={opt.icon as any} size={32} color={goal === opt.id ? "#FFF" : "#F69926"} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.goalLabel, goal === opt.id && { color: "#FFF" }]}>{opt.label}</Text>
+                      <Text style={[styles.goalDesc, goal === opt.id && { color: "#FFF9" }]}>{opt.desc}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           )}
 
-          {step === 4 && (
+          {step === 4 && isProvider && (
             <View style={styles.stepContainer}>
-              <Text style={[styles.stepTitle, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Código de indicação</Text>
-              <Text style={[styles.stepSub, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Opcional — pule se não tiver</Text>
-
-              <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: colors.navy, fontFamily: "Inter_500Medium" }]}>Código de quem te indicou</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground, borderRadius: colors.radius, fontFamily: "Inter_400Regular" }]}
-                  placeholder="Ex: ABC123"
-                  placeholderTextColor={colors.mutedForeground}
-                  value={referralCode}
-                  onChangeText={(t) => setReferralCode(t.toUpperCase())}
-                  autoCapitalize="characters"
-                  maxLength={6}
-                />
-              </View>
-
-              <Text style={[styles.shareCode, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Seu código de indicação: <Text style={{ color: colors.accent, fontFamily: "Inter_700Bold" }}>{user?.referralCode}</Text></Text>
-
-              <View style={[styles.summaryCard, { backgroundColor: colors.navy + "10", borderRadius: colors.radius, borderColor: colors.navy + "25" }]}>
-                <Text style={[styles.summaryTitle, { color: colors.navy, fontFamily: "Inter_600SemiBold" }]}>Resumo do seu perfil</Text>
-                <View style={styles.summaryRow}>
-                  <MaterialCommunityIcons name={isDual ? "account-switch-outline" : selectedRoles.includes("PROVIDER") ? "briefcase-outline" : "account-outline"} size={16} color={colors.navy} />
-                  <Text style={[styles.summaryText, { color: colors.navy, fontFamily: "Inter_400Regular" }]}>
-                    {isDual ? "Cliente + Prestador (perfil duplo)" : selectedRoles.includes("PROVIDER") ? "Prestador de serviços" : "Cliente"}
-                  </Text>
-                </View>
+              <Text style={[styles.stepTitle, { color: "#FFFFFF", fontFamily: "Inter_700Bold" }]}>O que você faz?</Text>
+              <Text style={[styles.stepSub, { color: "#FFFFFF90", fontFamily: "Inter_400Regular" }]}>Selecione suas especialidades</Text>
+              <View style={styles.chipContainer}>
+                {CATEGORIES.map((cat: { id: string; name: string }) => (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[styles.chip, selectedCategories.includes(cat.id) && styles.chipActive]}
+                    onPress={() => {
+                      setSelectedCategories(prev => 
+                        prev.includes(cat.id) ? prev.filter(i => i !== cat.id) : [...prev, cat.id]
+                      );
+                    }}
+                  >
+                    <Text style={[styles.chipText, selectedCategories.includes(cat.id) && styles.chipTextActive]}>{cat.name}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
           )}
 
-          {error ? <Text style={[styles.error, { fontFamily: "Inter_400Regular" }]}>{error}</Text> : null}
+          {step === 5 && isProvider && (
+            <View style={styles.stepContainer}>
+              <Text style={[styles.stepTitle, { color: "#FFFFFF", fontFamily: "Inter_700Bold" }]}>Sua Bio</Text>
+              <Text style={[styles.stepSub, { color: "#FFFFFF90", fontFamily: "Inter_400Regular" }]}>Conte um pouco sobre sua experiência e como você trabalha.</Text>
+              <TextInput
+                style={[styles.input, { height: 120, textAlignVertical: "top" }]}
+                placeholder="Ex: Sou eletricista há 10 anos, especializado em reformas residenciais e automação..."
+                placeholderTextColor="#999"
+                multiline
+                value={bio}
+                onChangeText={setBio}
+              />
+            </View>
+          )}
+
+          {step === 6 && isProvider && (
+            <View style={styles.stepContainer}>
+              <Text style={[styles.stepTitle, { color: "#FFFFFF", fontFamily: "Inter_700Bold" }]}>Verificação</Text>
+              <Text style={[styles.stepSub, { color: "#FFFFFF90", fontFamily: "Inter_400Regular" }]}>Segurança é prioridade. Envie seus documentos para análise.</Text>
+              
+              <View style={styles.uploadRow}>
+                <TouchableOpacity style={styles.uploadBox} onPress={() => pickImage('doc')}>
+                  {docPhoto ? <MaterialCommunityIcons name="check-circle" size={40} color="#22c55e" /> : <MaterialCommunityIcons name="card-account-details-outline" size={40} color="#F69926" />}
+                  <Text style={styles.uploadLabel}>Foto do Documento (Frente)</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity style={styles.uploadBox} onPress={() => pickImage('selfie')}>
+                  {selfiePhoto ? <MaterialCommunityIcons name="check-circle" size={40} color="#22c55e" /> : <MaterialCommunityIcons name="camera-account" size={40} color="#F69926" />}
+                  <Text style={styles.uploadLabel}>Selfie com Documento</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
         </View>
       </ScrollView>
 
       <View style={styles.footer}>
         {step > 1 && (
-          <TouchableOpacity style={[styles.backBtn, { borderColor: colors.navy }]} onPress={() => { setStep((s) => s - 1); setError(""); }}>
-            <MaterialCommunityIcons name="arrow-left" size={20} color={colors.navy} />
+          <TouchableOpacity style={styles.backBtn} onPress={() => { setStep((s) => s - 1); setError(""); }}>
+            <MaterialCommunityIcons name="arrow-left" size={24} color="#FFF" />
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity
-          style={[styles.nextBtn, { backgroundColor: colors.accent, borderRadius: colors.radius }]}
-          onPress={nextStep}
-          disabled={loading}
-          activeOpacity={0.85}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
+        <TouchableOpacity style={styles.nextBtn} onPress={nextStep} disabled={loading} activeOpacity={0.85}>
+          {loading ? <ActivityIndicator color="#fff" /> : (
             <>
-              <Text style={[styles.nextBtnText, { fontFamily: "Inter_600SemiBold" }]}>
-                {step === TOTAL_STEPS ? "Começar" : "Próximo"}
-              </Text>
-              <MaterialCommunityIcons name="arrow-right" size={18} color="#fff" />
+              <Text style={styles.nextBtnText}>{ (isProvider ? step === TOTAL_STEPS : step === 3) ? "FINALIZAR" : "PRÓXIMO" }</Text>
+              <MaterialCommunityIcons name="arrow-right" size={20} color="#fff" />
             </>
           )}
         </TouchableOpacity>
@@ -354,190 +322,34 @@ export default function OnboardingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  progressBarWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 24,
-    gap: 10,
-    marginBottom: 4,
-  },
-  progressTrack: {
-    flex: 1,
-    height: 4,
-    borderRadius: 2,
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: 4,
-    borderRadius: 2,
-  },
-  stepCounter: {
-    fontSize: 12,
-  },
-  content: {
-    flexGrow: 1,
-    padding: 24,
-    justifyContent: "center",
-  },
-  centerBlock: {
-    flex: 1,
-    justifyContent: "center",
-    gap: 16,
-  },
-  stepContainer: {
-    gap: 20,
-  },
-  stepTitle: {
-    fontSize: 26,
-    lineHeight: 32,
-    textAlign: "center",
-  },
-  stepSub: {
-    fontSize: 14,
-    marginTop: -12,
-    lineHeight: 20,
-    textAlign: "center",
-  },
-  roleCards: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  roleCard: {
-    flex: 1,
-    alignItems: "center",
-    padding: 20,
-    borderWidth: 2,
-    gap: 8,
-    position: "relative",
-  },
-  checkBadge: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-  },
-  roleTitle: {
-    fontSize: 16,
-    textAlign: "center",
-  },
-  roleDesc: {
-    fontSize: 12,
-    textAlign: "center",
-  },
-  dualBadge: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    padding: 14,
-    borderWidth: 1,
-  },
-  dualText: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  inputGroup: {
-    gap: 6,
-  },
-  label: {
-    fontSize: 13,
-    textAlign: "center",
-  },
-  input: {
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    fontSize: 15,
-    textAlign: "center",
-  },
-  checkRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 14,
-    gap: 12,
-    borderWidth: 0,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderWidth: 2,
-    borderRadius: 6,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  checkText: {
-    flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  infoBox: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    padding: 14,
-    gap: 10,
-    borderWidth: 1,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  shareCode: {
-    fontSize: 14,
-    textAlign: "center",
-  },
-  summaryCard: {
-    padding: 16,
-    borderWidth: 1,
-    gap: 10,
-  },
-  summaryTitle: {
-    fontSize: 14,
-    marginBottom: 2,
-    textAlign: "center",
-  },
-  summaryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  summaryText: {
-    fontSize: 13,
-  },
-  error: {
-    color: "#ef4444",
-    fontSize: 13,
-    marginTop: 8,
-    textAlign: "center",
-  },
-  footer: {
-    flexDirection: "row",
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    gap: 12,
-    alignItems: "center",
-  },
-  backBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  nextBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    height: 52,
-    gap: 8,
-  },
-  nextBtnText: {
-    color: "#fff",
-    fontSize: 16,
-  },
+  container: { flex: 1 },
+  progressBarWrapper: { flexDirection: "row", alignItems: "center", paddingHorizontal: 24, gap: 12, marginBottom: 20 },
+  progressTrack: { flex: 1, height: 6, borderRadius: 3, overflow: "hidden" },
+  progressFill: { height: 6, borderRadius: 3 },
+  stepCounter: { fontSize: 12 },
+  content: { flexGrow: 1, padding: 24 },
+  centerBlock: { flex: 1, justifyContent: "center" },
+  stepContainer: { gap: 24 },
+  stepTitle: { fontSize: 26, textAlign: "center" },
+  stepSub: { fontSize: 15, textAlign: "center", color: "#FFFFFF90", lineHeight: 22 },
+  inputGroup: { gap: 12 },
+  input: { backgroundColor: "#FFFFFF", borderRadius: 16, paddingHorizontal: 20, paddingVertical: 16, fontSize: 16, color: "#21284E", fontWeight: "500" },
+  goalOptions: { gap: 12 },
+  goalCard: { flexDirection: "row", alignItems: "center", padding: 20, backgroundColor: "#FFFFFF10", borderRadius: 20, gap: 16, borderWidth: 1, borderColor: "transparent" },
+  goalCardActive: { backgroundColor: "#F69926", borderColor: "#F69926" },
+  goalLabel: { fontSize: 18, color: "#FFF", fontWeight: "bold" },
+  goalDesc: { fontSize: 13, color: "#FFF8" },
+  chipContainer: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center" },
+  chip: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: "#FFFFFF10", borderRadius: 100, borderWidth: 1, borderColor: "#FFFFFF20" },
+  chipActive: { backgroundColor: "#F69926", borderColor: "#F69926" },
+  chipText: { color: "#FFF9", fontSize: 14 },
+  chipTextActive: { color: "#FFF", fontWeight: "bold" },
+  uploadRow: { flexDirection: "row", gap: 16 },
+  uploadBox: { flex: 1, height: 140, backgroundColor: "#FFFFFF10", borderRadius: 20, alignItems: "center", justifyContent: "center", gap: 12, borderStyle: "dashed", borderWidth: 2, borderColor: "#FFFFFF30" },
+  uploadLabel: { color: "#FFF", fontSize: 11, textAlign: "center", paddingHorizontal: 8 },
+  error: { color: "#FF4D4D", textAlign: "center", marginTop: 16, fontSize: 14, fontWeight: "600" },
+  footer: { flexDirection: "row", paddingHorizontal: 24, gap: 16, marginTop: 20 },
+  backBtn: { width: 56, height: 56, borderRadius: 18, backgroundColor: "#FFFFFF15", alignItems: "center", justifyContent: "center" },
+  nextBtn: { flex: 1, height: 56, backgroundColor: "#F69926", borderRadius: 18, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12 },
+  nextBtnText: { color: "#FFF", fontSize: 15, fontWeight: "900", letterSpacing: 1 },
 });

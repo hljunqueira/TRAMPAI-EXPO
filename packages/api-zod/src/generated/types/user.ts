@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { UserRole } from "./userRole";
+import type { UserVerificationStatus } from "./userVerificationStatus";
 
 export interface User {
   id: string;
@@ -13,4 +14,11 @@ export interface User {
   name: string;
   role: UserRole;
   avatarUrl?: string | null;
+  creditBalance: number;
+  verificationStatus: UserVerificationStatus;
+  city?: string | null;
+  neighborhood?: string | null;
+  state?: string | null;
+  phone?: string | null;
+  referralCode?: string | null;
 }

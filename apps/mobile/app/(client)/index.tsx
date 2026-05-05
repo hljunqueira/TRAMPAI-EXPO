@@ -1,5 +1,4 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React from "react";
 import {
@@ -17,108 +16,133 @@ import { useColors } from "@/hooks/useColors";
 
 export default function ClientDashboard() {
   const colors = useColors();
-  const { user, services } = useAuth();
+  const { user, services, activeMode, switchActiveMode } = useAuth();
   const insets = useSafeAreaInsets();
 
   const myServices = services.filter((s) => s.clientId === user?.id);
-  const openServices = myServices.filter((s) => s.status === "OPEN");
-  const closedServices = myServices.filter((s) => s.status === "CLOSED");
+  const openServices = myServices.filter((s) => s.status === "open");
+  const closedServices = myServices.filter((s) => s.status === "completed");
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <LinearGradient
-        colors={[colors.navy, colors.navy + "EE"]}
-        style={[
-          styles.header,
-          {
-            paddingTop: insets.top + (Platform.OS === "web" ? 67 : 16),
-          },
-        ]}
-      >
-        <View style={styles.headerContent}>
-          <View style={styles.headerTextBlock}>
-            <Text style={[styles.greeting, { fontFamily: "Inter_400Regular" }]}>Olá, {user?.name?.split(" ")[0]} 👋</Text>
-            <Text style={[styles.headerTitle, { fontFamily: "Inter_700Bold" }]}>Dashboard</Text>
-          </View>
-          <View style={[styles.creditBadge, { backgroundColor: colors.accent }]}>
-            <MaterialCommunityIcons name="star-circle" size={16} color="#fff" />
-            <Text style={[styles.creditText, { fontFamily: "Inter_700Bold" }]}>{user?.creditBalance ?? 0} cr</Text>
-          </View>
+      {/* Custom Header */}
+      <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 20 : 10), borderBottomWidth: 1, borderBottomColor: colors.border + "30", backgroundColor: "#fff" }]}>
+        <View style={styles.headerLeft}>
+          <Text style={[styles.headerLogo, { fontFamily: "Inter_800ExtraBold", color: colors.primary }]}>Trampaí</Text>
         </View>
-
-        <View style={styles.statsRow}>
-          <View style={[styles.statCard, { backgroundColor: "#ffffff15" }]}>
-            <Text style={[styles.statNumber, { fontFamily: "Inter_700Bold" }]}>{openServices.length}</Text>
-            <Text style={[styles.statLabel, { fontFamily: "Inter_400Regular" }]}>Em aberto</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: "#ffffff15" }]}>
-            <Text style={[styles.statNumber, { fontFamily: "Inter_700Bold" }]}>{closedServices.length}</Text>
-            <Text style={[styles.statLabel, { fontFamily: "Inter_400Regular" }]}>Resolvidos</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: "#ffffff15" }]}>
-            <Text style={[styles.statNumber, { fontFamily: "Inter_700Bold" }]}>{myServices.reduce((sum, s) => sum + s.unlockedByProviders.length, 0)}</Text>
-            <Text style={[styles.statLabel, { fontFamily: "Inter_400Regular" }]}>Interesses</Text>
-          </View>
+        
+        <View style={styles.headerRight}>
+          {user?.role === "admin" && (
+            <TouchableOpacity
+              style={[styles.switchModeBtn, { borderColor: colors.primary + "30" }]}
+              onPress={() => {
+                switchActiveMode("PROVIDER");
+                router.replace("/(provider)/mural");
+              }}
+            >
+              <MaterialCommunityIcons name="swap-horizontal" size={18} color={colors.primary} />
+              <Text style={[styles.switchModeText, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>Cliente</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={styles.iconBtn}>
+            <MaterialCommunityIcons name="bell-outline" size={24} color={colors.primary} />
+          </TouchableOpacity>
         </View>
-      </LinearGradient>
+      </View>
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.content, { paddingBottom: 100 + insets.bottom }]}
+        contentContainerStyle={[styles.content, { paddingBottom: 40 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.heroSection}>
+          <Text style={[styles.greeting, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Olá, {user?.name?.split(" ")[0]} 👋</Text>
+          <Text style={[styles.title, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Meu Painel</Text>
+        </View>
+
+        <View style={styles.statsGrid}>
+          <View style={[styles.statCard, { backgroundColor: "#FFF", borderColor: colors.border + "50" }]}>
+            <Text style={[styles.statNumber, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>{openServices.length}</Text>
+            <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Abertos</Text>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: "#FFF", borderColor: colors.border + "50" }]}>
+            <Text style={[styles.statNumber, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>{closedServices.length}</Text>
+            <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Concluídos</Text>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: "#FFF", borderColor: colors.border + "50" }]}>
+            <Text style={[styles.statNumber, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>{myServices.reduce((sum, s) => sum + s.unlockedByProviders.length, 0)}</Text>
+            <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Interesses</Text>
+          </View>
+        </View>
+
         <TouchableOpacity
-          style={[styles.ctaCard, { backgroundColor: colors.accent, borderRadius: colors.radius * 1.5 }]}
+          style={[styles.ctaCard, { backgroundColor: "#e8c08a", borderRadius: 20 }]}
           onPress={() => router.push("/(client)/novo-servico")}
-          activeOpacity={0.85}
+          activeOpacity={0.9}
         >
           <View style={styles.ctaContent}>
-            <MaterialCommunityIcons name="plus-circle" size={32} color="#fff" />
+            <View style={[styles.ctaIcon, { backgroundColor: "#FFF" }]}>
+              <MaterialCommunityIcons name="plus" size={24} color={colors.primary} />
+            </View>
             <View style={styles.ctaTextBlock}>
-              <Text style={[styles.ctaTitle, { fontFamily: "Inter_700Bold" }]}>Postar novo serviço</Text>
-              <Text style={[styles.ctaSub, { fontFamily: "Inter_400Regular" }]}>Gratuito — receba propostas em minutos</Text>
+              <Text style={[styles.ctaTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Postar novo serviço</Text>
+              <Text style={[styles.ctaSub, { color: colors.primary + "90", fontFamily: "Inter_500Medium" }]}>Receba propostas em minutos</Text>
             </View>
           </View>
-          <MaterialCommunityIcons name="arrow-right" size={22} color="#fff" />
+          <MaterialCommunityIcons name="chevron-right" size={24} color={colors.primary} />
         </TouchableOpacity>
 
-        <Text style={[styles.sectionTitle, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>Serviços recentes</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Serviços recentes</Text>
+          {openServices.length > 0 && (
+            <TouchableOpacity onPress={() => router.push("/(client)/meus-servicos")}>
+              <Text style={[styles.seeAllText, { color: colors.accent, fontFamily: "Inter_600SemiBold" }]}>Ver todos</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {openServices.length === 0 ? (
-          <View style={[styles.emptyState, { backgroundColor: colors.card, borderRadius: colors.radius }]}>
-            <MaterialCommunityIcons name="clipboard-outline" size={40} color={colors.mutedForeground} />
-            <Text style={[styles.emptyTitle, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>Nenhum serviço ativo</Text>
-            <Text style={[styles.emptyDesc, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Poste seu primeiro serviço e receba propostas de prestadores qualificados.</Text>
+          <View style={[styles.emptyState, { backgroundColor: "#FFF", borderRadius: 20 }]}>
+            <MaterialCommunityIcons name="clipboard-text-outline" size={48} color={colors.border} />
+            <Text style={[styles.emptyTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Nada por aqui ainda</Text>
+            <Text style={[styles.emptyDesc, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+              Poste seu primeiro serviço e deixe que os profissionais encontrem você.
+            </Text>
           </View>
         ) : (
-          openServices.slice(0, 3).map((s) => (
-            <View key={s.id} style={[styles.serviceItem, { backgroundColor: colors.card, borderRadius: colors.radius, borderColor: colors.border }]}>
-              <View style={styles.serviceRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.serviceTitle, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]} numberOfLines={1}>{s.title}</Text>
-                  <Text style={[styles.serviceCategory, { color: colors.accent, fontFamily: "Inter_500Medium" }]}>{s.category}</Text>
+          <View style={styles.serviceList}>
+            {openServices.slice(0, 3).map((s) => (
+              <TouchableOpacity 
+                key={s.id} 
+                style={[styles.serviceCard, { backgroundColor: "#FFF", borderRadius: 16 }]}
+                onPress={() => router.push("/(client)/meus-servicos")}
+              >
+                <View style={styles.serviceInfo}>
+                  <Text style={[styles.serviceTitle, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]} numberOfLines={1}>
+                    {s.title}
+                  </Text>
+                  <Text style={[styles.serviceCategory, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>
+                    {s.category.name}
+                  </Text>
                 </View>
-                <View style={styles.interestBadge}>
-                  <MaterialCommunityIcons name="eye-outline" size={14} color={colors.cyan} />
-                  <Text style={[styles.interestCount, { color: colors.cyan, fontFamily: "Inter_700Bold" }]}>{s.unlockedByProviders.length}</Text>
+                <View style={[styles.interestBadge, { backgroundColor: colors.secondary + "10" }]}>
+                  <MaterialCommunityIcons name="account-group" size={14} color={colors.secondary} />
+                  <Text style={[styles.interestCount, { color: colors.secondary, fontFamily: "Inter_700Bold" }]}>
+                    {s.unlockedByProviders.length}
+                  </Text>
                 </View>
-              </View>
-            </View>
-          ))
+              </TouchableOpacity>
+            ))}
+          </View>
         )}
 
-        {openServices.length > 3 && (
-          <TouchableOpacity onPress={() => router.push("/(client)/meus-servicos")} style={styles.viewAll}>
-            <Text style={[styles.viewAllText, { color: colors.cyan, fontFamily: "Inter_500Medium" }]}>Ver todos ({myServices.length})</Text>
-            <MaterialCommunityIcons name="arrow-right" size={16} color={colors.cyan} />
-          </TouchableOpacity>
-        )}
-
-        <View style={[styles.tipCard, { backgroundColor: colors.navy + "10", borderRadius: colors.radius }]}>
-          <MaterialCommunityIcons name="lightbulb-outline" size={20} color={colors.navy} />
-          <Text style={[styles.tipText, { color: colors.navy, fontFamily: "Inter_400Regular" }]}>
-            <Text style={{ fontFamily: "Inter_600SemiBold" }}>Dica: </Text>
-            Descreva bem o serviço e informe o bairro. Prestadores vão te encontrar mais rápido.
+        <View style={[styles.tipCard, { backgroundColor: colors.primary + "05", borderRadius: 16 }]}>
+          <View style={[styles.tipIcon, { backgroundColor: colors.primary + "10" }]}>
+            <MaterialCommunityIcons name="lightbulb-on" size={20} color={colors.primary} />
+          </View>
+          <Text style={[styles.tipText, { color: colors.primary, fontFamily: "Inter_400Regular" }]}>
+            <Text style={{ fontFamily: "Inter_700Bold" }}>Dica: </Text>
+            Adicione fotos reais do que precisa ser feito para atrair melhores profissionais.
           </Text>
         </View>
       </ScrollView>
@@ -128,36 +152,157 @@ export default function ClientDashboard() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: 20, paddingBottom: 24 },
-  headerContent: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 },
-  headerTextBlock: { flex: 1, paddingRight: 12 },
-  greeting: { color: "#ffffff90", fontSize: 14 },
-  headerTitle: { color: "#fff", fontSize: 24 },
-  creditBadge: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, gap: 4 },
-  creditText: { color: "#fff", fontSize: 14 },
-  statsRow: { flexDirection: "row", gap: 10 },
-  statCard: { flex: 1, borderRadius: 12, padding: 12, alignItems: "center" },
-  statNumber: { color: "#fff", fontSize: 24 },
-  statLabel: { color: "#ffffff90", fontSize: 11, marginTop: 2, textAlign: "center" },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  headerLogo: {
+    fontSize: 22,
+    letterSpacing: -1,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  switchModeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  switchModeText: {
+    fontSize: 12,
+  },
   scrollView: { flex: 1 },
-  content: { padding: 16, gap: 16 },
-  ctaCard: { flexDirection: "row", alignItems: "center", padding: 20, justifyContent: "space-between" },
-  ctaContent: { flexDirection: "row", alignItems: "center", gap: 14, flex: 1 },
+  content: { padding: 20, gap: 24 },
+  heroSection: {
+    marginBottom: 8,
+  },
+  greeting: {
+    fontSize: 15,
+    marginBottom: 2,
+  },
+  title: {
+    fontSize: 28,
+  },
+  statsGrid: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: "center",
+  },
+  statNumber: {
+    fontSize: 22,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 11,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  ctaCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 20,
+    justifyContent: "space-between",
+    shadowColor: "#e8c08a",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  ctaContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    flex: 1,
+  },
+  ctaIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   ctaTextBlock: { flex: 1 },
-  ctaTitle: { color: "#fff", fontSize: 16 },
-  ctaSub: { color: "#ffffff90", fontSize: 12, marginTop: 2 },
-  sectionTitle: { fontSize: 18 },
-  emptyState: { alignItems: "center", padding: 32, gap: 10 },
-  emptyTitle: { fontSize: 16, textAlign: "center" },
-  emptyDesc: { fontSize: 13, textAlign: "center", lineHeight: 18 },
-  serviceItem: { padding: 14, borderWidth: 1 },
-  serviceRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  serviceTitle: { fontSize: 14 },
-  serviceCategory: { fontSize: 12, marginTop: 2 },
-  interestBadge: { flexDirection: "row", alignItems: "center", gap: 4 },
+  ctaTitle: { fontSize: 18 },
+  ctaSub: { fontSize: 13, marginTop: 1 },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  sectionTitle: { fontSize: 20 },
+  seeAllText: { fontSize: 14 },
+  emptyState: {
+    alignItems: "center",
+    padding: 40,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "#00000005",
+  },
+  emptyTitle: { fontSize: 18, textAlign: "center" },
+  emptyDesc: { fontSize: 14, textAlign: "center", lineHeight: 20 },
+  serviceList: {
+    gap: 12,
+  },
+  serviceCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    justifyContent: "space-between",
+    shadowColor: "#0b1339",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  serviceInfo: { flex: 1, marginRight: 12 },
+  serviceTitle: { fontSize: 15, marginBottom: 2 },
+  serviceCategory: { fontSize: 13 },
+  interestBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 4,
+  },
   interestCount: { fontSize: 14 },
-  viewAll: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, marginTop: -4 },
-  viewAllText: { fontSize: 14 },
-  tipCard: { flexDirection: "row", padding: 14, gap: 10, alignItems: "flex-start" },
+  tipCard: {
+    flexDirection: "row",
+    padding: 16,
+    gap: 12,
+    alignItems: "center",
+  },
+  tipIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   tipText: { flex: 1, fontSize: 13, lineHeight: 18 },
 });

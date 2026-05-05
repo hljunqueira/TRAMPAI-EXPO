@@ -1,5 +1,5 @@
-export type UserRole = "CLIENT" | "PROVIDER" | "ADMIN";
-export type ServiceStatus = "OPEN" | "LOCKED" | "CLOSED" | "EXPIRED";
+export type UserRole = "client" | "provider" | "admin";
+export type ServiceStatus = "open" | "in_progress" | "completed" | "cancelled";
 export type UnlockType = "NORMAL" | "EXCLUSIVE";
 export type VerificationStatus = "PENDING" | "APPROVED" | "REJECTED";
 export type TransactionType =
@@ -14,55 +14,67 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  phone: string;
+  phone?: string;
   role: UserRole;
-  roles?: ("CLIENT" | "PROVIDER")[];
+  roles?: UserRole[];
   creditBalance: number;
-  city: string;
-  state: string;
-  neighborhood: string;
-  cep: string;
-  onboardingComplete: boolean;
-  acceptedTerms: boolean;
-  referralCode: string;
-  welcomeBonusGrantedAt: string;
-  isBanned: boolean;
+  city?: string;
+  state?: string;
+  neighborhood?: string;
+  cep?: string;
+  onboardingComplete?: boolean;
+  acceptedTerms?: boolean;
+  referralCode?: string;
+  welcomeBonusGrantedAt?: string;
+  isBanned?: boolean;
   verificationStatus?: VerificationStatus;
   referredById?: string;
+  avatarUrl?: string;
   bio?: string;
   categories?: string[];
+  providerBio?: string;
+  providerCategories?: string[];
+  rating?: string;
+  reviewCount?: number;
 }
 
 export interface Service {
   id: string;
   clientId: string;
-  clientName: string;
-  clientPhone: string;
   title: string;
   description: string;
-  category: string;
-  city: string;
-  state: string;
-  neighborhood: string;
+  budget: string;
   status: ServiceStatus;
+  location: string;
   createdAt: string;
-  expiresAt: string;
-  lockedUntil?: string;
-  unlockedByProviders: string[];
+  category: {
+    id: string;
+    name: string;
+    icon?: string;
+  };
+  unlockedByProviders: {
+    id: string;
+    providerId: string;
+    type: UnlockType;
+    createdAt: string;
+  }[];
 }
 
 export interface LeadUnlock {
   id: string;
-  serviceId: string;
-  serviceTitle: string;
-  serviceCategory: string;
+  jobId: string;
+  serviceId: string; // Alias para compatibilidade
+  jobTitle: string;
+  jobCategory: string;
   providerId: string;
   clientName: string;
   clientPhone: string;
   city: string;
   neighborhood: string;
   type: UnlockType;
-  creditsSpent: number;
+  cost: number;
+  creditsSpent: number; // Alias para compatibilidade
+  whatsappLink: string;
   createdAt: string;
 }
 
@@ -81,5 +93,18 @@ export interface CreditPackage {
   label: string;
   credits: number;
   priceCents: number;
+  bonusCredits?: number;
   highlight?: boolean;
+}
+
+export interface LoginBody {
+  email: string;
+  password: string;
+}
+
+export interface UserCreate {
+  email: string;
+  name: string;
+  password: string;
+  role: "client" | "provider";
 }

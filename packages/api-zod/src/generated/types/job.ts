@@ -5,7 +5,9 @@
  * API para o ecossistema Trampaí
  * OpenAPI spec version: 0.1.0
  */
+import type { Category } from "./category";
 import type { JobStatus } from "./jobStatus";
+import type { User } from "./user";
 
 export interface Job {
   id: string;
@@ -16,4 +18,7 @@ export interface Job {
   budget?: number | null;
   status: JobStatus;
   location: string;
+  createdAt: Date;
+  category?: Category;
+  client?: User;
 }

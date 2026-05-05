@@ -32,6 +32,9 @@ export const LoginBody = zod.object({
   password: zod.string(),
 });
 
+export const loginResponseUserCreditBalanceDefault = 0;
+export const loginResponseUserVerificationStatusDefault = `PENDING`;
+
 export const LoginResponse = zod.object({
   token: zod.string().optional(),
   user: zod
@@ -41,13 +44,62 @@ export const LoginResponse = zod.object({
       name: zod.string(),
       role: zod.enum(["client", "provider", "admin"]),
       avatarUrl: zod.string().nullish(),
+      creditBalance: zod
+        .number()
+        .default(loginResponseUserCreditBalanceDefault),
+      verificationStatus: zod
+        .enum(["PENDING", "APPROVED", "REJECTED"])
+        .default(loginResponseUserVerificationStatusDefault),
+      city: zod.string().nullish(),
+      neighborhood: zod.string().nullish(),
+      state: zod.string().nullish(),
+      phone: zod.string().nullish(),
+      referralCode: zod.string().nullish(),
     })
     .optional(),
 });
 
 /**
+ * @summary Atualiza os dados do usuário logado
+ */
+export const UpdateMeBody = zod.object({
+  name: zod.string().optional(),
+  phone: zod.string().optional(),
+  city: zod.string().optional(),
+  neighborhood: zod.string().optional(),
+  state: zod.string().optional(),
+  acceptedTerms: zod.boolean().optional(),
+  role: zod.enum(["client", "provider"]).optional(),
+  verificationStatus: zod.enum(["PENDING", "APPROVED", "REJECTED"]).optional(),
+  referredById: zod.string().nullish(),
+});
+
+export const updateMeResponseCreditBalanceDefault = 0;
+export const updateMeResponseVerificationStatusDefault = `PENDING`;
+
+export const UpdateMeResponse = zod.object({
+  id: zod.string().uuid(),
+  email: zod.string().email(),
+  name: zod.string(),
+  role: zod.enum(["client", "provider", "admin"]),
+  avatarUrl: zod.string().nullish(),
+  creditBalance: zod.number().default(updateMeResponseCreditBalanceDefault),
+  verificationStatus: zod
+    .enum(["PENDING", "APPROVED", "REJECTED"])
+    .default(updateMeResponseVerificationStatusDefault),
+  city: zod.string().nullish(),
+  neighborhood: zod.string().nullish(),
+  state: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  referralCode: zod.string().nullish(),
+});
+
+/**
  * @summary Lista todos os trampos abertos
  */
+export const listJobsResponseClientCreditBalanceDefault = 0;
+export const listJobsResponseClientVerificationStatusDefault = `PENDING`;
+
 export const ListJobsResponseItem = zod.object({
   id: zod.string().uuid(),
   title: zod.string(),
@@ -57,6 +109,34 @@ export const ListJobsResponseItem = zod.object({
   budget: zod.number().nullish(),
   status: zod.enum(["open", "in_progress", "completed", "cancelled"]),
   location: zod.string(),
+  createdAt: zod.coerce.date(),
+  category: zod
+    .object({
+      id: zod.string().uuid(),
+      name: zod.string(),
+      icon: zod.string(),
+    })
+    .optional(),
+  client: zod
+    .object({
+      id: zod.string().uuid(),
+      email: zod.string().email(),
+      name: zod.string(),
+      role: zod.enum(["client", "provider", "admin"]),
+      avatarUrl: zod.string().nullish(),
+      creditBalance: zod
+        .number()
+        .default(listJobsResponseClientCreditBalanceDefault),
+      verificationStatus: zod
+        .enum(["PENDING", "APPROVED", "REJECTED"])
+        .default(listJobsResponseClientVerificationStatusDefault),
+      city: zod.string().nullish(),
+      neighborhood: zod.string().nullish(),
+      state: zod.string().nullish(),
+      phone: zod.string().nullish(),
+      referralCode: zod.string().nullish(),
+    })
+    .optional(),
 });
 export const ListJobsResponse = zod.array(ListJobsResponseItem);
 
@@ -69,6 +149,64 @@ export const CreateJobBody = zod.object({
   categoryId: zod.string().uuid(),
   budget: zod.number().nullish(),
   location: zod.string(),
+});
+
+/**
+ * @summary Desbloqueia o contato de um trampo
+ */
+export const UnlockJobParams = zod.object({
+  id: zod.coerce.string().uuid(),
+});
+
+export const UnlockJobBody = zod.object({
+  type: zod.enum(["NORMAL", "EXCLUSIVE"]),
+});
+
+export const unlockJobResponseJobClientCreditBalanceDefault = 0;
+export const unlockJobResponseJobClientVerificationStatusDefault = `PENDING`;
+
+export const UnlockJobResponse = zod.object({
+  whatsappLink: zod.string().optional(),
+  job: zod
+    .object({
+      id: zod.string().uuid(),
+      title: zod.string(),
+      description: zod.string(),
+      categoryId: zod.string().uuid(),
+      clientId: zod.string().uuid(),
+      budget: zod.number().nullish(),
+      status: zod.enum(["open", "in_progress", "completed", "cancelled"]),
+      location: zod.string(),
+      createdAt: zod.coerce.date(),
+      category: zod
+        .object({
+          id: zod.string().uuid(),
+          name: zod.string(),
+          icon: zod.string(),
+        })
+        .optional(),
+      client: zod
+        .object({
+          id: zod.string().uuid(),
+          email: zod.string().email(),
+          name: zod.string(),
+          role: zod.enum(["client", "provider", "admin"]),
+          avatarUrl: zod.string().nullish(),
+          creditBalance: zod
+            .number()
+            .default(unlockJobResponseJobClientCreditBalanceDefault),
+          verificationStatus: zod
+            .enum(["PENDING", "APPROVED", "REJECTED"])
+            .default(unlockJobResponseJobClientVerificationStatusDefault),
+          city: zod.string().nullish(),
+          neighborhood: zod.string().nullish(),
+          state: zod.string().nullish(),
+          phone: zod.string().nullish(),
+          referralCode: zod.string().nullish(),
+        })
+        .optional(),
+    })
+    .optional(),
 });
 
 /**

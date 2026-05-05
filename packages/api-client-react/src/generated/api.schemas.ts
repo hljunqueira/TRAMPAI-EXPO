@@ -17,12 +17,57 @@ export const UserRole = {
   admin: "admin",
 } as const;
 
+export type UserVerificationStatus =
+  (typeof UserVerificationStatus)[keyof typeof UserVerificationStatus];
+
+export const UserVerificationStatus = {
+  PENDING: "PENDING",
+  APPROVED: "APPROVED",
+  REJECTED: "REJECTED",
+} as const;
+
 export interface User {
   id: string;
   email: string;
   name: string;
   role: UserRole;
   avatarUrl?: string | null;
+  creditBalance: number;
+  verificationStatus: UserVerificationStatus;
+  city?: string | null;
+  neighborhood?: string | null;
+  state?: string | null;
+  phone?: string | null;
+  referralCode?: string | null;
+}
+
+export type UserUpdateRole =
+  (typeof UserUpdateRole)[keyof typeof UserUpdateRole];
+
+export const UserUpdateRole = {
+  client: "client",
+  provider: "provider",
+} as const;
+
+export type UserUpdateVerificationStatus =
+  (typeof UserUpdateVerificationStatus)[keyof typeof UserUpdateVerificationStatus];
+
+export const UserUpdateVerificationStatus = {
+  PENDING: "PENDING",
+  APPROVED: "APPROVED",
+  REJECTED: "REJECTED",
+} as const;
+
+export interface UserUpdate {
+  name?: string;
+  phone?: string;
+  city?: string;
+  neighborhood?: string;
+  state?: string;
+  acceptedTerms?: boolean;
+  role?: UserUpdateRole;
+  verificationStatus?: UserUpdateVerificationStatus;
+  referredById?: string | null;
 }
 
 export type UserCreateRole =
@@ -49,6 +94,12 @@ export const JobStatus = {
   cancelled: "cancelled",
 } as const;
 
+export interface Category {
+  id: string;
+  name: string;
+  icon: string;
+}
+
 export interface Job {
   id: string;
   title: string;
@@ -58,6 +109,9 @@ export interface Job {
   budget?: number | null;
   status: JobStatus;
   location: string;
+  createdAt: string;
+  category?: Category;
+  client?: User;
 }
 
 export interface JobCreate {
@@ -68,12 +122,6 @@ export interface JobCreate {
   location: string;
 }
 
-export interface Category {
-  id: string;
-  name: string;
-  icon: string;
-}
-
 export type LoginBody = {
   email: string;
   password: string;
@@ -82,4 +130,21 @@ export type LoginBody = {
 export type Login200 = {
   token?: string;
   user?: User;
+};
+
+export type UnlockJobBodyType =
+  (typeof UnlockJobBodyType)[keyof typeof UnlockJobBodyType];
+
+export const UnlockJobBodyType = {
+  NORMAL: "NORMAL",
+  EXCLUSIVE: "EXCLUSIVE",
+} as const;
+
+export type UnlockJobBody = {
+  type: UnlockJobBodyType;
+};
+
+export type UnlockJob200 = {
+  whatsappLink?: string;
+  job?: Job;
 };

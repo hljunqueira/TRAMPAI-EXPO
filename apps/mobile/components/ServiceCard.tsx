@@ -1,69 +1,28 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View, Image } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
 import type { Service } from "@/types";
+import type { Job } from "@workspace/api-client-react";
 
-const CATEGORY_ICONS: Record<string, string> = {
-  Pedreiro: "hammer",
-  Eletricista: "lightning-bolt",
-  Encanador: "pipe",
-  Diarista: "broom",
-  Pintor: "format-paint",
-  Jardineiro: "flower",
-  Marceneiro: "saw-blade",
-  Chaveiro: "key",
-  "Mecânico": "car-wrench",
-  "Mudanças/Frete": "truck",
-  "Refrigeração/Ar-condicionado": "air-conditioner",
-  "Técnico de Informática": "laptop",
-  Costureira: "scissors-cutting",
-  Cuidador: "heart",
-  Outros: "briefcase",
+const CATEGORY_IMAGES: Record<string, string> = {
+  Pintor: "https://lh3.googleusercontent.com/aida-public/AB6AXuAEGwEQAVLkNqiJ4ox5luaNs84Dy309DUfoa8y4wUcrJK4t1FKimHyn1Qixepamj3eKXG-4VWopjSqGBmgMHPsR2L0fdjXU4mwerSNBsTaU6nh7VXRToOuqAZn512-WvtlyWQvnVkKd7RElZT8bNsaw27JMMOmyfFdNnZ4jFXT3igPd59AcqJfrUBIsKksByIlvgloDdGGpAwDQWaYaYYhM4dpcKVHdqk8eCpekfC4l4MhwYxOuyIKkmsLbpG7iVb5zXh34nNpzqL4",
+  Pedreiro: "https://lh3.googleusercontent.com/aida-public/AB6AXuCsR_m7x_M9r7X7o9x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7x7",
+  "Refrigeração/Ar-condicionado": "https://lh3.googleusercontent.com/aida-public/AB6AXuByXtrt5SJUFPg4NlR9Cdjcv3v1NLdY0yv9paILBRay6xWKTzRgxtnsFVUR0SNFqgC9HT0wqW8Q-7GRMrALUPK1dPsv4VFoJsG4BS9QFhgpwjmfST9y3yPmX7udZaFUwb5agbntLJd3KtZRr7k9SbjYwczDhn4diBT72bOQ1gnTMn5xgBMCWB7hLZpMC0-AjMXLqQ4609EN-TW2WqVnV3BghvE9gSaUx679Mqp16GCrwM38qrUt1_Pfv9q5zlIoKgdauGVhcpo-ZXA",
+  Limpeza: "https://lh3.googleusercontent.com/aida-public/AB6AXuCGABizx9cTsRIMYggAQqFh8bWRf1kBBpyzeajhhiAfvwJsiHyaUZVpZ0cy8tUEtrOk9T9ft9DWy7Qtq9Uuhn3E0vH1EpqX3-T4SPj-eTMSeG_xPTmqntmRQYdqAFxQyIt85RJoMSQjG2UzCb3wRfA-YG4LNXrYYudZAJQN6lyXWTIBPP5s2Vex_k9AqTKE4FpPk_tMNO8vq21htim_7m0FtzP8LAxeKXnwJh7lgv06tVhzfR2Yfbd_AJscc4gNrwgJpAh8XJcOQNY",
 };
 
+const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1581578731548-c64695cc6958?q=80&w=800&auto=format&fit=crop";
+
 interface Props {
-  service: Service;
+  service: Service | Job;
   onUnlock?: () => void;
   showUnlock?: boolean;
   alreadyUnlocked?: boolean;
   onClose?: () => void;
   showClose?: boolean;
-}
-
-function getStatusColor(status: Service["status"]) {
-  switch (status) {
-    case "OPEN":
-      return "#22c55e";
-    case "LOCKED":
-      return "#f59e0b";
-    case "CLOSED":
-      return "#6b7280";
-    case "EXPIRED":
-      return "#ef4444";
-  }
-}
-
-function getStatusLabel(status: Service["status"]) {
-  switch (status) {
-    case "OPEN":
-      return "Aberto";
-    case "LOCKED":
-      return "Reservado";
-    case "CLOSED":
-      return "Encerrado";
-    case "EXPIRED":
-      return "Expirado";
-  }
-}
-
-function timeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const hours = Math.floor(diff / 3600000);
-  if (hours < 1) return "Agora há pouco";
-  if (hours < 24) return `${hours}h atrás`;
-  return `${Math.floor(hours / 24)}d atrás`;
 }
 
 export function ServiceCard({
@@ -75,8 +34,16 @@ export function ServiceCard({
   showClose,
 }: Props) {
   const colors = useColors();
-  const icon = (CATEGORY_ICONS[service.category] ?? "briefcase") as never;
-  const statusColor = getStatusColor(service.status);
+  
+  // Normalização de dados
+  const isJob = "categoryId" in service;
+  const categoryName = isJob ? (service as any).category?.name || "Serviço" : (service as any).category;
+  const locationText = isJob ? service.location : `${(service as any).neighborhood}, ${(service as any).city}`;
+  const status = isJob ? service.status : (service as any).status;
+  const isUrgent = (service as any).priority === "URGENT" || (service as any).isUrgent;
+
+  const isClosed = status === "CLOSED" || status === "COMPLETED";
+  const imageUrl = CATEGORY_IMAGES[categoryName] || DEFAULT_IMAGE;
 
   return (
     <View
@@ -85,101 +52,94 @@ export function ServiceCard({
         {
           backgroundColor: colors.card,
           borderColor: colors.border,
-          borderRadius: colors.radius,
+          opacity: isClosed ? 0.7 : 1,
         },
       ]}
     >
-      <View style={styles.header}>
-        <View
-          style={[
-            styles.iconBox,
-            { backgroundColor: colors.navy + "15", borderRadius: colors.radius / 2 },
-          ]}
-        >
-          <MaterialCommunityIcons
-            name={icon}
-            size={22}
-            color={colors.navy}
-          />
-        </View>
-        <View style={styles.headerText}>
+      <View style={styles.mainContent}>
+        <View style={styles.textContent}>
+          <View style={styles.badgesRow}>
+            <View style={[styles.categoryBadge, { backgroundColor: colors.cyan + "15" }]}>
+              <Text style={[styles.categoryText, { color: colors.cyan, fontFamily: "Inter_600SemiBold" }]}>
+                {categoryName}
+              </Text>
+            </View>
+            {isUrgent && (
+              <View style={[styles.urgentBadge, { backgroundColor: "#F6992615" }]}>
+                <MaterialCommunityIcons name="bolt" size={12} color="#F69926" />
+                <Text style={[styles.urgentText, { fontFamily: "Inter_700Bold" }]}>Urgente</Text>
+              </View>
+            )}
+          </View>
+
           <Text
-            style={[styles.title, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}
+            style={[styles.title, { color: colors.navy, fontFamily: "Inter_700Bold" }]}
             numberOfLines={2}
           >
             {service.title}
           </Text>
-          <View style={styles.metaRow}>
-            <Text style={[styles.category, { color: colors.accent, fontFamily: "Inter_500Medium" }]}>
-              {service.category}
+
+          <View style={styles.locationRow}>
+            <MaterialCommunityIcons name="map-marker-outline" size={14} color={colors.mutedForeground} />
+            <Text style={[styles.location, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+              {locationText}
             </Text>
-            <View
-              style={[styles.statusBadge, { backgroundColor: statusColor + "20" }]}
-            >
-              <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-              <Text style={[styles.statusText, { color: statusColor, fontFamily: "Inter_500Medium" }]}>
-                {getStatusLabel(service.status)}
-              </Text>
-            </View>
           </View>
+
+          <Text
+            style={[styles.description, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}
+            numberOfLines={2}
+          >
+            {service.description}
+          </Text>
         </View>
+
+        <Image source={{ uri: imageUrl }} style={styles.serviceImg} />
       </View>
 
-      <Text
-        style={[styles.description, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}
-        numberOfLines={2}
-      >
-        {service.description}
-      </Text>
-
-      <View style={styles.footer}>
-        <View style={styles.locationRow}>
-          <MaterialCommunityIcons
-            name="map-marker-outline"
-            size={13}
-            color={colors.mutedForeground}
-          />
-          <Text style={[styles.location, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-            {service.neighborhood}, {service.city}
-          </Text>
+      {isClosed ? (
+        <View style={styles.closedOverlay}>
+           <Text style={[styles.closedLabel, { fontFamily: "Inter_700Bold" }]}>Finalizado</Text>
         </View>
-        <Text style={[styles.time, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-          {timeAgo(service.createdAt)}
-        </Text>
-      </View>
+      ) : (
+        <View style={styles.actions}>
+          {showUnlock && !alreadyUnlocked && (
+            <View style={styles.unlockActions}>
+              <TouchableOpacity
+                style={[styles.unlockBtn, { backgroundColor: "#F69926" }]}
+                onPress={onUnlock}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons name="lock-open-outline" size={18} color={colors.navy} />
+                <Text style={[styles.unlockBtnText, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>
+                  Desbloquear (1 cr)
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.exclusiveBtn, { backgroundColor: colors.navy }]}
+                onPress={onUnlock}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons name="star" size={18} color="#fff" />
+                <Text style={[styles.exclusiveBtnText, { color: "#fff", fontFamily: "Inter_700Bold" }]}>
+                  Exclusivo (3 cr)
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
-      {showUnlock && !alreadyUnlocked && service.status === "OPEN" && (
-        <TouchableOpacity
-          style={[styles.unlockBtn, { backgroundColor: colors.accent, borderRadius: colors.radius }]}
-          onPress={onUnlock}
-          activeOpacity={0.8}
-        >
-          <MaterialCommunityIcons name="lock-open-outline" size={16} color="#fff" />
-          <Text style={[styles.unlockText, { fontFamily: "Inter_600SemiBold" }]}>
-            Desbloquear Lead
-          </Text>
-        </TouchableOpacity>
-      )}
-
-      {alreadyUnlocked && (
-        <View style={[styles.unlockedBadge, { borderRadius: colors.radius, backgroundColor: "#22c55e15" }]}>
-          <MaterialCommunityIcons name="check-circle" size={14} color="#22c55e" />
-          <Text style={[styles.unlockedText, { fontFamily: "Inter_500Medium" }]}>
-            Já desbloqueado
-          </Text>
+          {alreadyUnlocked && (
+            <TouchableOpacity 
+              style={[styles.detailsBtn, { borderColor: colors.navy }]}
+              onPress={() => router.push({ pathname: "/(provider)/mural", params: { id: service.id } })}
+            >
+              <Text style={[styles.detailsBtnText, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>
+                Ver Detalhes
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
-      )}
-
-      {showClose && service.status === "OPEN" && (
-        <TouchableOpacity
-          style={[styles.closeBtn, { borderColor: colors.border, borderRadius: colors.radius }]}
-          onPress={onClose}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.closeBtnText, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>
-            Marcar como Resolvido
-          </Text>
-        </TouchableOpacity>
       )}
     </View>
   );
@@ -187,111 +147,123 @@ export function ServiceCard({
 
 const styles = StyleSheet.create({
   card: {
+    borderRadius: 20,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 16,
     borderWidth: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    elevation: 3,
+    shadowColor: "#21284E",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    overflow: "hidden",
   },
-  header: {
+  mainContent: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 10,
-    gap: 12,
+    gap: 15,
   },
-  iconBox: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerText: {
+  textContent: {
     flex: 1,
-    gap: 4,
   },
-  title: {
-    fontSize: 15,
-    lineHeight: 20,
-  },
-  metaRow: {
+  badgesRow: {
     flexDirection: "row",
-    alignItems: "center",
     gap: 8,
+    marginBottom: 8,
   },
-  category: {
-    fontSize: 12,
+  categoryBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    gap: 4,
-  },
-  statusDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-  },
-  statusText: {
+  categoryText: {
     fontSize: 11,
   },
-  description: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 10,
-  },
-  footer: {
+  urgentBadge: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    gap: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  urgentText: {
+    color: "#F69926",
+    fontSize: 11,
+  },
+  title: {
+    fontSize: 16,
+    lineHeight: 22,
+    marginBottom: 6,
   },
   locationRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
+    gap: 4,
+    marginBottom: 8,
   },
   location: {
     fontSize: 12,
   },
-  time: {
-    fontSize: 12,
+  description: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  serviceImg: {
+    width: 85,
+    height: 85,
+    borderRadius: 15,
+    backgroundColor: "#f1f5f9",
+  },
+  actions: {
+    marginTop: 15,
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderColor: "#00000005",
+  },
+  unlockActions: {
+    gap: 10,
   },
   unlockBtn: {
     flexDirection: "row",
+    height: 48,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 10,
-    marginTop: 12,
-    gap: 6,
+    borderRadius: 12,
+    gap: 8,
   },
-  unlockText: {
-    color: "#fff",
+  unlockBtnText: {
     fontSize: 14,
   },
-  unlockedBadge: {
+  exclusiveBtn: {
     flexDirection: "row",
+    height: 48,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 8,
-    marginTop: 12,
-    gap: 6,
+    borderRadius: 12,
+    gap: 8,
   },
-  unlockedText: {
-    color: "#22c55e",
-    fontSize: 13,
+  exclusiveBtnText: {
+    fontSize: 14,
   },
-  closeBtn: {
+  detailsBtn: {
+    height: 48,
     alignItems: "center",
-    paddingVertical: 10,
-    marginTop: 12,
-    borderWidth: 1,
+    justifyContent: "center",
+    borderRadius: 12,
+    borderWidth: 2,
   },
-  closeBtnText: {
+  detailsBtnText: {
+    fontSize: 14,
+  },
+  closedOverlay: {
+    marginTop: 15,
+    paddingVertical: 12,
+    alignItems: "center",
+    backgroundColor: "#f1f5f9",
+    borderRadius: 12,
+  },
+  closedLabel: {
+    color: "#94a3b8",
     fontSize: 13,
+    textTransform: "uppercase",
   },
 });

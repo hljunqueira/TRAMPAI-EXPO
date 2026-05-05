@@ -1,8 +1,18 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React from "react";
-import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
@@ -10,32 +20,13 @@ import { useColors } from "@/hooks/useColors";
 
 export default function ProviderPerfil() {
   const colors = useColors();
-  const { user, logout, leads, switchActiveMode } = useAuth();
+  const { user, logout, leads, activeMode, switchActiveMode } = useAuth();
   const insets = useSafeAreaInsets();
 
   const myLeads = leads.filter((l) => l.providerId === user?.id);
-  const totalSpent = myLeads.reduce((sum, l) => sum + l.creditsSpent, 0);
+  const totalSpent = myLeads.reduce((sum, l) => sum + l.cost, 0);
 
-  const isDual =
-    user?.roles?.includes("CLIENT") && user?.roles?.includes("PROVIDER");
-
-  const initials = user?.name
-    ? user.name.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase()
-    : "?";
-
-  const verificationColor =
-    user?.verificationStatus === "APPROVED"
-      ? "#22c55e"
-      : user?.verificationStatus === "REJECTED"
-      ? "#ef4444"
-      : "#f59e0b";
-
-  const verificationLabel =
-    user?.verificationStatus === "APPROVED"
-      ? "Verificado"
-      : user?.verificationStatus === "REJECTED"
-      ? "Rejeitado"
-      : "Verificação Pendente";
+  const isVerified = user?.verificationStatus === "APPROVED" || user?.role === "admin";
 
   function handleLogout() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -53,135 +44,148 @@ export default function ProviderPerfil() {
   }
 
   function handleSwitchMode() {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    switchActiveMode("CLIENT");
-    router.replace("/");
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    if (user?.role === "admin") {
+      switchActiveMode("ADMIN");
+      router.replace("/(admin)");
+    } else {
+      switchActiveMode("CLIENT");
+      router.replace("/(client)");
+    }
   }
+
+  const getInitials = (name?: string) => {
+    if (!name) return "??";
+    const parts = name.trim().split(" ");
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return parts[0][0].toUpperCase();
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { backgroundColor: colors.navy, paddingTop: insets.top + (Platform.OS === "web" ? 67 : 16) }]}>
-        <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
-          <Text style={[styles.avatarText, { fontFamily: "Inter_700Bold" }]}>{initials}</Text>
+      {/* Custom Header */}
+      <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 20 : 10), borderBottomWidth: 1, borderBottomColor: colors.border + "30", backgroundColor: "#fff" }]}>
+        <View style={styles.headerLeft}>
+          <Text style={[styles.headerLogo, { fontFamily: "Inter_800ExtraBold", color: colors.primary }]}>Trampaí</Text>
         </View>
-        <Text style={[styles.name, { fontFamily: "Inter_700Bold" }]}>{user?.name}</Text>
-        <Text style={[styles.email, { fontFamily: "Inter_400Regular" }]}>{user?.email}</Text>
-        <View style={styles.badgesRow}>
-          <View style={[styles.verificationBadge, { backgroundColor: verificationColor + "20", borderColor: verificationColor + "40" }]}>
-            <MaterialCommunityIcons
-              name={user?.verificationStatus === "APPROVED" ? "shield-check" : "shield-alert"}
-              size={14}
-              color={verificationColor}
-            />
-            <Text style={[styles.verificationText, { color: verificationColor, fontFamily: "Inter_600SemiBold" }]}>
-              {verificationLabel}
-            </Text>
-          </View>
-          {isDual && (
-            <View style={[styles.verificationBadge, { backgroundColor: "#ffffff15", borderColor: "#ffffff25" }]}>
-              <MaterialCommunityIcons name="account-outline" size={14} color="#ffffff80" />
-              <Text style={[styles.verificationText, { color: "#ffffff80", fontFamily: "Inter_600SemiBold" }]}>
-                Cliente
-              </Text>
-            </View>
-          )}
+
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.iconBtn} onPress={handleSwitchMode}>
+            <MaterialCommunityIcons name="swap-horizontal" size={22} color={colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} onPress={handleLogout}>
+            <MaterialCommunityIcons name="logout" size={22} color={colors.primary} />
+          </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 100 + insets.bottom }]} showsVerticalScrollIndicator={false}>
-        {isDual && (
-          <TouchableOpacity
-            style={[
-              styles.switchModeCard,
-              {
-                backgroundColor: colors.cyan + "10",
-                borderRadius: colors.radius,
-                borderColor: colors.cyan + "30",
-              },
-            ]}
-            onPress={handleSwitchMode}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.switchModeIcon, { backgroundColor: colors.cyan + "15" }]}>
-              <MaterialCommunityIcons name="account-switch-outline" size={22} color={colors.cyan} />
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 + insets.bottom }} showsVerticalScrollIndicator={false}>
+        {/* Profile Hero Section */}
+        <View style={[styles.profileHero, { backgroundColor: "#FFF" }]}>
+          <View style={styles.avatarWrapper}>
+            <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
+              <Text style={[styles.avatarText, { color: "#FFF", fontFamily: "Inter_700Bold" }]}>{getInitials(user?.name)}</Text>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.switchModeTitle, { color: colors.navy, fontFamily: "Inter_600SemiBold" }]}>
-                Alternar para Modo Cliente
-              </Text>
-              <Text style={[styles.switchModeDesc, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-                Poste serviços e receba propostas de prestadores
-              </Text>
+            {isVerified && (
+              <View style={[styles.verifiedBadge, { backgroundColor: "#e8c08a" }]}>
+                <MaterialCommunityIcons name="check-decagram" size={18} color={colors.primary} />
+              </View>
+            )}
+          </View>
+
+          <View style={styles.headerInfo}>
+            <View style={styles.nameRow}>
+              <Text style={[styles.userName, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{user?.name}</Text>
+              <View style={[styles.ratingChip, { backgroundColor: colors.secondary + "15" }]}>
+                <MaterialCommunityIcons name="star" size={12} color={colors.secondary} />
+                <Text style={[styles.ratingText, { color: colors.secondary, fontFamily: "Inter_700Bold" }]}>{user?.rating || "5.0"}</Text>
+              </View>
             </View>
-            <MaterialCommunityIcons name="chevron-right" size={20} color={colors.mutedForeground} />
+            
+            <Text style={[styles.userRole, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+              {user?.providerBio ? user.providerBio.substring(0, 80) + (user.providerBio.length > 80 ? "..." : "") : "Profissional de Serviços"}
+            </Text>
+
+            <View style={styles.chipsRow}>
+              <View style={[styles.chip, { backgroundColor: colors.primary + "08" }]}>
+                <MaterialCommunityIcons name="map-marker" size={12} color={colors.primary} />
+                <Text style={[styles.chipText, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>{user?.city || "Local não informado"}</Text>
+              </View>
+              <View style={[styles.chip, { backgroundColor: colors.primary + "08" }]}>
+                <MaterialCommunityIcons name="shield-check" size={12} color={colors.primary} />
+                <Text style={[styles.chipText, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>{isVerified ? "Verificado" : "Pendente"}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Stats Section */}
+        <View style={[styles.statsGrid, { backgroundColor: "#FFF" }]}>
+          <View style={styles.statBox}>
+            <Text style={[styles.statValue, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{myLeads.length}</Text>
+            <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Serviços</Text>
+          </View>
+          <View style={[styles.statDivider, { backgroundColor: colors.border + "40" }]} />
+          <View style={styles.statBox}>
+            <Text style={[styles.statValue, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{user?.creditBalance ?? 0}</Text>
+            <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Créditos</Text>
+          </View>
+          <View style={[styles.statDivider, { backgroundColor: colors.border + "40" }]} />
+          <View style={styles.statBox}>
+            <Text style={[styles.statValue, { color: colors.secondary, fontFamily: "Inter_800ExtraBold" }]}>{user?.reviewCount || 0}</Text>
+            <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Avaliações</Text>
+          </View>
+        </View>
+
+        {/* Action Buttons */}
+        <View style={styles.quickActions}>
+          <TouchableOpacity style={[styles.primaryAction, { backgroundColor: "#e8c08a" }]}>
+            <MaterialCommunityIcons name="account-edit" size={20} color={colors.primary} />
+            <Text style={[styles.actionText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Editar Perfil</Text>
           </TouchableOpacity>
-        )}
-
-        <View style={styles.statsRow}>
-          {[
-            { label: "Leads", value: myLeads.length, icon: "briefcase-outline" as const },
-            { label: "Créditos Gastos", value: totalSpent, icon: "star-circle" as const },
-            { label: "Saldo", value: user?.creditBalance ?? 0, icon: "wallet-outline" as const },
-          ].map((stat) => (
-            <View key={stat.label} style={[styles.statCard, { backgroundColor: colors.card, borderRadius: colors.radius, borderColor: colors.border }]}>
-              <MaterialCommunityIcons name={stat.icon} size={20} color={colors.accent} />
-              <Text style={[styles.statValue, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>{stat.value}</Text>
-              <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>{stat.label}</Text>
-            </View>
-          ))}
+          <TouchableOpacity 
+            style={[styles.secondaryAction, { borderColor: colors.primary + "30" }]}
+            onPress={() => router.push("/(provider)/carteira")}
+          >
+            <MaterialCommunityIcons name="wallet" size={20} color={colors.primary} />
+            <Text style={[styles.actionText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Minha Carteira</Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={[styles.section, { backgroundColor: colors.card, borderRadius: colors.radius, borderColor: colors.border }]}>
-          <View style={styles.infoRow}>
-            <MaterialCommunityIcons name="phone-outline" size={20} color={colors.cyan} />
-            <Text style={[styles.infoLabel, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Telefone</Text>
-            <Text style={[styles.infoValue, { color: colors.foreground, fontFamily: "Inter_500Medium" }]}>{user?.phone || "Não informado"}</Text>
-          </View>
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          <View style={styles.infoRow}>
-            <MaterialCommunityIcons name="map-marker-outline" size={20} color={colors.cyan} />
-            <Text style={[styles.infoLabel, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Cidade</Text>
-            <Text style={[styles.infoValue, { color: colors.foreground, fontFamily: "Inter_500Medium" }]}>{user?.city || "Não informada"}</Text>
-          </View>
-        </View>
-
-        {user?.verificationStatus !== "APPROVED" && (
-          <View style={[styles.verificationCard, { backgroundColor: colors.accent + "10", borderRadius: colors.radius, borderColor: colors.accent + "30" }]}>
-            <MaterialCommunityIcons name="shield-alert-outline" size={24} color={colors.accent} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.verCardTitle, { color: colors.navy, fontFamily: "Inter_600SemiBold" }]}>
-                {user?.verificationStatus === "REJECTED" ? "Verificação rejeitada" : "Verificação pendente"}
-              </Text>
-              <Text style={[styles.verCardDesc, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-                {user?.verificationStatus === "REJECTED"
-                  ? "Sua verificação foi rejeitada. Entre em contato com o suporte."
-                  : "Sua conta está sendo verificada. Enquanto isso, você pode explorar o mural."}
-              </Text>
-            </View>
-          </View>
-        )}
-
-        <View style={[styles.referralCard, { backgroundColor: colors.navy + "08", borderRadius: colors.radius }]}>
-          <View style={styles.referralRow}>
-            <MaterialCommunityIcons name="account-plus-outline" size={18} color={colors.navy} />
-            <Text style={[styles.referralTitle, { color: colors.navy, fontFamily: "Inter_600SemiBold" }]}>Código de Indicação</Text>
-          </View>
-          <View style={[styles.codeBox, { backgroundColor: colors.card, borderRadius: 8 }]}>
-            <Text style={[styles.code, { color: colors.accent, fontFamily: "Inter_700Bold" }]}>{user?.referralCode}</Text>
-          </View>
-          <Text style={[styles.referralDesc, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-            Compartilhe e ganhe 10 créditos quando alguém usar seu código na primeira compra.
+        {/* About Section */}
+        <View style={[styles.sectionCard, { backgroundColor: "#FFF" }]}>
+          <Text style={[styles.sectionTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Sobre o Profissional</Text>
+          <Text style={[styles.sectionDesc, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+            {user?.providerBio || "Você ainda não preencheu sua biografia. Complete seu perfil para passar mais confiança aos clientes."}
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={[styles.logoutBtn, { borderColor: "#ef4444", borderRadius: colors.radius }]}
-          onPress={handleLogout}
-          activeOpacity={0.8}
-        >
-          <MaterialCommunityIcons name="logout" size={18} color="#ef4444" />
-          <Text style={[styles.logoutText, { fontFamily: "Inter_600SemiBold" }]}>Sair da conta</Text>
-        </TouchableOpacity>
+        {/* Portfolio Section */}
+        <View style={[styles.sectionCard, { backgroundColor: "#FFF" }]}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={[styles.sectionTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Portfólio</Text>
+            <TouchableOpacity><Text style={[styles.seeAll, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>Editar</Text></TouchableOpacity>
+          </View>
+          <View style={styles.emptyPortfolio}>
+            <MaterialCommunityIcons name="image-outline" size={32} color={colors.mutedForeground + "40"} />
+            <Text style={[styles.emptyText, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Nenhuma foto adicionada</Text>
+          </View>
+        </View>
+
+        {/* Reviews Section */}
+        <View style={[styles.sectionCard, { backgroundColor: "#FFF", marginBottom: 32 }]}>
+          <Text style={[styles.sectionTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Avaliações Recentes</Text>
+          {user?.reviewCount ? (
+             <View style={styles.reviewCard}>
+              {/* This would be a real review loop if we had reviews data */}
+             </View>
+          ) : (
+            <View style={styles.emptyPortfolio}>
+              <MaterialCommunityIcons name="star-outline" size={32} color={colors.mutedForeground + "40"} />
+              <Text style={[styles.emptyText, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Nenhuma avaliação recebida</Text>
+            </View>
+          )}
+        </View>
       </ScrollView>
     </View>
   );
@@ -189,49 +193,264 @@ export default function ProviderPerfil() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { alignItems: "center", paddingHorizontal: 20, paddingBottom: 28, gap: 8 },
-  avatar: { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center", marginBottom: 4 },
-  avatarText: { color: "#fff", fontSize: 28 },
-  name: { color: "#fff", fontSize: 20 },
-  email: { color: "#ffffff80", fontSize: 14 },
-  badgesRow: { flexDirection: "row", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "center" },
-  verificationBadge: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 5, borderRadius: 16, borderWidth: 1, gap: 5 },
-  verificationText: { fontSize: 12 },
-  content: { padding: 16, gap: 16 },
-  switchModeCard: {
+  header: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 14,
-    borderWidth: 1,
-    gap: 12,
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingBottom: 12,
   },
-  switchModeIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+  headerLeft: {
+    flex: 1,
+  },
+  headerLogo: {
+    fontSize: 22,
+    letterSpacing: -1,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
   },
-  switchModeTitle: { fontSize: 14, marginBottom: 2 },
-  switchModeDesc: { fontSize: 12, lineHeight: 16 },
-  statsRow: { flexDirection: "row", gap: 10 },
-  statCard: { flex: 1, alignItems: "center", padding: 14, borderWidth: 1, gap: 4 },
-  statValue: { fontSize: 22 },
-  statLabel: { fontSize: 11, textAlign: "center" },
-  section: { borderWidth: 1, overflow: "hidden" },
-  infoRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
-  infoLabel: { flex: 1, fontSize: 14 },
-  infoValue: { fontSize: 14 },
-  divider: { height: StyleSheet.hairlineWidth },
-  verificationCard: { flexDirection: "row", padding: 16, gap: 12, borderWidth: 1 },
-  verCardTitle: { fontSize: 14, marginBottom: 4 },
-  verCardDesc: { fontSize: 13, lineHeight: 18 },
-  referralCard: { padding: 16, gap: 10 },
-  referralRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  referralTitle: { fontSize: 15 },
-  codeBox: { alignItems: "center", paddingVertical: 12 },
-  code: { fontSize: 28, letterSpacing: 6 },
-  referralDesc: { fontSize: 13, lineHeight: 18 },
-  logoutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 14, borderWidth: 1.5, gap: 8 },
-  logoutText: { color: "#ef4444", fontSize: 15 },
+  profileHero: {
+    alignItems: "center",
+    paddingTop: 24,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+  },
+  avatarWrapper: {
+    position: "relative",
+    marginBottom: 16,
+  },
+  avatarCircle: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#0b1339",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  avatarText: {
+    fontSize: 32,
+  },
+  verifiedBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 3,
+    borderColor: "#FFF",
+  },
+  headerInfo: {
+    alignItems: "center",
+    width: "100%",
+  },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 4,
+  },
+  userName: {
+    fontSize: 22,
+  },
+  ratingChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 100,
+  },
+  ratingText: {
+    fontSize: 13,
+  },
+  userRole: {
+    fontSize: 14,
+    textAlign: "center",
+    marginBottom: 16,
+    paddingHorizontal: 20,
+  },
+  chipsRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 100,
+  },
+  chipText: {
+    fontSize: 12,
+  },
+  quickActions: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    gap: 12,
+    marginBottom: 20,
+  },
+  primaryAction: {
+    flex: 1,
+    flexDirection: "row",
+    height: 50,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 16,
+    gap: 8,
+    shadowColor: "#e8c08a",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  secondaryAction: {
+    flex: 1,
+    flexDirection: "row",
+    height: 50,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 16,
+    borderWidth: 1.5,
+    gap: 8,
+  },
+  actionText: {
+    fontSize: 14,
+  },
+  statsGrid: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 20,
+    padding: 20,
+    borderRadius: 24,
+    marginBottom: 20,
+    shadowColor: "#0b1339",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  statBox: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statValue: {
+    fontSize: 20,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 11,
+  },
+  statDivider: {
+    width: 1,
+    height: 24,
+  },
+  sectionCard: {
+    marginHorizontal: 20,
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: "#0b1339",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  sectionDesc: {
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  seeAll: {
+    fontSize: 12,
+  },
+  portfolioGrid: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  portfolioImg: {
+    flex: 1,
+    height: 80,
+    borderRadius: 12,
+  },
+  emptyPortfolio: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 24,
+    borderWidth: 1,
+    borderColor: "#00000008",
+    borderRadius: 16,
+    backgroundColor: "#FDFBF7",
+    gap: 8,
+  },
+  emptyText: {
+    fontSize: 13,
+  },
+  reviewCard: {
+    gap: 12,
+  },
+  reviewHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  miniAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  miniAvatarText: {
+    fontSize: 14,
+  },
+  reviewName: {
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  reviewDate: {
+    fontSize: 11,
+  },
+  reviewStars: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#F6992615",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 100,
+  },
+  reviewRate: {
+    fontSize: 12,
+  },
+  reviewText: {
+    fontSize: 13,
+    lineHeight: 20,
+  },
 });

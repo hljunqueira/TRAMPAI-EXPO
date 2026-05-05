@@ -18,6 +18,7 @@
       "bundleIdentifier": "com.trampai.app"
     },
     "android": {
+      "package": "com.trampai.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#21284E"
@@ -31,7 +32,8 @@
         "expo-router"
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
       "typedRoutes": true,

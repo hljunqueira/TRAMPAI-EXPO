@@ -92,7 +92,7 @@ export default function WelcomeScreen() {
 
   async function handleStart() {
     await AsyncStorage.setItem("@trampai/welcomeSeen", "true");
-    router.replace("/onboarding");
+    router.replace("/login");
   }
 
   function goToSlide(index: number) {
@@ -132,7 +132,6 @@ export default function WelcomeScreen() {
       style={[
         styles.container,
         {
-          paddingTop: insets.top + (Platform.OS === "web" ? 67 : 0),
           paddingBottom: insets.bottom,
         },
       ]}
@@ -149,11 +148,9 @@ export default function WelcomeScreen() {
         style={{ height: 0 }}
       />
 
-      {!isLast && (
-        <TouchableOpacity style={styles.skipBtn} onPress={handleSkip}>
-          <Text style={styles.skipText}>Pular</Text>
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity style={[styles.skipBtn, { top: insets.top + 10 }]} onPress={handleSkip}>
+        <Text style={styles.skipText}>Pular</Text>
+      </TouchableOpacity>
 
       <Animated.View style={[styles.slideContent, { opacity: fadeAnim }]}> 
         <View style={styles.iconWrapper}>
@@ -170,54 +167,59 @@ export default function WelcomeScreen() {
           >
             <MaterialCommunityIcons
               name={slide.icon as never}
-              size={72}
+              size={64}
               color={slide.iconColor}
             />
           </View>
         </View>
 
-        <Text style={styles.title}>{slide.title}</Text>
-        <Text
-          style={[
-            styles.subtitle,
-            {
-              color:
-                slide.id === "intro" || slide.id === "both"
-                  ? "#F69926"
-                  : "rgba(255,255,255,0.85)",
-            },
-          ]}
-        >
-          {slide.subtitle}
-        </Text>
-        <Text style={styles.description}>{slide.description}</Text>
+        <View style={styles.textWrapper}>
+          <Text style={styles.title}>{slide.title}</Text>
+          <Text
+            style={[
+              styles.subtitle,
+              {
+                color:
+                  slide.id === "intro" || slide.id === "both"
+                    ? "#F69926"
+                    : "rgba(255,255,255,0.85)",
+              },
+            ]}
+          >
+            {slide.subtitle}
+          </Text>
+        </View>
 
-        {slide.features && (
-          <View style={styles.featuresList}>
-            {slide.features.map((f, i) => (
-              <View key={i} style={styles.featureRow}>
-                <MaterialCommunityIcons
-                  name="check-circle"
-                  size={18}
-                  color="rgba(255,255,255,0.9)"
-                />
-                <Text style={styles.featureText}>{f}</Text>
-              </View>
-            ))}
-          </View>
-        )}
+        <View style={styles.infoWrapper}>
+          <Text style={styles.description}>{slide.description}</Text>
 
-        {slide.id === "both" && (
-          <View style={styles.bothBadge}>
-            <MaterialCommunityIcons name="star-four-points" size={16} color="#F69926" />
-            <Text style={styles.bothBadgeText}>
-              Crie sua conta e comece agora — é gratuito
-            </Text>
-          </View>
-        )}
+          {slide.features && (
+            <View style={styles.featuresList}>
+              {slide.features.map((f, i) => (
+                <View key={i} style={styles.featureRow}>
+                  <MaterialCommunityIcons
+                    name="check-circle"
+                    size={18}
+                    color="rgba(255,255,255,0.9)"
+                  />
+                  <Text style={styles.featureText}>{f}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {slide.id === "both" && (
+            <View style={styles.bothBadge}>
+              <MaterialCommunityIcons name="star-four-points" size={16} color="#F69926" />
+              <Text style={styles.bothBadgeText}>
+                Crie sua conta e comece agora — é gratuito
+              </Text>
+            </View>
+          )}
+        </View>
       </Animated.View>
 
-      <View style={styles.footer}>
+      <View style={styles.footerWrapper}>
         <View style={styles.dotsRow}>
           {SLIDES.map((_, i) => (
             <TouchableOpacity
@@ -272,47 +274,58 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "space-between",
   },
   skipBtn: {
-    alignSelf: "flex-end",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    position: "absolute",
+    right: 10,
+    zIndex: 10,
+    padding: 16,
   },
   skipText: {
-    color: "rgba(255,255,255,0.55)",
-    fontSize: 14,
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 15,
     fontFamily: "Inter_500Medium",
   },
   slideContent: {
     flex: 1,
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
+    paddingTop: 0,
+    marginTop: -350,
     paddingHorizontal: 32,
-    gap: 16,
   },
   iconWrapper: {
-    marginBottom: 8,
+    marginBottom: 32,
   },
   iconCircle: {
-    width: 130,
-    height: 130,
-    borderRadius: 65,
+    width: 110,
+    height: 110,
+    borderRadius: 55,
     alignItems: "center",
     justifyContent: "center",
   },
+  textWrapper: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    marginBottom: 20,
+  },
   title: {
     color: "#fff",
-    fontSize: 30,
+    fontSize: 28,
     fontFamily: "Inter_700Bold",
     textAlign: "center",
     letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: "Inter_500Medium",
     textAlign: "center",
-    marginTop: -4,
+  },
+  infoWrapper: {
+    width: "100%",
+    alignItems: "center",
+    gap: 12,
   },
   description: {
     color: "rgba(255,255,255,0.78)",
@@ -322,9 +335,10 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   featuresList: {
-    alignSelf: "stretch",
-    gap: 10,
-    marginTop: 4,
+    alignSelf: "center",
+    gap: 12,
+    marginTop: 8,
+    width: "85%",
   },
   featureRow: {
     flexDirection: "row",
@@ -354,9 +368,13 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_500Medium",
     flex: 1,
   },
-  footer: {
+  footerWrapper: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
     paddingHorizontal: 28,
-    paddingBottom: 32,
+    paddingBottom: 40,
     gap: 20,
   },
   dotsRow: {

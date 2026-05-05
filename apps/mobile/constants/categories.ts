@@ -18,6 +18,11 @@ export const SUGGESTED_CATEGORIES = [
   "Outros",
 ] as const;
 
+export const CATEGORIES = SUGGESTED_CATEGORIES.map((name) => ({
+  id: name,
+  name: name,
+}));
+
 export const CREDIT_PACKAGES: CreditPackage[] = [
   { id: "basico", label: "Básico", credits: 30, priceCents: 2999 },
   {

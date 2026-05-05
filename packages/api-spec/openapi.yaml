@@ -75,6 +75,25 @@ paths:
                   token: { type: string }
                   user: { $ref: "#/components/schemas/User" }
 
+  /auth/me:
+    patch:
+      operationId: updateMe
+      tags: [auth]
+      summary: Atualiza os dados do usuário logado
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Usuário atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
   /jobs:
     get:
       operationId: listJobs
@@ -107,6 +126,38 @@ paths:
               schema:
                 $ref: "#/components/schemas/Job"
 
+  /jobs/{id}/unlock:
+    post:
+      operationId: unlockJob
+      tags: [jobs]
+      summary: Desbloqueia o contato de um trampo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type: { type: string, enum: [NORMAL, EXCLUSIVE] }
+              required: [type]
+      responses:
+        "200":
+          description: Lead desbloqueado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  whatsappLink: { type: string }
+                  job: { $ref: "#/components/schemas/Job" }
+
   /categories:
     get:
       operationId: listCategories
@@ -138,7 +189,27 @@ components:
         name: { type: string }
         role: { type: string, enum: [client, provider, admin] }
         avatarUrl: { type: string, nullable: true }
-      required: [id, email, name, role]
+        creditBalance: { type: integer, default: 0 }
+        verificationStatus: { type: string, enum: [PENDING, APPROVED, REJECTED], default: PENDING }
+        city: { type: string, nullable: true }
+        neighborhood: { type: string, nullable: true }
+        state: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        referralCode: { type: string, nullable: true }
+      required: [id, email, name, role, creditBalance, verificationStatus]
+
+    UserUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        phone: { type: string }
+        city: { type: string }
+        neighborhood: { type: string }
+        state: { type: string }
+        acceptedTerms: { type: boolean }
+        role: { type: string, enum: [client, provider] }
+        verificationStatus: { type: string, enum: [PENDING, APPROVED, REJECTED] }
+        referredById: { type: string, nullable: true }
 
     UserCreate:
       type: object
@@ -160,7 +231,10 @@ components:
         budget: { type: integer, nullable: true }
         status: { type: string, enum: [open, in_progress, completed, cancelled] }
         location: { type: string }
-      required: [id, title, description, categoryId, clientId, status, location]
+        createdAt: { type: string, format: date-time }
+        category: { $ref: "#/components/schemas/Category" }
+        client: { $ref: "#/components/schemas/User" }
+      required: [id, title, description, categoryId, clientId, status, location, createdAt]
 
     JobCreate:
       type: object

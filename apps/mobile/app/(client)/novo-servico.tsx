@@ -1,9 +1,11 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
@@ -14,58 +16,108 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { SUGGESTED_CATEGORIES } from "@/constants/categories";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useCreateJob, useListCategories, useListJobs } from "@workspace/api-client-react";
 
 export default function NovoServico() {
   const colors = useColors();
-  const { user, createService, services } = useAuth();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
 
+  const { data: categoriesData, isLoading: loadingCats } = useListCategories();
+  const { mutateAsync: createJob, isPending: loading } = useCreateJob();
+  const { data: jobs, refetch: refetchJobs } = useListJobs();
+
   const [title, setTitle] = useState("");
-  const [category, setCategory] = useState("");
-  const [customCategory, setCustomCategory] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [description, setDescription] = useState("");
-  const [city, setCity] = useState(user?.city ?? "");
-  const [neighborhood, setNeighborhood] = useState(user?.neighborhood ?? "");
+  const [cep, setCep] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState(user?.city || "");
+  const [neighborhood, setNeighborhood] = useState(user?.neighborhood || "");
+  const [images, setImages] = useState<string[]>([]);
+  
   const [showCategories, setShowCategories] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [loadingCep, setLoadingCep] = useState(false);
 
-  const activeCategory = category === "Outros" ? customCategory : category;
+  const selectedCategoryName = useMemo(() => {
+    return categoriesData?.find(c => c.id === selectedCategoryId)?.name || "";
+  }, [categoriesData, selectedCategoryId]);
 
-  const myOpenServices = services.filter(
-    (s) => s.clientId === user?.id && s.status === "OPEN"
-  );
+  const myOpenServices = useMemo(() => {
+    return jobs?.filter(s => s.clientId === user?.id && s.status === "open") || [];
+  }, [jobs, user?.id]);
+
+  async function fetchAddressByCep(val: string) {
+    const cleanCep = val.replace(/\D/g, "");
+    if (cleanCep.length !== 8) return;
+
+    setLoadingCep(true);
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const data = await response.json();
+      if (data.erro) {
+        setError("CEP não encontrado");
+      } else {
+        setAddress(`${data.logradouro}, ${data.bairro}`);
+        setCity(data.localidade);
+        setNeighborhood(data.bairro);
+        setError("");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingCep(false);
+    }
+  }
+
+  async function pickImage() {
+    if (images.length >= 3) return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      setImages([...images, result.assets[0].uri]);
+      Haptics.selectionAsync();
+    }
+  }
 
   async function handleSubmit() {
     setError("");
     if (!title.trim()) return setError("Informe o título do serviço");
-    if (!activeCategory.trim()) return setError("Selecione ou informe a categoria");
+    if (!selectedCategoryId) return setError("Selecione a categoria");
     if (!description.trim() || description.length < 20)
       return setError("Descreva o serviço com pelo menos 20 caracteres");
     if (!city.trim()) return setError("Informe a cidade");
+    
     if (myOpenServices.length >= 3)
       return setError("Você já tem 3 serviços abertos. Feche um antes de postar outro.");
 
-    setLoading(true);
     try {
-      await createService({
-        title: title.trim(),
-        description: description.trim(),
-        category: activeCategory.trim(),
-        city: city.trim(),
-        state: user?.state ?? "",
-        neighborhood: neighborhood.trim(),
+      const fullLocation = address ? `${address}, ${city} - CEP: ${cep}` : city;
+
+      await createJob({
+        data: {
+          title: title.trim(),
+          description: description.trim(),
+          categoryId: selectedCategoryId,
+          budget: 0, 
+          location: fullLocation,
+        }
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSuccess(true);
-    } catch {
+      refetchJobs();
+    } catch (err: any) {
+      console.error(err);
       setError("Erro ao postar serviço. Tente novamente.");
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -73,21 +125,21 @@ export default function NovoServico() {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.successContainer, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 60) }]}>
-          <View style={[styles.successIcon, { backgroundColor: "#22c55e15" }]}>
-            <MaterialCommunityIcons name="check-circle" size={64} color="#22c55e" />
+          <View style={[styles.successIcon, { backgroundColor: colors.secondary + "15" }]}>
+            <MaterialCommunityIcons name="check-circle" size={64} color={colors.secondary} />
           </View>
           <Text style={[styles.successTitle, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>
             Serviço postado!
           </Text>
           <Text style={[styles.successDesc, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-            Prestadores da sua região serão notificados. Você receberá contato pelo WhatsApp.
+            Prestadores da sua região serão notificados. Você receberá contato pelo WhatsApp em breve.
           </Text>
           <TouchableOpacity
-            style={[styles.doneBtn, { backgroundColor: colors.accent, borderRadius: colors.radius }]}
+            style={[styles.doneBtn, { backgroundColor: colors.primary, borderRadius: colors.radius }]}
             onPress={() => router.replace("/(client)/meus-servicos")}
             activeOpacity={0.85}
           >
-            <Text style={[styles.doneBtnText, { fontFamily: "Inter_600SemiBold" }]}>
+            <Text style={[styles.doneBtnText, { fontFamily: "Inter_600SemiBold", color: "#FFF" }]}>
               Ver meus serviços
             </Text>
           </TouchableOpacity>
@@ -98,189 +150,184 @@ export default function NovoServico() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: colors.navy,
-            paddingTop: insets.top + (Platform.OS === "web" ? 67 : 16),
-          },
-        ]}
-      >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <MaterialCommunityIcons name="arrow-left" size={22} color="#fff" />
+      {/* Custom Header */}
+      <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 20 : 10), borderBottomWidth: 1, borderBottomColor: colors.border + "30" }]}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
+          <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { fontFamily: "Inter_700Bold" }]}>
-          Novo Serviço
-        </Text>
-        <View style={{ width: 32 }} />
+        <Text style={[styles.headerLogo, { fontFamily: "Inter_800ExtraBold", color: colors.primary }]}>Trampaí</Text>
+        <TouchableOpacity style={styles.iconBtn}>
+          <MaterialCommunityIcons name="bell-outline" size={24} color={colors.primary} />
+        </TouchableOpacity>
       </View>
 
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: 100 + insets.bottom },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {myOpenServices.length >= 3 && (
-          <View style={[styles.warningBox, { backgroundColor: "#f59e0b15", borderColor: "#f59e0b40", borderRadius: colors.radius }]}>
-            <MaterialCommunityIcons name="alert-outline" size={18} color="#f59e0b" />
-            <Text style={[styles.warningText, { color: colors.foreground, fontFamily: "Inter_400Regular" }]}>
-              Você já tem 3 serviços abertos. Feche um antes de postar outro.
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: 40 + insets.bottom }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.heroSection}>
+            <Text style={[styles.title, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Postar Serviço</Text>
+            <Text style={[styles.subtitle, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+              Descreva o que você precisa e encontre o trampo ideal.
             </Text>
           </View>
-        )}
 
-        <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: colors.foreground, fontFamily: "Inter_500Medium" }]}>
-            Título *
-          </Text>
-          <TextInput
-            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground, borderRadius: colors.radius, fontFamily: "Inter_400Regular" }]}
-            placeholder="Ex: Preciso de eletricista para instalação"
-            placeholderTextColor={colors.mutedForeground}
-            value={title}
-            onChangeText={setTitle}
-            maxLength={100}
-          />
-        </View>
+          <View style={[styles.formCard, { backgroundColor: "#FFF", borderRadius: 20 }]}>
+            {/* Title */}
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>Título do Serviço</Text>
+              <TextInput
+                style={[styles.input, { borderColor: colors.border }]}
+                placeholder="Ex: Preciso de Eletricista para fiação"
+                placeholderTextColor={colors.mutedForeground}
+                value={title}
+                onChangeText={setTitle}
+              />
+            </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: colors.foreground, fontFamily: "Inter_500Medium" }]}>
-            Categoria *
-          </Text>
-          <TouchableOpacity
-            style={[styles.categorySelector, { backgroundColor: colors.card, borderColor: category ? colors.accent : colors.border, borderRadius: colors.radius }]}
-            onPress={() => setShowCategories(!showCategories)}
-          >
-            <Text style={[styles.categorySelectorText, { color: category ? colors.foreground : colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-              {category || "Selecionar categoria"}
-            </Text>
-            <MaterialCommunityIcons
-              name={showCategories ? "chevron-up" : "chevron-down"}
-              size={20}
-              color={colors.mutedForeground}
-            />
-          </TouchableOpacity>
+            {/* Category */}
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>Categoria</Text>
+              <TouchableOpacity
+                style={[styles.selector, { borderColor: colors.border }]}
+                onPress={() => setShowCategories(!showCategories)}
+              >
+                <Text style={[styles.selectorText, { color: selectedCategoryId ? colors.foreground : colors.mutedForeground }]}>
+                  {loadingCats ? "Carregando..." : (selectedCategoryName || "Selecione uma categoria")}
+                </Text>
+                <MaterialCommunityIcons name="chevron-down" size={20} color={colors.mutedForeground} />
+              </TouchableOpacity>
 
-          {showCategories && (
-            <View style={[styles.categoryList, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-              {SUGGESTED_CATEGORIES.map((cat) => (
-                <TouchableOpacity
-                  key={cat}
-                  style={[styles.categoryItem, { borderBottomColor: colors.border }]}
-                  onPress={() => {
-                    setCategory(cat);
-                    setShowCategories(false);
-                    Haptics.selectionAsync();
+              {showCategories && categoriesData && (
+                <View style={[styles.dropdown, { borderColor: colors.border }]}>
+                  {categoriesData.map((cat) => (
+                    <TouchableOpacity
+                      key={cat.id}
+                      style={styles.dropdownItem}
+                      onPress={() => {
+                        setSelectedCategoryId(cat.id);
+                        setShowCategories(false);
+                      }}
+                    >
+                      <Text style={[styles.dropdownItemText, { color: selectedCategoryId === cat.id ? colors.accent : colors.foreground }]}>
+                        {cat.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Description */}
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>Descrição Detalhada</Text>
+              <TextInput
+                style={[styles.textarea, { borderColor: colors.border }]}
+                placeholder="Detalhe o máximo possível o que precisa ser feito, materiais necessários, etc."
+                placeholderTextColor={colors.mutedForeground}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+                value={description}
+                onChangeText={setDescription}
+              />
+            </View>
+
+            {/* Location Grid */}
+            <View style={styles.row}>
+              <View style={[styles.inputGroup, { flex: 0.4 }]}>
+                <Text style={[styles.label, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>CEP</Text>
+                <TextInput
+                  style={[styles.input, { borderColor: colors.border }]}
+                  placeholder="00000-000"
+                  placeholderTextColor={colors.mutedForeground}
+                  keyboardType="numeric"
+                  value={cep}
+                  onChangeText={(val) => {
+                    setCep(val);
+                    if (val.replace(/\D/g, "").length === 8) fetchAddressByCep(val);
                   }}
+                  maxLength={9}
+                />
+              </View>
+              <View style={[styles.inputGroup, { flex: 0.6 }]}>
+                <Text style={[styles.label, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>Endereço</Text>
+                <TextInput
+                  style={[styles.input, { borderColor: colors.border, backgroundColor: "#f9f9f9" }]}
+                  placeholder="Preenchido automaticamente"
+                  placeholderTextColor={colors.mutedForeground}
+                  editable={false}
+                  value={address}
+                />
+              </View>
+            </View>
+
+            {/* Image Upload Bento Box */}
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>Fotos do Local/Problema (Até 3)</Text>
+              <View style={styles.bentoGrid}>
+                {/* Main Box */}
+                <TouchableOpacity 
+                  style={[styles.mainUpload, { borderColor: colors.border, borderStyle: "dashed" }]}
+                  onPress={pickImage}
                 >
-                  <Text style={[styles.categoryItemText, { color: category === cat ? colors.accent : colors.foreground, fontFamily: category === cat ? "Inter_600SemiBold" : "Inter_400Regular" }]}>
-                    {cat}
-                  </Text>
-                  {category === cat && (
-                    <MaterialCommunityIcons name="check" size={16} color={colors.accent} />
+                  {images[0] ? (
+                    <View style={styles.imageWrapper}>
+                      <Text style={styles.imageCount}>1/3</Text>
+                    </View>
+                  ) : (
+                    <>
+                      <MaterialIcons name="add-a-photo" size={32} color={colors.mutedForeground} />
+                      <Text style={[styles.uploadText, { color: colors.mutedForeground }]}>Adicionar foto principal</Text>
+                    </>
                   )}
                 </TouchableOpacity>
-              ))}
+
+                {/* Secondary Boxes */}
+                <View style={styles.secondaryUploads}>
+                  <TouchableOpacity style={[styles.subUpload, { borderColor: colors.border, borderStyle: "dashed" }]} onPress={pickImage}>
+                    {images[1] ? <MaterialIcons name="check" size={20} color={colors.secondary} /> : <MaterialIcons name="add" size={20} color={colors.mutedForeground} />}
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.subUpload, { borderColor: colors.border, borderStyle: "dashed" }]} onPress={pickImage}>
+                    {images[2] ? <MaterialIcons name="check" size={20} color={colors.secondary} /> : <MaterialIcons name="add" size={20} color={colors.mutedForeground} />}
+                  </TouchableOpacity>
+                </View>
+              </View>
+              {images.length > 0 && (
+                 <Text style={[styles.charCount, { color: colors.secondary, marginTop: 4 }]}>{images.length} fotos selecionadas</Text>
+              )}
             </View>
-          )}
 
-          {category === "Outros" && (
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground, borderRadius: colors.radius, fontFamily: "Inter_400Regular", marginTop: 8 }]}
-              placeholder="Qual categoria?"
-              placeholderTextColor={colors.mutedForeground}
-              value={customCategory}
-              onChangeText={setCustomCategory}
-            />
-          )}
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: colors.foreground, fontFamily: "Inter_500Medium" }]}>
-            Descrição *
-          </Text>
-          <TextInput
-            style={[styles.textarea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground, borderRadius: colors.radius, fontFamily: "Inter_400Regular" }]}
-            placeholder="Descreva o que precisa ser feito, tamanho do ambiente, urgência, etc."
-            placeholderTextColor={colors.mutedForeground}
-            value={description}
-            onChangeText={setDescription}
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-            maxLength={500}
-          />
-          <Text style={[styles.charCount, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-            {description.length}/500
-          </Text>
-        </View>
-
-        <View style={styles.row}>
-          <View style={[styles.inputGroup, { flex: 1 }]}>
-            <Text style={[styles.label, { color: colors.foreground, fontFamily: "Inter_500Medium" }]}>
-              Cidade *
-            </Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground, borderRadius: colors.radius, fontFamily: "Inter_400Regular" }]}
-              placeholder="Sua cidade"
-              placeholderTextColor={colors.mutedForeground}
-              value={city}
-              onChangeText={setCity}
-            />
-          </View>
-          <View style={[styles.inputGroup, { flex: 1 }]}>
-            <Text style={[styles.label, { color: colors.foreground, fontFamily: "Inter_500Medium" }]}>
-              Bairro
-            </Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground, borderRadius: colors.radius, fontFamily: "Inter_400Regular" }]}
-              placeholder="Setor Bueno"
-              placeholderTextColor={colors.mutedForeground}
-              value={neighborhood}
-              onChangeText={setNeighborhood}
-            />
-          </View>
-        </View>
-
-        {error ? (
-          <Text style={[styles.errorText, { fontFamily: "Inter_400Regular" }]}>{error}</Text>
-        ) : null}
-
-        <TouchableOpacity
-          style={[
-            styles.submitBtn,
-            {
-              backgroundColor: myOpenServices.length >= 3 ? colors.mutedForeground : colors.accent,
-              borderRadius: colors.radius,
-            },
-          ]}
-          onPress={handleSubmit}
-          disabled={loading || myOpenServices.length >= 3}
-          activeOpacity={0.85}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <MaterialCommunityIcons name="send-outline" size={18} color="#fff" />
-              <Text style={[styles.submitBtnText, { fontFamily: "Inter_600SemiBold" }]}>
-                Postar Serviço
+            {/* Submit Button */}
+            <View style={{ marginTop: 24 }}>
+              <TouchableOpacity
+                style={[styles.submitBtn, { backgroundColor: "#e8c08a" }]} // tertiary-fixed-dim color from HTML
+                onPress={handleSubmit}
+                disabled={loading}
+                activeOpacity={0.9}
+              >
+                {loading ? (
+                  <ActivityIndicator color={colors.primary} />
+                ) : (
+                  <>
+                    <Text style={[styles.submitBtnText, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>Publicar Serviço</Text>
+                    <MaterialCommunityIcons name="publish" size={18} color={colors.primary} />
+                  </>
+                )}
+              </TouchableOpacity>
+              <Text style={[styles.termsText, { color: colors.mutedForeground }]}>
+                Ao publicar, você concorda com nossos termos de segurança.
               </Text>
-            </>
-          )}
-        </TouchableOpacity>
+            </View>
 
-        <View style={[styles.infoBox, { backgroundColor: colors.cyan + "15", borderRadius: colors.radius }]}>
-          <MaterialCommunityIcons name="shield-check-outline" size={18} color={colors.cyan} />
-          <Text style={[styles.infoText, { color: colors.navy, fontFamily: "Inter_400Regular" }]}>
-            Seu telefone só é revelado para prestadores verificados que pagaram para ver seu contato.
-          </Text>
-        </View>
-      </ScrollView>
+            {error ? (
+              <Text style={styles.errorText}>{error}</Text>
+            ) : null}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -291,52 +338,204 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    backgroundColor: "#fff",
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerLogo: {
+    fontSize: 22,
+    letterSpacing: -1,
+  },
+  content: {
+    padding: 20,
+  },
+  heroSection: {
+    alignItems: "center",
+    marginBottom: 32,
+  },
+  title: {
+    fontSize: 28,
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 15,
+    textAlign: "center",
+  },
+  formCard: {
+    padding: 24,
+    shadowColor: "#0b1339",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1.5,
+    borderRadius: 12,
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: "#0b1339",
   },
-  backBtn: { width: 32, height: 32, alignItems: "center", justifyContent: "center" },
-  headerTitle: { color: "#fff", fontSize: 18 },
-  content: { padding: 16, gap: 20 },
-  warningBox: { flexDirection: "row", padding: 14, gap: 10, borderWidth: 1 },
-  warningText: { flex: 1, fontSize: 13, lineHeight: 18 },
-  inputGroup: { gap: 6 },
-  label: { fontSize: 13 },
-  input: { borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15 },
-  textarea: { borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, minHeight: 100 },
-  charCount: { fontSize: 11, textAlign: "right" },
-  row: { flexDirection: "row", gap: 12 },
-  categorySelector: {
-    borderWidth: 1,
-    paddingHorizontal: 14,
+  textarea: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    minHeight: 120,
+    color: "#0b1339",
+  },
+  selector: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  categorySelectorText: { fontSize: 15 },
-  categoryList: {
-    borderWidth: 1,
+  selectorText: {
+    fontSize: 16,
+  },
+  dropdown: {
     marginTop: 4,
-    maxHeight: 220,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    backgroundColor: "#FFF",
+    overflow: "hidden",
   },
-  categoryItem: {
+  dropdownItem: {
+    padding: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#eee",
+  },
+  dropdownItemText: {
+    fontSize: 15,
+  },
+  row: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  bentoGrid: {
+    flexDirection: "row",
+    height: 120,
+    gap: 12,
+  },
+  mainUpload: {
+    flex: 2,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fafafa",
+  },
+  imageWrapper: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#e0e0e0",
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  imageCount: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#666",
+  },
+  uploadText: {
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: "center",
+    paddingHorizontal: 8,
+  },
+  secondaryUploads: {
+    flex: 1,
+    gap: 12,
+  },
+  subUpload: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fafafa",
+  },
+  submitBtn: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    justifyContent: "center",
+    paddingVertical: 16,
+    borderRadius: 100,
+    gap: 8,
+    shadowColor: "#e8c08a",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  categoryItemText: { fontSize: 14 },
-  errorText: { color: "#ef4444", fontSize: 13 },
-  submitBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 14, gap: 8 },
-  submitBtnText: { color: "#fff", fontSize: 16 },
-  infoBox: { flexDirection: "row", padding: 14, gap: 10 },
-  infoText: { flex: 1, fontSize: 13, lineHeight: 18 },
-  successContainer: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 20 },
-  successIcon: { width: 100, height: 100, borderRadius: 50, alignItems: "center", justifyContent: "center" },
-  successTitle: { fontSize: 24 },
-  successDesc: { fontSize: 15, textAlign: "center", lineHeight: 22 },
-  doneBtn: { paddingHorizontal: 32, paddingVertical: 14, marginTop: 8 },
-  doneBtnText: { color: "#fff", fontSize: 16 },
+  submitBtnText: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  termsText: {
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 12,
+  },
+  errorText: {
+    color: "#ef4444",
+    fontSize: 13,
+    textAlign: "center",
+    marginTop: 16,
+  },
+  charCount: {
+    fontSize: 11,
+    textAlign: "right",
+  },
+  successContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 32,
+    gap: 20,
+  },
+  successIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  successTitle: {
+    fontSize: 26,
+    textAlign: "center",
+  },
+  successDesc: {
+    fontSize: 16,
+    textAlign: "center",
+    lineHeight: 24,
+  },
+  doneBtn: {
+    paddingHorizontal: 40,
+    paddingVertical: 16,
+    marginTop: 8,
+  },
+  doneBtnText: {
+    fontSize: 16,
+  },
 });

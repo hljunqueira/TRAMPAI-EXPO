@@ -21,7 +21,7 @@ services:
     ports:
       - "3007:3000"
     environment:
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@supabase-db-trampai:5432/postgres
+      DATABASE_URL: ${DATABASE_URL_PROD}
       JWT_SECRET: ${JWT_SECRET}
       RESEND_API_KEY: ${RESEND_API_KEY}
       APP_URL: ${APP_URL}
@@ -83,7 +83,7 @@ services:
       GOTRUE_API_PORT: 9999
       API_EXTERNAL_URL: ${APP_URL}
       GOTRUE_DB_DRIVER: postgres
-      GOTRUE_DB_DATABASE_URL: postgresql://supabase_auth_admin:${POSTGRES_PASSWORD}@supabase-db-trampai:5432/postgres
+      GOTRUE_DB_DATABASE_URL: postgresql://supabase_auth_admin:Tramp%40i2025!Secure@supabase-db-trampai:5432/postgres
       GOTRUE_SITE_URL: ${APP_URL}
       GOTRUE_JWT_SECRET: ${JWT_SECRET}
       GOTRUE_JWT_EXPIRY: 3600
@@ -107,7 +107,7 @@ services:
     container_name: supabase-rest-trampai
     restart: unless-stopped
     environment:
-      PGRST_DB_URI: postgresql://authenticator:${POSTGRES_PASSWORD}@supabase-db-trampai:5432/postgres
+      PGRST_DB_URI: postgresql://authenticator:Tramp%40i2025!Secure@supabase-db-trampai:5432/postgres
       PGRST_DB_SCHEMAS: public,storage,graphql_public
       PGRST_DB_ANON_ROLE: anon
       PGRST_JWT_SECRET: ${JWT_SECRET}

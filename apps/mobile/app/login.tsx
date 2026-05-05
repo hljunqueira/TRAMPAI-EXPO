@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Animated,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -23,198 +22,198 @@ import { useColors } from "@/hooks/useColors";
 
 export default function LoginScreen() {
   const colors = useColors();
-  const { login } = useAuth();
+  const { login, register, googleLogin } = useAuth();
   const insets = useSafeAreaInsets();
-  const [showModal, setShowModal] = useState(false);
+  
+  const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
-  const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  function handleGooglePress() {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Animated.sequence([
-      Animated.timing(scaleAnim, { toValue: 0.96, duration: 80, useNativeDriver: true }),
-      Animated.timing(scaleAnim, { toValue: 1, duration: 80, useNativeDriver: true }),
-    ]).start(() => setShowModal(true));
-  }
-
-  async function handleLogin() {
+  async function handleSubmit() {
     setError("");
-    if (!name.trim()) return setError("Informe seu nome");
+    
     if (!email.trim() || !email.includes("@"))
       return setError("Informe um e-mail válido");
+    if (password.length < 6)
+      return setError("A senha deve ter pelo menos 6 caracteres");
+
+    if (isRegister && !name.trim())
+      return setError("Informe seu nome completo");
 
     setLoading(true);
     try {
-      await login({ name: name.trim(), email: email.trim().toLowerCase() });
-      setShowModal(false);
-      router.replace("/");
-    } catch {
-      setError("Erro ao entrar. Tente novamente.");
+      if (isRegister) {
+        await register({
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          password,
+          role: "client", // Default role during quick register
+        });
+        setError("Cadastro realizado! Agora faça login.");
+        setIsRegister(false);
+      } else {
+        await login({
+          email: email.trim().toLowerCase(),
+          password,
+        });
+        router.replace("/");
+      }
+    } catch (err: any) {
+      setError(err.message || "Erro ao processar. Tente novamente.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleGoogleLogin() {
+    try {
+      setGoogleLoading(true);
+      setError("");
+      await googleLogin();
+      router.replace("/");
+    } catch (err: any) {
+      if (err.message !== "Sign in cancelled") {
+        setError(err.message || "Erro ao entrar com Google");
+      }
+    } finally {
+      setGoogleLoading(false);
     }
   }
 
   return (
     <LinearGradient
       colors={["#21284E", "#1a2040", "#0f1530"]}
-      style={[styles.container, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 0) }]}
+      style={[styles.container, { paddingTop: insets.top }]}
     >
-      <View style={styles.content}>
+      <ScrollView 
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.logoSection}>
           <View style={styles.gearsRow}>
             <MaterialCommunityIcons name="cog" size={48} color="#F69926" />
-            <MaterialCommunityIcons
-              name="cog"
-              size={48}
-              color="#5EB4B8"
-              style={styles.gear2}
-            />
+            <MaterialCommunityIcons name="cog" size={48} color="#5EB4B8" style={styles.gear2} />
           </View>
           <Text style={styles.appName}>Trampaí</Text>
-          <Text style={styles.slogan}>
-            Faz tua grana,{"\n"}no teu tempo, do teu jeito.
-          </Text>
+          <Text style={styles.slogan}>Faz tua grana,{"\n"}no teu tempo, do teu jeito.</Text>
         </View>
 
-        <View style={styles.featuresSection}>
-          {[
-            { icon: "briefcase-outline", text: "Poste serviços e receba prestadores" },
-            { icon: "wallet-outline", text: "Pague apenas por leads qualificados" },
-            { icon: "map-marker-outline", text: "Profissionais da sua região" },
-          ].map((f, i) => (
-            <View key={i} style={styles.feature}>
-              <MaterialCommunityIcons name={f.icon as never} size={18} color="#5EB4B8" />
-              <Text style={styles.featureText}>{f.text}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      <View style={[styles.bottom, { paddingBottom: insets.bottom + 24 }]}>
-        <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-          <TouchableOpacity
-            style={styles.googleBtn}
-            onPress={handleGooglePress}
-            activeOpacity={0.9}
-          >
-            <MaterialCommunityIcons name="google" size={20} color="#21284E" />
-            <Text style={styles.googleBtnText}>Continuar com Google</Text>
-          </TouchableOpacity>
-        </Animated.View>
-
-        <Text style={styles.terms}>
-          Ao continuar, você concorda com os{"\n"}
-          <Text style={styles.termsLink}>Termos de Uso</Text> e{" "}
-          <Text style={styles.termsLink}>Política de Privacidade</Text>
-        </Text>
-      </View>
-
-      <Modal
-        visible={showModal}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setShowModal(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowModal(false)}
-        />
-        <KeyboardAvoidingView
+        <KeyboardAvoidingView 
           behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.modalContainer}
+          style={styles.formSection}
         >
-          <View
-            style={[
-              styles.modalSheet,
-              { backgroundColor: colors.card, borderRadius: colors.radius * 2 },
-            ]}
-          >
-            <View style={styles.modalHandle} />
-            <View style={styles.modalHeader}>
-              <MaterialCommunityIcons name="google" size={24} color="#4285F4" />
-              <Text style={[styles.modalTitle, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>
-                Entrar com Google
-              </Text>
-            </View>
-
+          <Text style={styles.formTitle}>{isRegister ? "Crie sua conta" : "Bem-vindo de volta"}</Text>
+          
+          {isRegister && (
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>
-                Nome completo
-              </Text>
               <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.muted,
-                    color: colors.foreground,
-                    borderColor: colors.border,
-                    borderRadius: colors.radius,
-                    fontFamily: "Inter_400Regular",
-                  },
-                ]}
-                placeholder="Seu nome"
-                placeholderTextColor={colors.mutedForeground}
+                style={styles.input}
+                placeholder="Seu nome completo"
+                placeholderTextColor="#666666"
                 value={name}
                 onChangeText={setName}
                 autoCapitalize="words"
               />
             </View>
+          )}
 
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>
-                E-mail
+          <View style={styles.inputGroup}>
+            <TextInput
+              style={styles.input}
+              placeholder="seu@email.com"
+              placeholderTextColor="#666666"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <TextInput
+              style={styles.input}
+              placeholder="Sua senha"
+              placeholderTextColor="#666666"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+          </View>
+
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+          <TouchableOpacity
+            style={styles.submitBtn}
+            onPress={handleSubmit}
+            disabled={loading}
+            activeOpacity={0.8}
+          >
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>{isRegister ? "Cadastrar" : "Entrar"}</Text>}
+          </TouchableOpacity>
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>ou</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <TouchableOpacity
+            style={styles.googleBtn}
+            onPress={handleGoogleLogin}
+            disabled={googleLoading}
+            activeOpacity={0.8}
+          >
+            {googleLoading ? (
+              <ActivityIndicator color="#21284E" />
+            ) : (
+              <>
+                <MaterialCommunityIcons name="google" size={20} color="#EA4335" />
+                <Text style={styles.googleBtnText}>Entrar com Google</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          <View style={styles.switchContainer}>
+            <Text style={styles.switchLabel}>
+              {isRegister ? "Já possui uma conta?" : "Ainda não tem conta?"}
+            </Text>
+            <TouchableOpacity onPress={() => setIsRegister(!isRegister)}>
+              <Text style={styles.switchBtnText}>
+                {isRegister ? " Faça Login" : " Cadastre Agora"}
               </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.muted,
-                    color: colors.foreground,
-                    borderColor: colors.border,
-                    borderRadius: colors.radius,
-                    fontFamily: "Inter_400Regular",
-                  },
-                ]}
-                placeholder="seu@email.com"
-                placeholderTextColor={colors.mutedForeground}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-
-            {error ? (
-              <Text style={[styles.errorText, { fontFamily: "Inter_400Regular" }]}>
-                {error}
-              </Text>
-            ) : null}
-
-            <TouchableOpacity
-              style={[
-                styles.loginBtn,
-                { backgroundColor: colors.navy, borderRadius: colors.radius },
-              ]}
-              onPress={handleLogin}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={[styles.loginBtnText, { fontFamily: "Inter_600SemiBold" }]}>
-                  Entrar
-                </Text>
-              )}
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
-      </Modal>
+
+        <View style={styles.supportSection}>
+          <Text style={styles.supportTitle}>Precisa de ajuda?</Text>
+          <View style={styles.supportRow}>
+            <MaterialCommunityIcons name="email-outline" size={16} color="#5EB4B8" />
+            <Text style={styles.supportText}>suporte@trampai.com.br</Text>
+          </View>
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.termsText}>
+            Ao continuar, você concorda com os nossos
+          </Text>
+          <View style={styles.footerLinks}>
+            <TouchableOpacity onPress={() => router.push("/terms")}>
+              <Text style={styles.termsLink}>Termos de Uso</Text>
+            </TouchableOpacity>
+            <Text style={styles.footerSeparator}> e </Text>
+            <TouchableOpacity onPress={() => router.push("/privacy")}>
+              <Text style={styles.termsLink}>Privacidade</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
     </LinearGradient>
   );
 }
@@ -222,17 +221,15 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "space-between",
   },
   content: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
     paddingHorizontal: 32,
+    alignItems: "center",
   },
   logoSection: {
     alignItems: "center",
-    marginBottom: 48,
+    marginTop: 40,
+    marginBottom: 40,
   },
   gearsRow: {
     flexDirection: "row",
@@ -255,107 +252,165 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     textAlign: "center",
     lineHeight: 24,
-    opacity: 0.85,
+    opacity: 0.9,
   },
-  featuresSection: {
-    gap: 14,
+  formSection: {
     width: "100%",
-  },
-  feature: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  featureText: {
-    color: "#ffffffCC",
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-  },
-  bottom: {
-    paddingHorizontal: 24,
-    gap: 16,
-    alignItems: "center",
-  },
-  googleBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F7EFCF",
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    borderRadius: 14,
-    gap: 10,
-    minWidth: 260,
-    justifyContent: "center",
-  },
-  googleBtnText: {
-    color: "#21284E",
-    fontSize: 16,
-    fontFamily: "Inter_700Bold",
-  },
-  terms: {
-    color: "#ffffff60",
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
-    lineHeight: 18,
-  },
-  termsLink: {
-    color: "#5EB4B8",
-    textDecorationLine: "underline",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "#00000060",
-  },
-  modalContainer: {
-    justifyContent: "flex-end",
-  },
-  modalSheet: {
+    backgroundColor: "rgba(255,255,255,0.05)",
     padding: 24,
-    paddingBottom: 40,
-  },
-  modalHandle: {
-    width: 36,
-    height: 4,
-    backgroundColor: "#D8D0B5",
-    borderRadius: 2,
-    alignSelf: "center",
-    marginBottom: 20,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
     marginBottom: 24,
   },
-  modalTitle: {
-    fontSize: 18,
+  formTitle: {
+    color: "#fff",
+    fontSize: 20,
+    fontFamily: "Inter_700Bold",
+    marginBottom: 24,
+    textAlign: "center",
   },
   inputGroup: {
     marginBottom: 16,
   },
-  inputLabel: {
-    fontSize: 12,
-    marginBottom: 6,
-  },
   input: {
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-  },
-  errorText: {
-    color: "#ef4444",
-    fontSize: 13,
-    marginBottom: 12,
-  },
-  loginBtn: {
+    borderColor: "#D8D0B5",
+    borderRadius: 12,
+    paddingHorizontal: 16,
     paddingVertical: 14,
+    color: "#21284E",
+    fontSize: 16,
+    fontFamily: "Inter_400Regular",
+  },
+  submitBtn: {
+    backgroundColor: "#F69926",
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: "center",
+    marginTop: 12,
+    shadowColor: "#F69926",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  submitBtnText: {
+    color: "#fff",
+    fontSize: 17,
+    fontFamily: "Inter_700Bold",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  divider: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 20,
+    gap: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.15)",
+  },
+  dividerText: {
+    color: "rgba(255,255,255,0.4)",
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+  },
+  googleBtn: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingVertical: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "#D8D0B5",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    marginBottom: 20,
+  },
+  googleBtnText: {
+    color: "#21284E",
+    fontSize: 16,
+    fontFamily: "Inter_600SemiBold",
+  },
+  switchContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
     alignItems: "center",
     marginTop: 8,
+    paddingVertical: 10,
   },
-  loginBtnText: {
-    color: "#fff",
+  switchLabel: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 15,
+    fontFamily: "Inter_500Medium",
+  },
+  switchBtnText: {
+    color: "#5EB4B8",
+    fontFamily: "Inter_800ExtraBold",
     fontSize: 16,
+    textDecorationLine: "underline",
+  },
+  errorText: {
+    color: "#ff6b6b",
+    fontSize: 13,
+    marginBottom: 16,
+    textAlign: "center",
+    fontFamily: "Inter_500Medium",
+  },
+  supportSection: {
+    alignItems: "center",
+    marginBottom: 32,
+    gap: 8,
+  },
+  supportTitle: {
+    color: "rgba(255,255,255,0.4)",
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  supportRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  supportText: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+  },
+  footer: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  termsText: {
+    color: "rgba(255,255,255,0.4)",
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    marginBottom: 4,
+  },
+  footerLinks: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  termsLink: {
+    color: "#5EB4B8",
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+    textDecorationLine: "underline",
+  },
+  footerSeparator: {
+    color: "rgba(255,255,255,0.4)",
+    fontSize: 12,
   },
 });

@@ -1,0 +1,24 @@
+-- Adicionando novas colunas na tabela users
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_provider BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified_provider BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS provider_bio TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS provider_categories TEXT[];
+ALTER TABLE users ADD COLUMN IF NOT EXISTS document_url TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS selfie_url TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code TEXT UNIQUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by UUID REFERENCES users(id);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_at TIMESTAMP;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS push_token TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed_at TIMESTAMP;
+
+-- Criando a tabela reviews
+CREATE TABLE IF NOT EXISTS reviews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  job_id UUID NOT NULL REFERENCES jobs(id),
+  from_user_id UUID NOT NULL REFERENCES users(id),
+  to_user_id UUID NOT NULL REFERENCES users(id),
+  rating INTEGER NOT NULL,
+  comment TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT now()
+);

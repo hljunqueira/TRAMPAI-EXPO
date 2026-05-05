@@ -37,8 +37,8 @@ export default function AdminLayout() {
         name="index"
         options={{
           title: "Dashboard",
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="view-dashboard-outline" size={24} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons name={focused ? "view-dashboard" : "view-dashboard-outline"} size={22} color={color} />
           ),
         }}
       />
@@ -46,8 +46,35 @@ export default function AdminLayout() {
         name="usuarios"
         options={{
           title: "Usuários",
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="account-group-outline" size={24} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons name={focused ? "account-group" : "account-group-outline"} size={22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="pacotes"
+        options={{
+          title: "Pacotes",
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons name={(focused ? "package-variant" : "package-variant") as any} size={22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="configuracoes"
+        options={{
+          title: "Ajustes",
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons name={focused ? "cog" : "cog-outline"} size={22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="perfil"
+        options={{
+          title: "Perfil",
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons name={focused ? "account" : "account-outline"} size={22} color={color} />
           ),
         }}
       />

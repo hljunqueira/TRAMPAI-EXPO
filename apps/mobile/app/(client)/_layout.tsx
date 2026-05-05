@@ -76,6 +76,12 @@ export default function ClientLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="detalhes-proposta"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

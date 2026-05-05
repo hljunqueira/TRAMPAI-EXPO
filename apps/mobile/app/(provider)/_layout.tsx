@@ -44,17 +44,17 @@ export default function ProviderLayout() {
         name="mural"
         options={{
           title: "Mural",
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="view-grid-outline" size={24} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons name={focused ? "compass" : "compass-outline"} size={26} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="meus-leads"
         options={{
-          title: "Meus Leads",
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="briefcase-outline" size={24} color={color} />
+          title: "Meus Trampos",
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons name={focused ? "briefcase" : "briefcase-outline"} size={24} color={color} />
           ),
         }}
       />
@@ -62,8 +62,8 @@ export default function ProviderLayout() {
         name="carteira"
         options={{
           title: "Carteira",
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="wallet-outline" size={24} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons name={focused ? "wallet" : "wallet-outline"} size={24} color={color} />
           ),
         }}
       />
@@ -71,8 +71,8 @@ export default function ProviderLayout() {
         name="perfil"
         options={{
           title: "Perfil",
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="account-outline" size={24} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons name={focused ? "account" : "account-outline"} size={24} color={color} />
           ),
         }}
       />
