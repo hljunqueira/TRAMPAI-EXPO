@@ -254,6 +254,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const text = await transRes.text();
         if (text) setTransactions(JSON.parse(text));
       }
+
+      // Atualizar Perfil do Usuário
+      const userRes = await fetch(`${API_BASE_URL}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (userRes.ok) {
+        const text = await userRes.text();
+        if (text) {
+          const userData = JSON.parse(text);
+          setUser(userData);
+          await SecureStore.setItemAsync(USER_KEY, JSON.stringify(userData));
+        }
+      }
     } catch (e) {
       console.error("Erro ao buscar dados do usuário:", e);
     }

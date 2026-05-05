@@ -135,7 +135,7 @@ export default function ProviderPerfil() {
       if (res.ok) {
         setBioModalVisible(false);
         Alert.alert("Sucesso", "Biografia profissional atualizada com sucesso!");
-        fetchMyData();
+        await fetchMyData();
       } else {
         const text = await res.text();
         let errorMsg = "Erro ao salvar biografia.";
