@@ -26,6 +26,10 @@ app.use(
   }),
 );
 app.use(cors());
+
+// Webhook do Stripe precisa de raw body
+app.use("/api/payments/webhook", express.raw({ type: "application/json" }));
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 

@@ -8,6 +8,7 @@ import usersRouter from "./users";
 import uploadRouter from "./upload";
 import reviewsRouter from "./reviews";
 import notificationsRouter from "./notifications";
+import paymentsRouter from "./payments";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(usersRouter);
 router.use("/upload", uploadRouter);
 router.use(reviewsRouter);
 router.use("/notifications", notificationsRouter);
+router.use(paymentsRouter);
 
 export default router;
