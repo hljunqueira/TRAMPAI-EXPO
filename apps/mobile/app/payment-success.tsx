@@ -5,11 +5,11 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useAuth } from "@/context/AuthContext";
 
 export default function PaymentSuccessScreen() {
-  const { refreshUser } = useAuth();
+  const { fetchMyData } = useAuth();
 
   useEffect(() => {
     // Atualizar os dados do usuário para mostrar o novo saldo
-    refreshUser();
+    fetchMyData();
   }, []);
 
   return (
