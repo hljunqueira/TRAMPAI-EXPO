@@ -7,7 +7,7 @@ import { createNotification } from "../utils/notifications";
 
 const router = Router();
 
-// Listar pacotes de créditos ativos
+// Listar pacotes de creditos ativos
 router.get("/payments/packages", async (req, res: any) => {
   try {
     const packages = await db
@@ -23,15 +23,15 @@ router.get("/payments/packages", async (req, res: any) => {
   }
 });
 
-// Criar sessão de Checkout
+// Criar sessao de Checkout
 router.post("/payments/checkout", authenticate, async (req: AuthRequest, res: any) => {
   try {
     const { packageId } = req.body;
     console.log("🛒 [Checkout] Iniciando para pacote:", packageId);
 
     if (!req.user?.userId) {
-      console.log("❌ [Checkout] Usuário não identificado no req");
-      return res.status(401).json({ error: "Não autorizado" });
+      console.log("❌ [Checkout] Usuario não identificado no req");
+      return res.status(401).json({ error: "Nao autorizado" });
     }
 
     let pkgName, pkgCredits, pkgPriceCents, pkgId;
@@ -39,11 +39,11 @@ router.post("/payments/checkout", authenticate, async (req: AuthRequest, res: an
     if (packageId === "custom") {
       const customCredits = parseInt(req.body.customCredits, 10);
       if (!customCredits || isNaN(customCredits) || customCredits < 10) {
-        return res.status(400).json({ error: "Mínimo de 10 créditos" });
+        return res.status(400).json({ error: "Minimo de 10 creditos" });
       }
       pkgName = `Personalizado (${customCredits} CR)`;
       pkgCredits = customCredits;
-      // R$ 1,00 por crédito
+      // R$ 1,00 por credito
       pkgPriceCents = customCredits * 100;
       pkgId = "custom";
     } else {
@@ -51,8 +51,8 @@ router.post("/payments/checkout", authenticate, async (req: AuthRequest, res: an
       const [pkg] = await db.select().from(creditPackages).where(eq(creditPackages.id, packageId)).limit(1);
 
       if (!pkg) {
-        console.log("❌ [Checkout] Pacote não encontrado:", packageId);
-        return res.status(404).json({ error: "Pacote não encontrado" });
+        console.log("❌ [Checkout] Pacote nao encontrado:", packageId);
+        return res.status(404).json({ error: "Pacote nao encontrado" });
       }
       
       pkgName = pkg.name;
@@ -61,7 +61,7 @@ router.post("/payments/checkout", authenticate, async (req: AuthRequest, res: an
       pkgId = pkg.id;
     }
 
-    console.log("💳 [Checkout] Criando sessão no Stripe para:", pkgName);
+    console.log("💳 [Checkout] Criando sessao no Stripe para:", pkgName);
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card", "pix"],
       line_items: [
@@ -69,8 +69,8 @@ router.post("/payments/checkout", authenticate, async (req: AuthRequest, res: an
           price_data: {
             currency: "brl",
             product_data: {
-              name: `Créditos Trampaí - ${pkgName}`,
-              description: `${pkgCredits} créditos para sua conta`,
+              name: `Creditos Trampai - ${pkgName}`,
+              description: `${pkgCredits} creditos para sua conta`,
             },
             unit_amount: Math.round(pkgPriceCents),
           },
@@ -87,11 +87,11 @@ router.post("/payments/checkout", authenticate, async (req: AuthRequest, res: an
       },
     });
 
-    console.log("✅ [Checkout] Sessão criada com sucesso:", session.id);
+    console.log("✅ [Checkout] Sessao criada com sucesso:", session.id);
     return res.json({ id: session.id, url: session.url });
   } catch (err: any) {
     console.error("❌ [Checkout] Erro fatal:", err);
-    return res.status(500).json({ error: "Erro ao criar sessão de pagamento", details: err.message });
+    return res.status(500).json({ error: "Erro ao criar sessao de pagamento", details: err.message });
   }
 });
 
@@ -116,11 +116,11 @@ router.post("/payments/webhook", async (req: any, res: any) => {
     const session = event.data.object as any;
     const { userId, credits, packageId } = session.metadata;
 
-    console.log(`✅ Pagamento confirmado para o usuário ${userId}: ${credits} créditos`);
+    console.log(`✅ Pagamento confirmado para o usuario ${userId}: ${credits} creditos`);
 
     try {
       await db.transaction(async (tx) => {
-        // 1. Atualizar saldo do usuário
+        // 1. Atualizar saldo do usuario
         const [user] = await tx
           .select()
           .from(users)
@@ -135,7 +135,7 @@ router.post("/payments/webhook", async (req: any, res: any) => {
             })
             .where(eq(users.id, userId));
 
-          // 2. Registrar transação
+          // 2. Registrar transacao
           await tx.insert(transactions).values({
             userId: userId,
             type: "PURCHASE",
@@ -146,18 +146,18 @@ router.post("/payments/webhook", async (req: any, res: any) => {
         }
       });
 
-      // 3. Notificar o usuário
+      // 3. Notificar o usuario
       await createNotification(
         userId,
-        "Créditos Adicionados! 💎",
-        `Seu pagamento foi confirmado e ${credits} créditos foram adicionados à sua conta.`,
+        "Creditos Adicionados! 💎",
+        `Seu pagamento foi confirmado e ${credits} creditos foram adicionados a sua conta.`,
         "purchase",
         { amount: credits }
       );
 
     } catch (err) {
-      console.error("Erro ao processar crédito do webhook:", err);
-      return res.status(500).json({ error: "Erro interno ao processar créditos" });
+      console.error("Erro ao processar credito do webhook:", err);
+      return res.status(500).json({ error: "Erro interno ao processar creditos" });
     }
   }
 
