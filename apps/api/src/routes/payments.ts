@@ -34,15 +34,34 @@ router.post("/payments/checkout", authenticate, async (req: AuthRequest, res: an
       return res.status(401).json({ error: "Não autorizado" });
     }
 
-    console.log("🔍 [Checkout] Buscando pacote no banco...");
-    const [pkg] = await db.select().from(creditPackages).where(eq(creditPackages.id, packageId)).limit(1);
+    let pkgName, pkgCredits, pkgPriceCents, pkgId;
 
-    if (!pkg) {
-      console.log("❌ [Checkout] Pacote não encontrado:", packageId);
-      return res.status(404).json({ error: "Pacote não encontrado" });
+    if (packageId === "custom") {
+      const customCredits = parseInt(req.body.customCredits, 10);
+      if (!customCredits || isNaN(customCredits) || customCredits < 10) {
+        return res.status(400).json({ error: "Mínimo de 10 créditos" });
+      }
+      pkgName = `Personalizado (${customCredits} CR)`;
+      pkgCredits = customCredits;
+      // R$ 1,00 por crédito
+      pkgPriceCents = customCredits * 100;
+      pkgId = "custom";
+    } else {
+      console.log("🔍 [Checkout] Buscando pacote no banco...");
+      const [pkg] = await db.select().from(creditPackages).where(eq(creditPackages.id, packageId)).limit(1);
+
+      if (!pkg) {
+        console.log("❌ [Checkout] Pacote não encontrado:", packageId);
+        return res.status(404).json({ error: "Pacote não encontrado" });
+      }
+      
+      pkgName = pkg.name;
+      pkgCredits = pkg.credits + pkg.bonusCredits;
+      pkgPriceCents = pkg.priceCents;
+      pkgId = pkg.id;
     }
 
-    console.log("💳 [Checkout] Criando sessão no Stripe para:", pkg.name);
+    console.log("💳 [Checkout] Criando sessão no Stripe para:", pkgName);
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card", "pix"],
       line_items: [
@@ -50,10 +69,10 @@ router.post("/payments/checkout", authenticate, async (req: AuthRequest, res: an
           price_data: {
             currency: "brl",
             product_data: {
-              name: `Créditos Trampaí - ${pkg.name}`,
-              description: `${pkg.credits + pkg.bonusCredits} créditos para sua conta`,
+              name: `Créditos Trampaí - ${pkgName}`,
+              description: `${pkgCredits} créditos para sua conta`,
             },
-            unit_amount: Math.round(pkg.priceCents),
+            unit_amount: Math.round(pkgPriceCents),
           },
           quantity: 1,
         },
@@ -63,7 +82,8 @@ router.post("/payments/checkout", authenticate, async (req: AuthRequest, res: an
       cancel_url: `${process.env.APP_URL}/payment-cancel`,
       metadata: {
         userId: req.user.userId,
-        packageId: pkg.id,
+        packageId: pkgId,
+        credits: pkgCredits.toString(),
       },
     });
 
