@@ -368,6 +368,16 @@ export default function AdminUsuarios() {
                         {selectedUser.neighborhood ? `${selectedUser.neighborhood}, ` : ""}{selectedUser.city || "Sem cidade"}
                       </Text>
                     </View>
+                    <View style={styles.infoRow}>
+                      <MaterialCommunityIcons name="ticket-percent" size={18} color={colors.primary + "60"} />
+                      <Text style={[styles.infoRowText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Código: {selectedUser.referralCode || "---"}</Text>
+                    </View>
+                    {(selectedUser as any).referredBy && (
+                      <View style={styles.infoRow}>
+                        <MaterialCommunityIcons name="account-arrow-left" size={18} color={colors.secondary} />
+                        <Text style={[styles.infoRowText, { color: colors.primary, fontFamily: "Inter_500Medium" }]}>Indicado por ID: {(selectedUser as any).referredBy}</Text>
+                      </View>
+                    )}
                   </View>
                 </View>
 

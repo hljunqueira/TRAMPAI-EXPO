@@ -25,7 +25,7 @@ router.post("/categories", authenticate, async (req: AuthRequest, res: any) => {
     const existing = await db.select().from(categories).where(eq(categories.name, name.trim()));
     if (existing.length > 0) return res.json(existing[0]);
 
-    const [newCat] = await db.insert(categories).values({ name: name.trim() }).returning();
+    const [newCat] = await db.insert(categories).values({ name: name.trim(), icon: "tag-outline" }).returning();
     return res.status(201).json(newCat);
   } catch (err) {
     console.error(err);

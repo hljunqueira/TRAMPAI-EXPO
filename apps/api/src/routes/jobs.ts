@@ -367,4 +367,29 @@ router.patch("/jobs/:id/status", authenticate, async (req: AuthRequest, res: any
   }
 });
 
+router.put("/jobs/:id", authenticate, async (req: AuthRequest, res: any) => {
+  try {
+    const jobId = req.params.id;
+    const { title, description, categoryId, location } = req.body;
+    const userId = req.user?.userId;
+
+    const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId as string));
+    if (!job) return res.status(404).json({ error: "Serviço não encontrado" });
+
+    if (job.clientId !== userId) {
+      return res.status(403).json({ error: "Não autorizado a editar este serviço" });
+    }
+
+    const [updatedJob] = await db.update(jobs)
+      .set({ title, description, categoryId, location, updatedAt: new Date() })
+      .where(eq(jobs.id, jobId as string))
+      .returning();
+
+    return res.json(updatedJob);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erro ao atualizar serviço" });
+  }
+});
+
 export default router;

@@ -54,6 +54,7 @@ export default function OnboardingScreen() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [referralCode, setReferralCode] = useState("");
 
   const isProvider = goal === "PROVIDER" || goal === "BOTH";
 
@@ -122,6 +123,12 @@ export default function OnboardingScreen() {
     
     if (step === 1) { // Perfil
       if (!name.trim()) return setError("Informe seu nome");
+      return setStep(1.5);
+    }
+    
+    if (step === 1.5) {
+      // O código é opcional, então apenas passamos
+      return setStep(2);
     }
     
     if (step === 2) { // Localização
@@ -171,6 +178,7 @@ export default function OnboardingScreen() {
         onboardingCompletedAt: new Date().toISOString(),
         providerBio: isProvider ? bio : undefined,
         providerCategories: isProvider ? selectedCategories : undefined,
+        referralCode: referralCode.trim() || undefined,
       });
 
       // Se enviou fotos, chamar endpoint de documentos
@@ -222,7 +230,7 @@ export default function OnboardingScreen() {
           />
         </View>
         <Text style={[styles.stepCounter, { color: "#FFFFFF90", fontFamily: "Inter_500Medium" }]}>
-          Passo {step} de {isProvider ? TOTAL_STEPS : 3}
+          Progresso: {Math.round(progress * 100)}%
         </Text>
       </View>
 
@@ -243,6 +251,23 @@ export default function OnboardingScreen() {
                   placeholderTextColor="#999"
                   value={name}
                   onChangeText={setName}
+                />
+              </View>
+            </View>
+          )}
+
+          {step === 1.5 && (
+            <View style={styles.stepContainer}>
+              <Text style={[styles.stepTitle, { color: "#FFFFFF", fontFamily: "Inter_700Bold" }]}>Tem um cupom ou indicação?</Text>
+              <Text style={[styles.stepSub, { color: "#FFFFFF90", fontFamily: "Inter_400Regular" }]}>Insira o código para ganhar bônus de boas-vindas</Text>
+              <View style={styles.inputGroup}>
+                <TextInput
+                  style={[styles.input, { textAlign: 'center', fontSize: 24, letterSpacing: 2, fontFamily: 'Inter_900Black' }]}
+                  placeholder="CÓDIGO (OPCIONAL)"
+                  placeholderTextColor="#999"
+                  value={referralCode}
+                  onChangeText={(t) => setReferralCode(t.toUpperCase())}
+                  autoCapitalize="characters"
                 />
               </View>
             </View>
@@ -423,7 +448,12 @@ export default function OnboardingScreen() {
 
       <View style={styles.footer}>
         {step > 1 && (
-          <TouchableOpacity style={styles.backBtn} onPress={() => { setStep((s) => s - 1); setError(""); }}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => { 
+            if (step === 2) setStep(1.5);
+            else if (step === 1.5) setStep(1);
+            else setStep((s) => s - 1); 
+            setError(""); 
+          }}>
             <MaterialCommunityIcons name="arrow-left" size={24} color="#FFF" />
           </TouchableOpacity>
         )}

@@ -220,7 +220,7 @@ export default function DetalhesProposta() {
         <View style={styles.budgetInfo}>
           <View>
             <Text style={styles.budgetLabel}>Valor Estimado</Text>
-            <Text style={[styles.budgetValue, { color: "#B45309" }]}>{provider.budget}</Text>
+            <Text style={[styles.budgetValue, { color: "#B45309" }]}>{provider.budget ? provider.budget : "A combinar"}</Text>
           </View>
           <View style={styles.availability}>
             <MaterialCommunityIcons name="calendar-check-outline" size={16} color={colors.mutedForeground} />

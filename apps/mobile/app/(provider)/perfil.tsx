@@ -9,11 +9,12 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
   Modal,
   TextInput,
+  TouchableOpacity,
   ActivityIndicator,
+  Share,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
@@ -28,7 +29,7 @@ import { useColors } from "@/hooks/useColors";
 
 export default function ProviderPerfil() {
   const colors = useColors();
-  const { user, logout, leads, activeMode, switchActiveMode, fetchMyData } = useAuth();
+  const { user, logout, leads, reviews, activeMode, switchActiveMode, fetchMyData } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [bioModalVisible, setBioModalVisible] = React.useState(false);
@@ -69,6 +70,24 @@ export default function ProviderPerfil() {
     } else {
       switchActiveMode("CLIENT");
       router.replace("/(client)");
+    }
+  }
+
+  async function shareReferral() {
+    try {
+      const code = user?.referralCode || "TRAMPAI26";
+      const message = `Ei! Use meu código ${code} no Trampaí para ganhar 10 créditos de bônus e oferecer seus serviços para milhares de clientes! 🚀\n\nBaixe agora: https://trampai.com.br`;
+      
+      const result = await Share.share({
+        message,
+        title: "Convite Trampaí",
+      });
+
+      if (result.action === Share.sharedAction) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (error) {
+      console.error(error);
     }
   }
 
@@ -313,12 +332,27 @@ export default function ProviderPerfil() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 20 : 10), borderBottomWidth: 1, borderBottomColor: colors.border + "30", backgroundColor: "#fff" }]}>
         <View style={styles.headerLeft}>
-          <Text style={[styles.headerLogo, { fontFamily: "Inter_800ExtraBold", color: colors.primary }]}>Trampaí</Text>
+          <Text style={[styles.headerLogo, { fontFamily: "Inter_800ExtraBold", color: colors.primary }]}>Perfil</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={[styles.iconBtn, { flexDirection: "row", width: "auto", paddingHorizontal: 12, gap: 6, backgroundColor: colors.primary + "10" }]} onPress={handleLogout}>
-            <MaterialCommunityIcons name="logout" size={18} color={colors.primary} />
-            <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold", fontSize: 14 }}>Sair</Text>
+          <TouchableOpacity 
+            onPress={handleSwitchMode} 
+            style={{ 
+              flexDirection: 'row', 
+              alignItems: 'center', 
+              gap: 6, 
+              backgroundColor: colors.primary + "08",
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 100,
+              borderWidth: 1,
+              borderColor: colors.primary + "10"
+            }}
+          >
+            <MaterialCommunityIcons name="swap-horizontal" size={16} color={colors.primary} />
+            <Text style={{ color: colors.primary, fontFamily: "Inter_700Bold", fontSize: 12 }}>
+              {user?.role === "admin" ? "Modo Admin" : "Modo Cliente"}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -344,8 +378,8 @@ export default function ProviderPerfil() {
           </TouchableOpacity>
 
           <View style={styles.headerInfo}>
-            <View style={styles.nameRow}>
-              <Text style={[styles.userName, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{user?.name}</Text>
+            <View style={[styles.nameRow, { flexWrap: 'wrap', justifyContent: 'center' }]}>
+              <Text style={[styles.userName, { color: colors.primary, fontFamily: "Inter_800ExtraBold", textAlign: 'center' }]}>{user?.name}</Text>
               {user?.isPremium && (
                 <View style={[styles.premiumBadge, { backgroundColor: colors.accent }]}>
                   <MaterialCommunityIcons name="crown" size={12} color={colors.navy} />
@@ -492,15 +526,58 @@ export default function ProviderPerfil() {
           )}
         </View>
 
-        <View style={[styles.sectionCard, { backgroundColor: "#FFF", marginBottom: 32 }]}>
+        <View style={[styles.sectionCard, { backgroundColor: "#FFF", marginBottom: 12 }]}>
           <Text style={[styles.sectionTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Avaliações Recentes</Text>
-          {user?.reviewCount ? <View style={styles.reviewCard} /> : (
+          {user?.reviewCount && reviews.length > 0 ? (
+            <View style={styles.reviewCard}>
+              {reviews.map((rev: any) => (
+                <View key={rev.id} style={styles.reviewItem}>
+                  <View style={styles.reviewHeader}>
+                    {rev.fromUserAvatar ? (
+                      <Image source={{ uri: rev.fromUserAvatar }} style={styles.reviewerAvatar} />
+                    ) : (
+                      <View style={[styles.reviewerAvatar, { backgroundColor: colors.primary + "10", alignItems: 'center', justifyContent: 'center' }]}>
+                        <Text style={{ fontSize: 10, color: colors.primary, fontFamily: 'Inter_700Bold' }}>{rev.fromUserName?.[0]}</Text>
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.reviewerName, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>{rev.fromUserName}</Text>
+                      <View style={styles.starsRow}>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <MaterialCommunityIcons 
+                            key={star} 
+                            name="star" 
+                            size={12} 
+                            color={star <= rev.rating ? colors.secondary : colors.border} 
+                          />
+                        ))}
+                      </View>
+                    </View>
+                    <Text style={[styles.reviewDate, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+                      {new Date(rev.createdAt).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  {rev.comment ? (
+                    <Text style={[styles.reviewComment, { color: colors.primary, fontFamily: "Inter_400Regular" }]}>{rev.comment}</Text>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          ) : (
             <View style={styles.emptyPortfolio}>
               <MaterialCommunityIcons name="star-outline" size={32} color={colors.mutedForeground + "40"} />
               <Text style={[styles.emptyText, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Nenhuma avaliação recebida</Text>
             </View>
           )}
         </View>
+
+        <TouchableOpacity 
+          style={[styles.logoutBtnFull, { backgroundColor: "#fee2e2", borderColor: "#fecaca", borderWidth: 1 }]} 
+          onPress={handleLogout}
+        >
+          <MaterialCommunityIcons name="logout" size={22} color="#dc2626" />
+          <Text style={[styles.logoutBtnText, { color: "#dc2626", fontFamily: "Inter_700Bold" }]}>Encerrar Sessão</Text>
+        </TouchableOpacity>
       </ScrollView>
 
       <Modal visible={bioModalVisible} transparent animationType="slide">
@@ -643,7 +720,7 @@ const styles = StyleSheet.create({
   editBadge: { position: "absolute", bottom: 0, right: 0, width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "#FFF" },
   verifiedBadge: { position: "absolute", bottom: 0, left: 0, width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "#FFF" },
   headerInfo: { alignItems: "center", width: "100%" },
-  nameRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 4 },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6, paddingHorizontal: 10 },
   userName: { fontSize: 22 },
   ratingChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 100 },
   ratingText: { fontSize: 13 },
@@ -669,7 +746,14 @@ const styles = StyleSheet.create({
   portfolioImg: { width: 100, height: 100, borderRadius: 12 },
   emptyPortfolio: { alignItems: "center", justifyContent: "center", paddingVertical: 24, borderWidth: 1, borderColor: "#00000008", borderRadius: 16, backgroundColor: "#FDFBF7", gap: 8 },
   emptyText: { fontSize: 13 },
-  reviewCard: { gap: 12 },
+  reviewCard: { gap: 16 },
+  reviewItem: { borderBottomWidth: 1, borderBottomColor: "#00000008", paddingBottom: 16 },
+  reviewHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 8 },
+  reviewerAvatar: { width: 32, height: 32, borderRadius: 16 },
+  reviewerName: { fontSize: 14 },
+  starsRow: { flexDirection: "row", gap: 2 },
+  reviewDate: { fontSize: 11 },
+  reviewComment: { fontSize: 13, lineHeight: 18 },
   growthActions: { gap: 12 },
   growthBtn: { flexDirection: "row", alignItems: "center", padding: 16, borderRadius: 16, gap: 12 },
   growthBtnTitle: { fontSize: 15 },
@@ -696,4 +780,15 @@ const styles = StyleSheet.create({
   modalActionsFull: { width: "100%", gap: 12 },
   modalBtnFull: { width: "100%", height: 54, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   modalCancelFull: { width: "100%", height: 50, alignItems: "center", justifyContent: "center" },
+  logoutBtnFull: { 
+    marginHorizontal: 20, 
+    flexDirection: "row", 
+    alignItems: "center", 
+    justifyContent: "center", 
+    padding: 16, 
+    borderRadius: 20, 
+    gap: 12, 
+    marginBottom: 40 
+  },
+  logoutBtnText: { fontSize: 16 },
 });

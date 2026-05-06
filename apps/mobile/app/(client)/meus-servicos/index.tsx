@@ -14,8 +14,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useAuth } from "@/context/AuthContext";
-import { useColors } from "@/hooks/useColors";
+import { useAuth } from "../../../context/AuthContext";
+import { useColors } from "../../../hooks/useColors";
 
 const TABS = [
   { id: "active", label: "Ativos" },
@@ -35,14 +35,14 @@ export default function MeusServicos() {
     setRefreshing(false);
   };
 
-  const myServices = services
-    .filter((s) => s.clientId === user?.id)
-    .filter((s) => {
+  const myServices = (services || [])
+    .filter((s: any) => s.clientId === user?.id)
+    .filter((s: any) => {
       const status = s.status.toLowerCase();
       if (activeTab === "active") return status === "open" || status === "in_progress" || status === "exclusive_pending";
       return status === "closed" || status === "completed" || status === "expired";
     })
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const getInitials = (name?: string) => {
     if (!name) return "??";
@@ -131,7 +131,15 @@ export default function MeusServicos() {
           return (
             <TouchableOpacity 
               style={[styles.card, isClosed && styles.cardClosed]}
-              onPress={() => !isClosed && !inProgress && router.push({ pathname: "/(client)/detalhes-proposta", params: { id: item.id } })}
+              onPress={() => {
+                if (!isClosed && !inProgress) {
+                  if (proposalsCount > 0) {
+                    router.push({ pathname: "/(client)/meus-servicos/interessados", params: { id: item.id } });
+                  } else {
+                    router.push({ pathname: "/(client)/meus-servicos/editar-servico", params: { id: item.id } });
+                  }
+                }
+              }}
               activeOpacity={0.7}
             >
               <View style={styles.cardMain}>
@@ -227,6 +235,22 @@ export default function MeusServicos() {
                         <MaterialCommunityIcons name="check-circle" size={20} color="#fff" />
                         <Text style={[styles.fullActionText, { color: "#fff", fontFamily: "Inter_700Bold" }]}>Marcar como Resolvido</Text>
                       </TouchableOpacity>
+                    ) : proposalsCount === 0 ? (
+                      <View style={{ flexDirection: 'row', gap: 10, width: '100%' }}>
+                        <TouchableOpacity 
+                          style={[styles.secondaryAction, { borderColor: colors.primary, flex: 1, flexDirection: 'row', gap: 6 }]}
+                          onPress={() => router.push({ pathname: "/(client)/meus-servicos/editar-servico", params: { id: item.id } })}
+                        >
+                          <MaterialCommunityIcons name="pencil" size={16} color={colors.primary} />
+                          <Text style={[styles.secondaryActionText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Editar</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          style={[styles.secondaryAction, { borderColor: colors.navy + "20", flex: 1 }]}
+                          onPress={() => {/* closeService(item.id) */}}
+                        >
+                          <Text style={[styles.secondaryActionText, { color: colors.mutedForeground, fontFamily: "Inter_700Bold" }]}>Encerrar</Text>
+                        </TouchableOpacity>
+                      </View>
                     ) : (
                       <TouchableOpacity 
                         style={[styles.secondaryAction, { borderColor: colors.navy + "20" }]}

@@ -137,8 +137,8 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     alignItems: "center",
-    paddingVertical: 24,
-    paddingHorizontal: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
     borderWidth: 2,
     position: "relative",
     shadowColor: "#000",
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   label: {
-    fontSize: 14,
+    fontSize: 10,
     marginBottom: 8,
     letterSpacing: 0.5,
     textTransform: "uppercase",
@@ -180,8 +180,8 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   credits: {
-    fontSize: 42,
-    lineHeight: 48,
+    fontSize: 32,
+    lineHeight: 36,
   },
   bonusText: {
     fontSize: 16,
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     textTransform: "lowercase",
   },
   price: {
-    fontSize: 20,
+    fontSize: 16,
     marginBottom: 12,
   },
   perCredit: {

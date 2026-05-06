@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
   ActivityIndicator,
+  Share,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
@@ -23,7 +24,7 @@ import { useColors } from "@/hooks/useColors";
 
 export default function ClientPerfil() {
   const colors = useColors();
-  const { user, logout, transactions, activeMode, switchActiveMode, fetchMyData } = useAuth();
+  const { user, logout, transactions, reviews, activeMode, switchActiveMode, fetchMyData } = useAuth();
   const insets = useSafeAreaInsets();
   const [uploading, setUploading] = React.useState(false);
 
@@ -133,6 +134,24 @@ export default function ClientPerfil() {
     }
   }
 
+  async function shareReferral() {
+    try {
+      const code = user?.referralCode || "TRAMPAI26";
+      const message = `Ei! Use meu código ${code} no Trampaí para ganhar 10 créditos de bônus e encontrar os melhores profissionais ou serviços! 🚀\n\nBaixe agora: https://trampai.com.br`;
+      
+      const result = await Share.share({
+        message,
+        title: "Convite Trampaí",
+      });
+
+      if (result.action === Share.sharedAction) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
   const initials = user?.name
     ? user.name
         .trim()
@@ -148,12 +167,27 @@ export default function ClientPerfil() {
       {/* Custom Header */}
       <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 20 : 10), borderBottomWidth: 1, borderBottomColor: colors.border + "30", backgroundColor: "#fff" }]}>
         <View style={styles.headerLeft}>
-          <Text style={[styles.headerLogo, { fontFamily: "Inter_800ExtraBold", color: colors.primary }]}>Trampaí</Text>
+          <Text style={[styles.headerLogo, { fontFamily: "Inter_800ExtraBold", color: colors.primary }]}>Perfil</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={[styles.iconBtn, { flexDirection: "row", width: "auto", paddingHorizontal: 12, gap: 6, backgroundColor: colors.primary + "10" }]} onPress={handleLogout}>
-            <MaterialCommunityIcons name="logout" size={18} color={colors.primary} />
-            <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold", fontSize: 14 }}>Sair</Text>
+          <TouchableOpacity 
+            onPress={handleSwitchMode} 
+            style={{ 
+              flexDirection: 'row', 
+              alignItems: 'center', 
+              gap: 6, 
+              backgroundColor: colors.primary + "08",
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 100,
+              borderWidth: 1,
+              borderColor: colors.primary + "10"
+            }}
+          >
+            <MaterialCommunityIcons name="swap-horizontal" size={16} color={colors.primary} />
+            <Text style={{ color: colors.primary, fontFamily: "Inter_700Bold", fontSize: 12 }}>
+              {user?.role === "admin" ? "Modo Admin" : "Modo Prestador"}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -169,112 +203,183 @@ export default function ClientPerfil() {
                 <Text style={[styles.avatarText, { color: "#FFF", fontFamily: "Inter_700Bold" }]}>{initials}</Text>
               )}
             </View>
-            <View style={styles.editBadge}>
+            <View style={[styles.editBadge, { backgroundColor: colors.secondary }]}>
               {uploading ? (
                 <ActivityIndicator size="small" color="#FFF" />
               ) : (
-                <MaterialCommunityIcons name="camera-plus" size={16} color="#FFF" />
+                <MaterialCommunityIcons name="camera" size={16} color="#FFF" />
               )}
             </View>
           </TouchableOpacity>
-          <Text style={[styles.userName, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{user?.name}</Text>
-          <Text style={[styles.userEmail, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>{user?.email}</Text>
-          
-          <View style={[styles.roleBadge, { backgroundColor: colors.primary + "10" }]}>
-            <MaterialCommunityIcons name="account-check" size={14} color={colors.primary} />
-            <Text style={[styles.roleText, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>Cliente Verificado</Text>
-          </View>
-        </View>
 
-        {/* Action Buttons */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickActions}>
-          <TouchableOpacity 
-            style={[styles.primaryAction, { backgroundColor: "#e8c08a" }]}
-            onPress={() => router.push("/editar-perfil")}
-          >
-            <MaterialCommunityIcons name="account-edit" size={20} color={colors.primary} />
-            <View>
-              <Text style={[styles.actionText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Editar Perfil</Text>
-              <Text style={{ color: colors.primary, fontSize: 11, opacity: 0.8 }}>Atualize seus dados</Text>
-            </View>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.secondaryAction, { borderColor: colors.primary + "30" }]}
-            onPress={handleSwitchMode}
-          >
-            <MaterialCommunityIcons name="shield-account" size={20} color={colors.primary} />
-            <View>
-              <Text style={[styles.actionText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>
-                {user?.role === "admin" ? "Painel Admin" : "Ser Prestador"}
-              </Text>
-              <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Alternar visão</Text>
-            </View>
-          </TouchableOpacity>
-        </ScrollView>
-
-        {/* Credits Card */}
-        <View style={styles.creditsCard}>
-          <View style={[styles.creditsContent, { backgroundColor: "#FFF", borderColor: colors.border + "50" }]}>
-            <View>
-              <Text style={[styles.creditsLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Saldo de Créditos</Text>
-              <Text style={[styles.creditsValue, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{user?.creditBalance ?? 0} cr</Text>
-            </View>
-            <TouchableOpacity style={[styles.buyBtn, { backgroundColor: "#e8c08a" }]} onPress={() => router.push("/(client)")}>
-              <Text style={[styles.buyBtnText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Comprar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Info Section */}
-        <View style={[styles.infoSection, { backgroundColor: "#FFF" }]}>
-          <View style={styles.infoRow}>
-            <View style={[styles.infoIcon, { backgroundColor: colors.primary + "08" }]}>
-              <MaterialCommunityIcons name="phone" size={20} color={colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.infoLab, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>WhatsApp</Text>
-              <Text style={[styles.infoVal, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>{user?.phone || "Não informado"}</Text>
-            </View>
-          </View>
-          
-          <View style={styles.infoRow}>
-            <View style={[styles.infoIcon, { backgroundColor: colors.primary + "08" }]}>
-              <MaterialCommunityIcons name="map-marker" size={20} color={colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.infoLab, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Cidade</Text>
-              <Text style={[styles.infoVal, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>{user?.city || "Não informada"}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Transactions Section */}
-        {myTransactions.length > 0 && (
-          <View style={[styles.transactionsSection, { backgroundColor: "#FFF" }]}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Últimas Transações</Text>
-            </View>
-            {myTransactions.map((tx, i) => (
-              <View key={tx.id} style={styles.txRow}>
-                <View style={[styles.txIcon, { backgroundColor: tx.credits > 0 ? colors.secondary + "15" : "#ef444415" }]}>
-                  <MaterialCommunityIcons
-                    name={tx.credits > 0 ? "arrow-down-left" : "arrow-up-right"}
-                    size={16}
-                    color={tx.credits > 0 ? colors.secondary : "#ef4444"}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.txDesc, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]} numberOfLines={1}>{tx.description}</Text>
-                  <Text style={[styles.txDate, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>{new Date(tx.createdAt).toLocaleDateString()}</Text>
-                </View>
-                <Text style={[styles.txAmount, { color: tx.credits > 0 ? colors.secondary : "#ef4444", fontFamily: "Inter_700Bold" }]}>
-                  {tx.credits > 0 ? "+" : ""}{tx.credits}
+          <View style={{ alignItems: 'center' }}>
+            <View style={[styles.nameRow, { justifyContent: 'center' }]}>
+              <Text style={[styles.userName, { color: colors.primary, fontFamily: "Inter_800ExtraBold", textAlign: 'center' }]}>{user?.name}</Text>
+              <View style={[styles.ratingChip, { backgroundColor: colors.secondary + "15" }]}>
+                <MaterialCommunityIcons name="star" size={12} color={colors.secondary} />
+                <Text style={[styles.ratingText, { color: colors.secondary, fontFamily: "Inter_700Bold" }]}>
+                  {user?.reviewCount && user.reviewCount > 0 ? user.rating : "Novo"}
                 </Text>
               </View>
-            ))}
+            </View>
+            
+            <Text style={[styles.userEmail, { color: colors.mutedForeground, fontFamily: "Inter_400Regular", textAlign: 'center', marginBottom: 12 }]}>
+              {user?.email}
+            </Text>
+
+            <View style={[styles.chipsRow, { justifyContent: 'center' }]}>
+              <View style={[styles.chip, { backgroundColor: colors.primary + "08" }]}>
+                <MaterialCommunityIcons name="map-marker" size={12} color={colors.primary} />
+                <Text style={[styles.chipText, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>{user?.city || "Local não informado"}</Text>
+              </View>
+              <View style={[styles.chip, { backgroundColor: colors.primary + "08" }]}>
+                <MaterialCommunityIcons name="shield-check" size={12} color={colors.primary} />
+                <Text style={[styles.chipText, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>Verificado</Text>
+              </View>
+            </View>
           </View>
-        )}
+        </View>
+
+        <View style={[styles.statsGrid, { backgroundColor: "#FFF" }]}>
+          <View style={styles.statBox}>
+            <Text style={[styles.statValue, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{user?.jobsPostedCount ?? 0}</Text>
+            <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Trampos</Text>
+          </View>
+          <View style={[styles.statDivider, { backgroundColor: colors.border + "40" }]} />
+          <View style={styles.statBox}>
+            <Text style={[styles.statValue, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{user?.referralCode || "---"}</Text>
+            <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Meu Código</Text>
+          </View>
+          <View style={[styles.statDivider, { backgroundColor: colors.border + "40" }]} />
+          <View style={styles.statBox}>
+            <Text style={[styles.statValue, { color: colors.secondary, fontFamily: "Inter_800ExtraBold" }]}>{user?.reviewCount || 0}</Text>
+            <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Avaliações</Text>
+          </View>
+        </View>
+
+        <View style={styles.quickActionsVertical}>
+          <TouchableOpacity 
+            style={[styles.primaryActionFull, { backgroundColor: "#e8c08a" }]}
+            onPress={() => router.push("/editar-perfil")}
+          >
+            <MaterialCommunityIcons name="account-edit" size={22} color={colors.primary} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.actionText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Editar Perfil</Text>
+              <Text style={{ color: colors.primary, fontSize: 11, opacity: 0.8 }}>Atualize seus dados pessoais e contato</Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={20} color={colors.primary + "40"} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.secondaryActionFull, { borderColor: colors.primary + "15", backgroundColor: "#fff" }]}
+            onPress={handleSwitchMode}
+          >
+            <MaterialCommunityIcons name="swap-horizontal" size={22} color={colors.primary} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.actionText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>
+                {user?.role === "admin" ? "Painel Admin" : "Sou Prestador"}
+              </Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Alternar visão do aplicativo</Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={20} color={colors.primary + "40"} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Indique e Ganhe Section */}
+        <View style={[styles.sectionCard, { backgroundColor: colors.navy, borderColor: colors.accent, borderWidth: 1 }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+            <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: colors.accent + '20', alignItems: 'center', justifyContent: 'center' }}>
+              <MaterialCommunityIcons name="gift" size={24} color={colors.accent} />
+            </View>
+            <View>
+              <Text style={[styles.sectionTitle, { color: "#FFF", fontFamily: "Inter_700Bold", marginBottom: 0 }]}>Indique e Ganhe! 🎁</Text>
+              <Text style={{ color: "#ffffff90", fontSize: 12, fontFamily: "Inter_400Regular" }}>Compartilhe e ganhe benefícios</Text>
+            </View>
+          </View>
+          
+          <View style={{ backgroundColor: "#ffffff10", padding: 16, borderRadius: 16, alignItems: 'center', marginBottom: 16 }}>
+             <Text style={{ color: "#ffffff80", fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Seu código exclusivo</Text>
+             <Text style={{ color: colors.accent, fontSize: 24, fontFamily: "Inter_900Black" }}>{user?.referralCode || "TRAMPAI2024"}</Text>
+          </View>
+
+          <TouchableOpacity 
+            style={[styles.growthBtn, { backgroundColor: colors.accent }]} 
+            onPress={shareReferral}
+          >
+            <MaterialCommunityIcons name="share-variant" size={20} color={colors.primary} />
+            <Text style={[styles.growthBtnTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Convidar Amigos</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Suporte e Ajuda */}
+        <View style={[styles.sectionCard, { backgroundColor: "#FFF" }]}>
+          <Text style={[styles.sectionTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Suporte e Ajuda</Text>
+          <TouchableOpacity style={styles.supportRow} onPress={() => Alert.alert("Suporte", "Abrindo WhatsApp do suporte...")}>
+            <View style={[styles.infoIcon, { backgroundColor: "#25d36620" }]}>
+              <MaterialCommunityIcons name="whatsapp" size={22} color="#25d366" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold", fontSize: 15 }}>Falar com Atendente</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Dúvidas ou problemas técnicos</Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={20} color={colors.primary + "20"} />
+          </TouchableOpacity>
+        </View>
+
+
+
+        <View style={[styles.sectionCard, { backgroundColor: "#FFF", marginBottom: 12 }]}>
+          <Text style={[styles.sectionTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Avaliações Recebidas</Text>
+          {user?.reviewCount && reviews.length > 0 ? (
+            <View style={styles.reviewCard}>
+              {reviews.map((rev: any) => (
+                <View key={rev.id} style={styles.reviewItem}>
+                  <View style={styles.reviewHeader}>
+                    {rev.fromUserAvatar ? (
+                      <Image source={{ uri: rev.fromUserAvatar }} style={styles.reviewerAvatar} />
+                    ) : (
+                      <View style={[styles.reviewerAvatar, { backgroundColor: colors.primary + "10", alignItems: 'center', justifyContent: 'center' }]}>
+                        <Text style={{ fontSize: 10, color: colors.primary, fontFamily: 'Inter_700Bold' }}>{rev.fromUserName?.[0]}</Text>
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.reviewerName, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>{rev.fromUserName}</Text>
+                      <View style={styles.starsRow}>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <MaterialCommunityIcons 
+                            key={star} 
+                            name="star" 
+                            size={12} 
+                            color={star <= rev.rating ? colors.secondary : colors.border} 
+                          />
+                        ))}
+                      </View>
+                    </View>
+                    <Text style={[styles.reviewDate, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
+                      {new Date(rev.createdAt).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  {rev.comment ? (
+                    <Text style={[styles.reviewComment, { color: colors.primary, fontFamily: "Inter_400Regular" }]}>{rev.comment}</Text>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyPortfolio}>
+              <MaterialCommunityIcons name="star-outline" size={32} color={colors.mutedForeground + "40"} />
+              <Text style={[styles.emptyText, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Nenhuma avaliação recebida como cliente</Text>
+            </View>
+          )}
+        </View>
+
+        <TouchableOpacity 
+          style={styles.logoutBtnFull} 
+          onPress={handleLogout}
+        >
+          <MaterialCommunityIcons name="logout" size={22} color="#dc2626" />
+          <Text style={[styles.logoutBtnText, { color: "#dc2626", fontFamily: "Inter_700Bold" }]}>Encerrar Sessão</Text>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -308,161 +413,46 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  profileHero: {
-    alignItems: "center",
-    paddingTop: 24,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-  },
-  avatarWrapper: {
-    position: "relative",
-    marginBottom: 12,
-  },
-  avatarCircle: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#0b1339",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 4,
-    overflow: "hidden",
-  },
-  editBadge: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#e8c08a",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 3,
-    borderColor: "#FFF",
-  },
-  avatarText: {
-    fontSize: 32,
-  },
-  userName: {
-    fontSize: 24,
-    marginBottom: 4,
-  },
-  userEmail: {
-    fontSize: 15,
-    marginBottom: 16,
-  },
-  roleBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 100,
-  },
-  roleText: {
-    fontSize: 13,
-  },
-  quickActions: {
-    flexDirection: "row",
-    paddingHorizontal: 20,
-    paddingRight: 40,
-    gap: 12,
-    marginBottom: 20,
-  },
-  primaryAction: {
-    flexDirection: "row",
-    height: 50,
-    paddingHorizontal: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 16,
-    gap: 8,
-    shadowColor: "#e8c08a",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  secondaryAction: {
-    flexDirection: "row",
-    height: 50,
-    paddingHorizontal: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 16,
-    borderWidth: 1.5,
-    gap: 8,
-  },
+  profileHero: { alignItems: "center", paddingTop: 24, paddingBottom: 24, paddingHorizontal: 20, gap: 12 },
+  avatarWrapper: { position: "relative", marginBottom: 12 },
+  avatarCircle: { width: 90, height: 90, borderRadius: 45, alignItems: "center", justifyContent: "center", shadowColor: "#0b1339", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 4, overflow: "hidden" },
+  editBadge: { position: "absolute", bottom: 0, right: 0, width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "#FFF" },
+  verifiedBadge: { position: "absolute", top: -4, left: -4, width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "#FFF", zIndex: 10 },
+  headerInfo: { flex: 1 },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 4 },
+  userName: { fontSize: 20 },
+  ratingChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 100 },
+  ratingText: { fontSize: 13 },
+  userEmail: { fontSize: 14, marginBottom: 12 },
+  chipsRow: { flexDirection: "row", gap: 10 },
+  chip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 100 },
+  chipText: { fontSize: 12 },
+  avatarText: { fontSize: 32 },
+  statsGrid: { flexDirection: "row", alignItems: "center", marginHorizontal: 20, padding: 20, borderRadius: 24, marginBottom: 20, shadowColor: "#0b1339", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
+  statBox: { flex: 1, alignItems: "center" },
+  statValue: { fontSize: 20, marginBottom: 2 },
+  statLabel: { fontSize: 11 },
+  statDivider: { width: 1, height: 24 },
+
+  quickActionsVertical: { paddingHorizontal: 20, gap: 12, marginBottom: 24 },
+  primaryActionFull: { flexDirection: "row", padding: 16, alignItems: "center", borderRadius: 20, gap: 16, shadowColor: "#e8c08a", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 10, elevation: 3 },
+  secondaryActionFull: { flexDirection: "row", padding: 16, alignItems: "center", borderRadius: 20, borderWidth: 1.5, gap: 16 },
   actionText: {
-    fontSize: 14,
-  },
-  creditsCard: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
-  },
-  creditsContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 24,
-    borderRadius: 24,
-    borderWidth: 1,
-    shadowColor: "#0b1339",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  creditsLabel: {
-    fontSize: 13,
-    marginBottom: 2,
-  },
-  creditsValue: {
-    fontSize: 32,
-  },
-  buyBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 100,
-  },
-  buyBtnText: {
-    fontSize: 14,
-  },
-  infoSection: {
-    marginHorizontal: 20,
-    borderRadius: 24,
-    padding: 20,
-    gap: 20,
-    marginBottom: 24,
-    shadowColor: "#0b1339",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  infoIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  infoLab: {
-    fontSize: 12,
-    marginBottom: 2,
-  },
-  infoVal: {
     fontSize: 15,
   },
+  reviewCard: { gap: 16 },
+  reviewItem: { borderBottomWidth: 1, borderBottomColor: "#00000008", paddingBottom: 16 },
+  reviewHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 8 },
+  reviewerAvatar: { width: 32, height: 32, borderRadius: 16 },
+  reviewerName: { fontSize: 14 },
+  starsRow: { flexDirection: "row", gap: 2 },
+  reviewDate: { fontSize: 11 },
+  reviewComment: { fontSize: 13, lineHeight: 18 },
+  supportRow: { flexDirection: "row", alignItems: "center", gap: 16, paddingVertical: 8 },
+  growthBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", padding: 14, borderRadius: 16, gap: 10 },
+  growthBtnTitle: { fontSize: 15 },
+  infoIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+
   transactionsSection: {
     marginHorizontal: 20,
     borderRadius: 24,
@@ -473,12 +463,11 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  sectionHeader: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-  },
+  sectionCard: { marginHorizontal: 20, borderRadius: 24, padding: 20, marginBottom: 16, shadowColor: "#0b1339", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
+  sectionHeader: { marginBottom: 16 },
+  sectionTitle: { fontSize: 16, marginBottom: 12 },
+  emptyPortfolio: { alignItems: "center", justifyContent: "center", paddingVertical: 24, borderWidth: 1, borderColor: "#00000008", borderRadius: 16, backgroundColor: "#FDFBF7", gap: 8 },
+  emptyText: { fontSize: 13 },
   txRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -502,4 +491,18 @@ const styles = StyleSheet.create({
   txAmount: {
     fontSize: 16,
   },
+  logoutBtnFull: { 
+    marginHorizontal: 20, 
+    flexDirection: "row", 
+    alignItems: "center", 
+    justifyContent: "center", 
+    padding: 16, 
+    borderRadius: 20, 
+    gap: 12, 
+    marginBottom: 40,
+    backgroundColor: "#fee2e2",
+    borderColor: "#fecaca",
+    borderWidth: 1
+  },
+  logoutBtnText: { fontSize: 16 },
 });

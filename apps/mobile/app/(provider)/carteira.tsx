@@ -337,8 +337,8 @@ const styles = StyleSheet.create({
     marginHorizontal: -6,
   },
   packageCardWrapper: { 
-    width: "50%", 
-    padding: 8,
+    width: "33.33%", 
+    padding: 4,
   },
   customSection: {
     padding: 24,

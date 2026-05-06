@@ -59,7 +59,7 @@ export default function ClientLayout() {
         }}
       />
       <Tabs.Screen
-        name="meus-servicos"
+        name="meus-servicos/index"
         options={{
           title: "Meus Serviços",
           tabBarIcon: ({ color }) => (
@@ -78,6 +78,18 @@ export default function ClientLayout() {
       />
       <Tabs.Screen
         name="detalhes-proposta"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="meus-servicos/interessados"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="meus-servicos/editar-servico"
         options={{
           href: null,
         }}

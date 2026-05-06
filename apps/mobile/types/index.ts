@@ -46,6 +46,7 @@ export interface User {
   isPremium?: boolean;
   portfolioImages?: string[];
   hasUnlockedPortfolio?: boolean;
+  jobsPostedCount?: number;
 }
 
 export interface Service {

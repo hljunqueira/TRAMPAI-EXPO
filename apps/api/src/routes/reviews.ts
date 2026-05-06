@@ -45,4 +45,30 @@ router.post("/reviews", authenticate, async (req: AuthRequest, res: any) => {
   }
 });
 
+router.get("/reviews/me", authenticate, async (req: AuthRequest, res: any) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ error: "Não autorizado" });
+
+    const userReviews = await db.select({
+      id: reviews.id,
+      rating: reviews.rating,
+      comment: reviews.comment,
+      createdAt: reviews.createdAt,
+      fromUserName: users.name,
+      fromUserAvatar: users.avatarUrl,
+    })
+      .from(reviews)
+      .leftJoin(users, eq(reviews.fromUserId, users.id))
+      .where(eq(reviews.toUserId, userId))
+      .orderBy(sql`${reviews.createdAt} DESC`)
+      .limit(10);
+
+    return res.json(userReviews);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erro ao buscar avaliações" });
+  }
+});
+
 export default router;

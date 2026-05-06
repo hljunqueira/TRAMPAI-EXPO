@@ -9,6 +9,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Share,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -84,19 +85,67 @@ export default function ClientDashboard() {
         </View>
 
         <View style={styles.statsGrid}>
-          <View style={[styles.statCard, { backgroundColor: "#FFF", borderColor: colors.border + "50" }]}>
-            <Text style={[styles.statNumber, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>{openServices.length}</Text>
-            <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Abertos</Text>
+          <View style={[styles.statCard, { backgroundColor: "#FFF", borderColor: colors.border + "30" }]}>
+            <Text style={[styles.statNumber, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{openServices.length}</Text>
+            <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>Abertos</Text>
           </View>
-          <View style={[styles.statCard, { backgroundColor: "#FFF", borderColor: colors.border + "50" }]}>
-            <Text style={[styles.statNumber, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>{closedServices.length}</Text>
-            <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Concluídos</Text>
+          <View style={[styles.statCard, { backgroundColor: "#FFF", borderColor: colors.border + "30" }]}>
+            <Text style={[styles.statNumber, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{closedServices.length}</Text>
+            <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>Concluídos</Text>
           </View>
-          <View style={[styles.statCard, { backgroundColor: "#FFF", borderColor: colors.border + "50" }]}>
-            <Text style={[styles.statNumber, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>{myServices.reduce((sum, s) => sum + s.unlockedByProviders.length, 0)}</Text>
-            <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Interesses</Text>
+          <View style={[styles.statCard, { backgroundColor: "#FFF", borderColor: colors.border + "30" }]}>
+            <Text style={[styles.statNumber, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{myServices.reduce((sum, s) => sum + s.unlockedByProviders.length, 0)}</Text>
+            <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>Interesses</Text>
           </View>
         </View>
+
+        {/* Quick Categories */}
+        <View style={styles.categoriesSection}>
+          <Text style={[styles.sectionTitle, { color: colors.primary, fontFamily: "Inter_700Bold", marginBottom: 12 }]}>Do que você precisa?</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesScroll}>
+            {[
+              { id: '1', name: 'Limpeza', icon: 'broom' },
+              { id: '2', name: 'Elétrica', icon: 'flash' },
+              { id: '3', name: 'Reforma', icon: 'hammer-wrench' },
+              { id: '4', name: 'Pintura', icon: 'format-paint' },
+              { id: '5', name: 'Mecânico', icon: 'car-wrench' },
+              { id: '6', name: 'Mudança', icon: 'truck-delivery' },
+            ].map((cat) => (
+              <TouchableOpacity 
+                key={cat.id} 
+                style={[styles.categoryCard, { backgroundColor: "#FFF" }]}
+                onPress={() => router.push({ pathname: "/(client)/novo-servico", params: { category: cat.name } })}
+              >
+                <View style={[styles.categoryIcon, { backgroundColor: colors.primary + "08" }]}>
+                  <MaterialCommunityIcons name={cat.icon as any} size={24} color={colors.primary} />
+                </View>
+                <Text style={[styles.categoryName, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>{cat.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Referral Banner */}
+        <TouchableOpacity 
+          style={[styles.referralBanner, { backgroundColor: colors.navy }]}
+          onPress={() => {
+            Share.share({
+              message: `Precisa de um profissional? Baixe o Trampaí e use meu código ${user?.referralCode} para ganhar créditos bônus! https://trampai.com.br`,
+            });
+          }}
+          activeOpacity={0.9}
+        >
+          <View style={styles.referralContent}>
+            <MaterialCommunityIcons name="ticket-percent" size={32} color={colors.accent} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.referralTitle, { color: "#FFF", fontFamily: "Inter_700Bold" }]}>Indique e Ganhe! 🚀</Text>
+              <Text style={[styles.referralSub, { color: "#ffffffCC", fontFamily: "Inter_500Medium" }]}>
+                Compartilhe seu código <Text style={{ color: colors.accent }}>{user?.referralCode}</Text> e ganhe bônus.
+              </Text>
+            </View>
+          </View>
+          <MaterialCommunityIcons name="share-variant" size={20} color="#FFF" />
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.ctaCard, { backgroundColor: "#e8c08a", borderRadius: 20 }]}
@@ -406,4 +455,55 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   actionBtnText: { fontSize: 14 },
+  categoriesSection: {
+    marginTop: 8,
+  },
+  categoriesScroll: {
+    paddingRight: 20,
+    gap: 12,
+  },
+  categoryCard: {
+    width: 100,
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 20,
+    shadowColor: "#0b1339",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  categoryIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  categoryName: {
+    fontSize: 12,
+    textAlign: "center",
+  },
+  referralBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 20,
+    borderRadius: 24,
+    justifyContent: "space-between",
+  },
+  referralContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    flex: 1,
+  },
+  referralTitle: {
+    fontSize: 16,
+    marginBottom: 2,
+  },
+  referralSub: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
 });

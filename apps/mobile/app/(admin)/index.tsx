@@ -155,15 +155,15 @@ export default function AdminDashboard() {
           </View>
 
           <View style={[styles.statBox, { backgroundColor: "#fff" }]}>
-            <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Leads</Text>
-            <Text style={[styles.statValue, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{leads.total}</Text>
-            <Text style={[styles.statSub, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>Total Histórico</Text>
-          </View>
-
-          <View style={[styles.statBox, { backgroundColor: "#fff" }]}>
             <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Jobs</Text>
             <Text style={[styles.statValue, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{jobs.open}</Text>
             <Text style={[styles.statSub, { color: colors.secondary, fontFamily: "Inter_700Bold" }]}>{jobs.total} total</Text>
+          </View>
+
+          <View style={[styles.statBox, { backgroundColor: "#fff" }]}>
+            <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Indicações</Text>
+            <Text style={[styles.statValue, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{adminStats.referrals?.total || 0}</Text>
+            <Text style={[styles.statSub, { color: colors.secondary, fontFamily: "Inter_700Bold" }]}>{adminStats.referrals?.bonusGiven || 0} cr bônus</Text>
           </View>
         </View>
 

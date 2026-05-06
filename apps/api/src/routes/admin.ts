@@ -67,6 +67,11 @@ router.get("/admin/stats", authenticate, isAdmin, async (req, res) => {
       total: sql<number>`count(*)`,
     }).from(leads);
 
+    const [referralStats] = await db.select({
+      total: sql<number>`count(*) filter (where referred_by is not null)`,
+      bonusGiven: sql<number>`coalesce(sum(credits), 0) filter (where type = 'REFERRAL_BONUS')`,
+    }).from(transactions);
+
     return res.json({
       users: {
         total: Number(userStats.total),
@@ -83,6 +88,10 @@ router.get("/admin/stats", authenticate, isAdmin, async (req, res) => {
       },
       leads: {
         total: Number(leadStats.total),
+      },
+      referrals: {
+        total: Number(referralStats.total / 2), // Cada indicação gera 2 transações de bônus no meu código
+        bonusGiven: Number(referralStats.bonusGiven),
       }
     });
   } catch (err) {

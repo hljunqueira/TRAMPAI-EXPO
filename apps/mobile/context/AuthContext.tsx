@@ -50,6 +50,7 @@ interface AuthContextType {
   services: Service[];
   leads: LeadUnlock[];
   transactions: Transaction[];
+  reviews: any[];
   allUsers: User[];
   adminStats: any | null;
   adminRecentJobs: any[];
@@ -101,9 +102,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [activeMode, setActiveMode] = useState<"CLIENT" | "PROVIDER" | "ADMIN">("CLIENT");
   const [services, setServices] = useState<Service[]>([]);
-  const [leads, setLeads] = useState<LeadUnlock[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [leads, setLeads] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
   const [adminStats, setAdminStats] = useState<any | null>(null);
   const [adminRecentJobs, setAdminRecentJobs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -266,6 +268,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(userData);
           await SecureStore.setItemAsync(USER_KEY, JSON.stringify(userData));
         }
+      }
+
+      // Buscar Minhas Avaliações
+      const revRes = await fetch(`${API_BASE_URL}/api/reviews/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (revRes.ok) {
+        const text = await revRes.text();
+        if (text) setReviews(JSON.parse(text));
       }
     } catch (e) {
       console.error("Erro ao buscar dados do usuário:", e);
@@ -524,6 +535,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         services,
         leads,
         transactions,
+        reviews,
         allUsers,
         adminStats,
         login,
