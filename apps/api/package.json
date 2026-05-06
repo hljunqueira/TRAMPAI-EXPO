@@ -23,7 +23,8 @@
     "pg": "^8.20.0",
     "pino": "^9",
     "pino-http": "^10",
-    "resend": "^6.12.2"
+    "resend": "^6.12.2",
+    "stripe": "^22.1.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
