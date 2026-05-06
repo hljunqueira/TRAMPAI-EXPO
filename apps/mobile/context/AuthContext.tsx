@@ -63,31 +63,25 @@ interface AuthContextType {
   banUser: (userId: string, reason: string) => Promise<void>;
   approveVerification: (userId: string) => Promise<void>;
   rejectVerification: (userId: string, reason: string) => Promise<void>;
-  createService: (
-    data: any
-  ) => Promise<void>;
-  unlockService: (
-    serviceId: string,
-    type: UnlockType
-  ) => Promise<{ whatsappLink: string } | { error: string }>;
+  createService: (data: any) => Promise<void>;
+  unlockService: (serviceId: string, type: UnlockType) => Promise<{ whatsappLink: string } | { error: string }>;
   googleLogin: () => Promise<void>;
-  completeOnboarding: (data: Partial<User> & { 
-    referredById?: string;
-    isProvider?: boolean;
-    providerBio?: string;
-    providerCategories?: string[];
-    city?: string;
-    neighborhood?: string;
-    phone?: string;
-  }) => Promise<void>;
+  completeOnboarding: (data: any) => Promise<void>;
   buyCredits: (packageId?: string, customCredits?: number) => Promise<void>;
   unbanUser: (userId: string) => Promise<void>;
   getUserLocation: () => Promise<Location.LocationObject | null>;
+  updateJobStatus: (jobId: string, status: string) => Promise<boolean>;
+  deleteJob: (jobId: string) => Promise<boolean>;
+  api: {
+    get: (url: string) => Promise<any>;
+    post: (url: string, data: any) => Promise<any>;
+    patch: (url: string, data: any) => Promise<any>;
+    delete: (url: string) => Promise<any>;
+  };
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// const API_BASE_URL = "https://ready-boxes-march.loca.lt/api";
 export const API_BASE_URL = "https://api.trampai.com.br";
 const TOKEN_KEY = "trampai_auth_token";
 const USER_KEY = "trampai_user_data";
@@ -110,73 +104,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [adminRecentJobs, setAdminRecentJobs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const DUMMY_USERS: User[] = [
-    { id: "1", name: "Henrique Admin", email: "henrique@trampai.com.br", role: "admin", creditBalance: 999, verificationStatus: "APPROVED", city: "São Paulo", neighborhood: "Centro" },
-    { id: "2", name: "João Silva (Teste)", email: "joao@teste.com", role: "provider", creditBalance: 85, city: "São Paulo", neighborhood: "Pinheiros", verificationStatus: "APPROVED", providerBio: "Eletricista residencial com 10 anos de experiência.", rating: "4.8", reviewCount: 24, phone: "(11) 98888-7777" },
-    { id: "3", name: "Maria Oliveira (Teste)", email: "maria@teste.com", role: "client", creditBalance: 150, city: "Curitiba", neighborhood: "Batel", verificationStatus: "APPROVED", phone: "(41) 97777-6666" },
-    { id: "4", name: "Carlos Souza (Teste)", email: "carlos@trampo.com", role: "provider", creditBalance: 42, city: "Belo Horizonte", neighborhood: "Savassi", verificationStatus: "APPROVED", providerBio: "Pintor e pedreiro especializado em acabamentos.", rating: "4.5", reviewCount: 12, phone: "(31) 96666-5555" },
-    { id: "5", name: "Ana Santos (Teste)", email: "ana@exemplo.com", role: "client", creditBalance: 300, city: "Rio de Janeiro", neighborhood: "Copacabana", verificationStatus: "APPROVED", phone: "(21) 95555-4444" },
-    { id: "6", name: "Marcos Lima (Teste)", email: "marcos@teste.com", role: "provider", creditBalance: 120, city: "Porto Alegre", neighborhood: "Moinhos", verificationStatus: "APPROVED", providerBio: "Encanador certificado e experiente.", phone: "(51) 94444-3333" },
-  ];
-
-  const DUMMY_STATS = {
-    users: { total: 1250, providers: 450, clients: 800, pending: 12 },
-    jobs: { total: 3420, open: 45, completed: 3375 },
-    revenue: { totalCents: 1542000 },
-    leads: { total: 8900 }
-  };
-
-  const DUMMY_JOBS = [
-    { id: "j1", title: "Instalação Elétrica Residencial", location: "São Paulo, SP", status: "open", category: { name: "Eletricista" }, createdAt: new Date().toISOString() },
-    { id: "j2", title: "Pintura de Apartamento 2 qtos", location: "Rio de Janeiro, RJ", status: "open", category: { name: "Pintor" }, createdAt: new Date().toISOString() },
-    { id: "j3", title: "Troca de Torneiras e Sifão", location: "Curitiba, PR", status: "open", category: { name: "Encanador" }, createdAt: new Date().toISOString() },
-  ];
-
   const loginMutation = useLogin();
   const registerMutation = useRegister();
+  const unlockMutation = useUnlockJob();
+  const updateMeMutation = useUpdateMe();
 
   useEffect(() => {
-    // Inicializar API Client
     setBaseUrl(API_BASE_URL);
     setAuthTokenGetter(async () => {
       return await SecureStore.getItemAsync(TOKEN_KEY);
     });
-
     loadSession();
-
-    // Configurar Google Sign-in (com proteção para Expo Go)
-    try {
-      if (GoogleSignin) {
-        GoogleSignin.configure({
-          webClientId: "753521058893-1ph7c8notd0gcal67a68giurq4l34lvn.apps.googleusercontent.com",
-          offlineAccess: true,
-        });
-      }
-    } catch (e) {
-      console.warn("Google Sign-in não disponível neste ambiente (provavelmente Expo Go)");
-    }
   }, []);
 
   async function loadSession() {
     try {
       const token = await SecureStore.getItemAsync(TOKEN_KEY);
       const userData = await SecureStore.getItemAsync(USER_KEY);
-      
       if (token && userData) {
-        try {
-          const parsedUser = JSON.parse(userData);
-          setUser(parsedUser);
-          const role = parsedUser.role?.toLowerCase();
-          if (role === "admin") {
-            setActiveMode("ADMIN");
-          } else {
-            setActiveMode(role === "provider" ? "PROVIDER" : "CLIENT");
-          }
-          fetchMyData(); // Buscar dados do usuário logado
-        } catch (e) {
-          console.error("Dados de usuário corrompidos:", e);
-          await SecureStore.deleteItemAsync(USER_KEY);
-        }
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+        const role = parsedUser.role?.toLowerCase();
+        setActiveMode(role === "admin" ? "ADMIN" : role === "provider" ? "PROVIDER" : "CLIENT");
+        fetchMyData();
       }
     } catch (e) {
       console.error("Erro ao carregar sessão:", e);
@@ -185,43 +135,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const api = {
+    get: async (url: string) => {
+      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      const res = await fetch(`${API_BASE_URL}/api${url}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return { data: await res.json() };
+    },
+    post: async (url: string, data: any) => {
+      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      const res = await fetch(`${API_BASE_URL}/api${url}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return { data: await res.json() };
+    },
+    patch: async (url: string, data: any) => {
+      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      const res = await fetch(`${API_BASE_URL}/api${url}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return { data: await res.json() };
+    },
+    delete: async (url: string) => {
+      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      const res = await fetch(`${API_BASE_URL}/api${url}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return { data: await res.json() };
+    },
+  };
+
   async function fetchAdminData() {
     try {
       const token = await SecureStore.getItemAsync(TOKEN_KEY);
       if (!token) return;
 
-      // Buscar Stats
-      const statsRes = await fetch(`${API_BASE_URL}/api/admin/stats`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (statsRes.ok) {
-        const stats = await statsRes.json();
-        setAdminStats(stats);
-      }
+      const [statsRes, usersRes, jobsRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/admin/stats`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE_URL}/api/admin/users`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE_URL}/api/admin/jobs/recent`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
 
-      // Buscar Usuários
-      const usersRes = await fetch(`${API_BASE_URL}/api/admin/users`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (usersRes.ok) {
-        const users = await usersRes.json();
-        setAllUsers(users);
-      }
-
-      // Buscar Jobs Recentes
-      const jobsRes = await fetch(`${API_BASE_URL}/api/admin/jobs/recent`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (jobsRes.ok) {
-        const jobs = await jobsRes.json();
-        setAdminRecentJobs(jobs);
-      }
+      if (statsRes.ok) setAdminStats(await statsRes.json());
+      if (usersRes.ok) setAllUsers(await usersRes.json());
+      if (jobsRes.ok) setAdminRecentJobs(await jobsRes.json());
     } catch (e) {
       console.error("Erro ao buscar dados de admin:", e);
-      // Usar dados fictícios se a API falhar (ambiente de teste/dev)
-      if (allUsers.length === 0) setAllUsers(DUMMY_USERS);
-      if (!adminStats) setAdminStats(DUMMY_STATS);
-      if (adminRecentJobs.length === 0) setAdminRecentJobs(DUMMY_JOBS);
     }
   }
 
@@ -230,53 +205,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = await SecureStore.getItemAsync(TOKEN_KEY);
       if (!token) return;
 
-      // Buscar Meus Serviços (Cliente)
-      const jobsRes = await fetch(`${API_BASE_URL}/api/jobs/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (jobsRes.ok) {
-        const text = await jobsRes.text();
-        if (text) setServices(JSON.parse(text));
-      }
+      const [jobsRes, leadsRes, transRes, userRes, revRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/jobs/me`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE_URL}/api/leads/me`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE_URL}/api/transactions/me`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE_URL}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE_URL}/api/reviews/me`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
 
-      // Buscar Meus Leads (Prestador)
-      const leadsRes = await fetch(`${API_BASE_URL}/api/leads/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (leadsRes.ok) {
-        const text = await leadsRes.text();
-        if (text) setLeads(JSON.parse(text));
-      }
-
-      // Buscar Minhas Transações
-      const transRes = await fetch(`${API_BASE_URL}/api/transactions/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (transRes.ok) {
-        const text = await transRes.text();
-        if (text) setTransactions(JSON.parse(text));
-      }
-
-      // Atualizar Perfil do Usuário
-      const userRes = await fetch(`${API_BASE_URL}/api/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      if (jobsRes.ok) setServices(await jobsRes.json());
+      if (leadsRes.ok) setLeads(await leadsRes.json());
+      if (transRes.ok) setTransactions(await transRes.json());
+      if (revRes.ok) setReviews(await revRes.json());
       if (userRes.ok) {
-        const text = await userRes.text();
-        if (text) {
-          const userData = JSON.parse(text);
-          setUser(userData);
-          await SecureStore.setItemAsync(USER_KEY, JSON.stringify(userData));
-        }
-      }
-
-      // Buscar Minhas Avaliações
-      const revRes = await fetch(`${API_BASE_URL}/api/reviews/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (revRes.ok) {
-        const text = await revRes.text();
-        if (text) setReviews(JSON.parse(text));
+        const userData = await userRes.json();
+        setUser(userData);
+        await SecureStore.setItemAsync(USER_KEY, JSON.stringify(userData));
       }
     } catch (e) {
       console.error("Erro ao buscar dados do usuário:", e);
@@ -286,151 +230,82 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function fetchJobById(id: string) {
     try {
       const token = await SecureStore.getItemAsync(TOKEN_KEY);
-      const res = await fetch(`${API_BASE_URL}/api/jobs/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) return await res.json();
-      return null;
+      const res = await fetch(`${API_BASE_URL}/api/jobs/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      return res.ok ? await res.json() : null;
     } catch (e) {
-      console.error("Erro ao buscar job:", e);
       return null;
     }
   }
 
   async function banUser(userId: string, reason: string) {
     try {
-      // Atualização local imediata para feedback visual
-      setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, isBanned: true } : u));
-      
       const token = await SecureStore.getItemAsync(TOKEN_KEY);
-      const res = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/ban`, {
+      await fetch(`${API_BASE_URL}/api/admin/users/${userId}/ban`, {
         method: "PATCH",
-        headers: { 
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}` 
-        },
-        body: JSON.stringify({ reason })
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ reason }),
       });
-      if (res.ok) fetchAdminData();
+      fetchAdminData();
     } catch (e) {
-      console.error("Erro ao banir usuário:", e);
+      console.error(e);
     }
   }
 
   async function unbanUser(userId: string) {
     try {
-      setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, isBanned: false } : u));
-      
       const token = await SecureStore.getItemAsync(TOKEN_KEY);
-      const res = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/unban`, {
+      await fetch(`${API_BASE_URL}/api/admin/users/${userId}/unban`, {
         method: "PATCH",
-        headers: { 
-          Authorization: `Bearer ${token}` 
-        }
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) fetchAdminData();
+      fetchAdminData();
     } catch (e) {
-      console.error("Erro ao desbanir usuário:", e);
+      console.error(e);
     }
   }
 
   async function approveVerification(userId: string) {
     try {
-      setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, verificationStatus: "APPROVED" } : u));
-      
       const token = await SecureStore.getItemAsync(TOKEN_KEY);
-      const res = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/verify`, {
+      await fetch(`${API_BASE_URL}/api/admin/users/${userId}/verify`, {
         method: "PATCH",
-        headers: { 
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}` 
-        },
-        body: JSON.stringify({ status: "APPROVED" })
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: "APPROVED" }),
       });
-      if (res.ok) fetchAdminData();
+      fetchAdminData();
     } catch (e) {
-      console.error("Erro ao aprovar usuário:", e);
+      console.error(e);
     }
   }
 
   async function rejectVerification(userId: string, reason: string) {
     try {
-      setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, verificationStatus: "REJECTED" } : u));
-      
       const token = await SecureStore.getItemAsync(TOKEN_KEY);
-      const res = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/verify`, {
+      await fetch(`${API_BASE_URL}/api/admin/users/${userId}/verify`, {
         method: "PATCH",
-        headers: { 
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}` 
-        },
-        body: JSON.stringify({ status: "REJECTED", reason })
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: "REJECTED", reason }),
       });
-      if (res.ok) fetchAdminData();
-    } catch (e) {
-      console.error("Erro ao rejeitar usuário:", e);
-    }
-  }
-
-  async function getUserLocation() {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("Permissão negada", "Precisamos de acesso à localização para esta funcionalidade.");
-        return null;
-      }
-
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      return location;
-    } catch (e) {
-      console.error("Erro ao obter localização:", e);
-      return null;
-    }
-  }
-
-  useEffect(() => {
-    if (user?.role === "admin") {
       fetchAdminData();
+    } catch (e) {
+      console.error(e);
     }
-  }, [user]);
-
-  function switchActiveMode(mode: "CLIENT" | "PROVIDER" | "ADMIN") {
-    setActiveMode(mode);
   }
 
   async function login(data: LoginBody) {
-    try {
-      const response = await loginMutation.mutateAsync({ data });
-      if (response.token && response.user) {
-        await SecureStore.setItemAsync(TOKEN_KEY, response.token);
-        await SecureStore.setItemAsync(USER_KEY, JSON.stringify(response.user));
-        setUser(response.user as User);
-        const role = response.user.role?.toLowerCase();
-        if (role === "admin") {
-          setActiveMode("ADMIN");
-        } else {
-          setActiveMode(role === "provider" ? "PROVIDER" : "CLIENT");
-        }
-        fetchMyData();
-      }
-    } catch (error: any) {
-      if (error.status === 403) {
-        throw new Error("E-mail não verificado. Verifique sua caixa de entrada ou entre em contato com o suporte.");
-      }
-      throw new Error(error.data?.error || error.message || "Erro ao realizar login");
+    const response = await loginMutation.mutateAsync({ data });
+    if (response.token && response.user) {
+      await SecureStore.setItemAsync(TOKEN_KEY, response.token);
+      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(response.user));
+      setUser(response.user as User);
+      const role = response.user.role?.toLowerCase();
+      setActiveMode(role === "admin" ? "ADMIN" : role === "provider" ? "PROVIDER" : "CLIENT");
+      fetchMyData();
     }
   }
 
   async function register(data: UserCreate) {
-    try {
-      await registerMutation.mutateAsync({ data });
-      // Após registrar, o usuário precisa verificar o e-mail (dependendo da lógica da API)
-      // Mas para facilitar, vamos pedir para ele logar após o registro ou logar automaticamente se a API retornar token
-    } catch (error: any) {
-      throw new Error(error.data?.error || "Erro ao realizar cadastro");
-    }
+    await registerMutation.mutateAsync({ data });
   }
 
   async function logout() {
@@ -440,89 +315,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setActiveMode("CLIENT");
   }
 
-  // TODO: Integrar estas funções com a API real nas próximas fases
-  async function createService(data: any) {
-    console.log("Criação de serviço ainda não integrada com API");
+  async function unlockService(serviceId: string, type: UnlockType): Promise<any> {
+    const result = await unlockMutation.mutateAsync({ id: serviceId, data: { type: type as any } });
+    fetchMyData();
+    return result;
   }
-
-  const unlockMutation = useUnlockJob();
-
-  async function unlockService(
-    serviceId: string,
-    type: "NORMAL" | "PLUS" | "EXCLUSIVE"
-  ): Promise<any> {
-    try {
-      const result = await unlockMutation.mutateAsync({
-        id: serviceId,
-        data: { type: type as any }
-      });
-      
-      // Atualiza os dados do usuário para refletir o novo saldo
-      fetchMyData();
-      
-      return result;
-    } catch (error: any) {
-      console.error(error);
-      return { error: error.data?.error || "Erro ao desbloquear lead" };
-    }
-  }
-
-  const updateMeMutation = useUpdateMe();
 
   async function completeOnboarding(data: any) {
-    try {
-      const updatedUser = await updateMeMutation.mutateAsync({ data });
-      if (updatedUser) {
-        setUser(updatedUser as User);
-        await SecureStore.setItemAsync(USER_KEY, JSON.stringify(updatedUser));
-        
-        // Define o modo ativo imediatamente após onboarding
-        const role = updatedUser.role?.toLowerCase();
-        if (role !== "admin") {
-          setActiveMode(role === "provider" ? "PROVIDER" : "CLIENT");
-        }
-      }
-    } catch (error: any) {
-      console.error("Erro ao completar onboarding:", error);
-      throw new Error(error.data?.error || "Erro ao salvar perfil");
+    const updatedUser = await updateMeMutation.mutateAsync({ data });
+    if (updatedUser) {
+      setUser(updatedUser as User);
+      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(updatedUser));
     }
   }
 
   async function googleLogin() {
-    try {
-      // Verifica se o módulo está disponível (Proteção para Expo Go)
-      if (!GoogleSignin || !GoogleSignin.hasPlayServices) {
-        throw new Error("Login com Google requer um Development Build (APK) e não funciona no Expo Go.");
-      }
-      await GoogleSignin.hasPlayServices();
-      const userInfo = await GoogleSignin.signIn();
-      const idToken = userInfo.data?.idToken;
-
-      if (!idToken) throw new Error("Erro ao obter token do Google");
-
-      // Enviar para nossa API
-      const response = await fetch(`${API_BASE_URL}/auth/google`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Erro na autenticação com Google");
-      }
-
-      if (result.token && result.user) {
-        await SecureStore.setItemAsync(TOKEN_KEY, result.token);
-        await SecureStore.setItemAsync(USER_KEY, JSON.stringify(result.user));
-        setUser(result.user as User);
-        setActiveMode(result.user.role === "provider" ? "PROVIDER" : "CLIENT");
-      }
-    } catch (error: any) {
-      console.error("Google Login Error:", error);
-      throw error;
+    if (!GoogleSignin) return;
+    await GoogleSignin.hasPlayServices();
+    const userInfo = await GoogleSignin.signIn();
+    const idToken = userInfo.data?.idToken;
+    const response = await fetch(`${API_BASE_URL}/auth/google`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken }),
+    });
+    const result = await response.json();
+    if (result.token && result.user) {
+      await SecureStore.setItemAsync(TOKEN_KEY, result.token);
+      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(result.user));
+      setUser(result.user as User);
+      setActiveMode(result.user.role === "provider" ? "PROVIDER" : "CLIENT");
     }
+  }
+
+  async function updateJobStatus(jobId: string, status: string) {
+    const token = await SecureStore.getItemAsync(TOKEN_KEY);
+    const res = await fetch(`${API_BASE_URL}/api/jobs/${jobId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status }),
+    });
+    if (res.ok) fetchMyData();
+    return res.ok;
+  }
+
+  async function deleteJob(jobId: string) {
+    const token = await SecureStore.getItemAsync(TOKEN_KEY);
+    const res = await fetch(`${API_BASE_URL}/api/jobs/${jobId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) fetchMyData();
+    return res.ok;
+  }
+
+  async function getUserLocation() {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") return null;
+    return await Location.getCurrentPositionAsync({});
   }
 
   return (
@@ -531,59 +381,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         isLoading,
         activeMode,
-        switchActiveMode,
+        switchActiveMode: (mode) => setActiveMode(mode),
         services,
         leads,
         transactions,
         reviews,
         allUsers,
         adminStats,
+        adminRecentJobs,
         login,
         register,
         logout,
-        googleLogin,
-        createService,
-        unlockService,
-        completeOnboarding,
-        buyCredits: async (packageId?: string, customCredits?: number) => {
-          // Mock para o fluxo sem Stripe por enquanto
-          // Em produção, isso iniciaria o fluxo de pagamento
-          try {
-            const token = await SecureStore.getItemAsync(TOKEN_KEY);
-            const res = await fetch(`${API_BASE_URL}/api/packages/buy`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
-              },
-              body: JSON.stringify({ packageId, customCredits })
-            });
-            
-            if (!res.ok) throw new Error("Erro ao processar compra");
-            
-            // Recarregar dados do usuário para ver o novo saldo
-            const userDataRes = await fetch(`${API_BASE_URL}/api/auth/me`, {
-              headers: { "Authorization": `Bearer ${token}` }
-            });
-            if (userDataRes.ok) {
-              const updatedUser = await userDataRes.json();
-              setUser(updatedUser);
-              await SecureStore.setItemAsync(USER_KEY, JSON.stringify(updatedUser));
-            }
-          } catch (e) {
-            console.error(e);
-            throw e;
-          }
-        },
         fetchAdminData,
         fetchMyData,
         fetchJobById,
         banUser,
+        unbanUser,
         approveVerification,
         rejectVerification,
-        unbanUser,
-        adminRecentJobs,
+        createService: async () => {},
+        unlockService,
+        googleLogin,
+        completeOnboarding,
+        buyCredits: async () => {},
         getUserLocation,
+        updateJobStatus,
+        deleteJob,
+        api,
       }}
     >
       {children}

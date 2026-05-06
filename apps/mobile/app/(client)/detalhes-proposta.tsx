@@ -1,8 +1,8 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import { router, useLocalSearchParams } from "expo-router";
-import React from "react";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
+import React, { useLayoutEffect } from "react";
 import {
   Image,
   Linking,
@@ -13,10 +13,12 @@ import {
   TouchableOpacity,
   View,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as SecureStore from "expo-secure-store";
 
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, API_BASE_URL } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
 export default function DetalhesProposta() {
@@ -27,6 +29,13 @@ export default function DetalhesProposta() {
   const [loading, setLoading] = React.useState(true);
   const [job, setJob] = React.useState<any>(null);
   const [selectedLead, setSelectedLead] = React.useState<any>(null);
+  const navigation = useNavigation();
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      tabBarStyle: { display: "none" },
+    });
+  }, [navigation]);
 
   React.useEffect(() => {
     loadData();
@@ -46,18 +55,41 @@ export default function DetalhesProposta() {
     setLoading(false);
   }
 
-  const handleOpenWhatsApp = () => {
-    if (!selectedLead?.provider?.phone) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const phone = selectedLead.provider.phone.replace(/\D/g, "");
-    const url = `whatsapp://send?phone=55${phone}&text=Olá ${selectedLead.provider.name}, vi sua proposta no Trampaí para o serviço de "${job.title}"!`;
-    Linking.canOpenURL(url).then(supported => {
-      if (supported) {
-        Linking.openURL(url);
+  const handleRespond = async (action: "ACCEPT" | "REJECT") => {
+    try {
+      const token = await SecureStore.getItemAsync("trampai_auth_token");
+      const res = await fetch(`${API_BASE_URL}/api/jobs/${job.id}/respond-exclusive`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ action })
+      });
+
+      if (res.ok) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.back();
       } else {
-        Linking.openURL(`https://wa.me/55${phone}`);
+        const error = await res.json();
+        Alert.alert("Erro", error.error || "Erro ao responder proposta");
       }
-    });
+    } catch (e) {
+      console.error(e);
+      Alert.alert("Erro", "Erro na conexão com o servidor");
+    }
+  };
+
+  const handleOpenWhatsApp = () => {
+    if (!selectedLead?.whatsappLink) {
+      // Se não tiver o link pronto, tenta gerar um básico
+      const phone = selectedLead.provider.phone?.replace(/\D/g, "");
+      if (!phone) return;
+      const url = `https://wa.me/55${phone}?text=Olá ${selectedLead.provider.name}, vi sua proposta no Trampaí!`;
+      Linking.openURL(url);
+      return;
+    }
+    Linking.openURL(selectedLead.whatsappLink);
   };
 
   if (loading) {
@@ -92,7 +124,7 @@ export default function DetalhesProposta() {
         <Text style={[styles.headerTitle, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Proposta Recebida</Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 150 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 180 }} showsVerticalScrollIndicator={false}>
         {/* Service Context Header */}
         <View style={styles.serviceHeaderCard}>
           <View style={[styles.statusBadge, { backgroundColor: colors.orange + "20" }]}>
@@ -160,77 +192,86 @@ export default function DetalhesProposta() {
         </View>
 
         {/* Portfolio Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <MaterialCommunityIcons name="image-multiple-outline" size={20} color={colors.secondary} />
-            <Text style={[styles.sectionTitle, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Trabalhos Anteriores</Text>
+        {provider.portfolioImages && provider.portfolioImages.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <MaterialCommunityIcons name="image-multiple-outline" size={20} color={colors.secondary} />
+              <Text style={[styles.sectionTitle, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Trabalhos Anteriores</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.portfolioGrid}>
+              {provider.portfolioImages.map((img: any, i: number) => (
+                <Image key={i} source={{ uri: img.url || img }} style={styles.portfolioImg} />
+              ))}
+            </ScrollView>
           </View>
-          <View style={styles.portfolioGrid}>
-            {[1, 2, 3].map((img: number, i: number) => (
-              <View key={i} style={styles.portfolioImg} />
-            ))}
-          </View>
-        </View>
+        )}
 
         {/* Reviews Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <MaterialCommunityIcons name="star" size={20} color="#F69926" />
-            <Text style={[styles.sectionTitle, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Avaliações ({provider.reviewCount})</Text>
-          </View>
-          
-          <View style={styles.reviewItem}>
-            <View style={styles.reviewHeader}>
-              <View style={[styles.reviewAvatar, { backgroundColor: "#f1f5f9" }]}>
-                <Text style={styles.reviewAvatarText}>M</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.reviewName, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Maria Oliveira</Text>
-                <View style={styles.starsRow}>
-                  {[1,2,3,4,5].map(s => <MaterialCommunityIcons key={s} name="star" size={12} color="#F69926" />)}
-                  <Text style={styles.reviewDate}>Há 2 dias</Text>
-                </View>
-              </View>
+        {job.clientReviews && job.clientReviews.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <MaterialCommunityIcons name="star" size={20} color="#F69926" />
+              <Text style={[styles.sectionTitle, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Avaliações ({job.clientReviews.length})</Text>
             </View>
-            <Text style={styles.reviewBody}>Excelente profissional, muito caprichoso. Deixou a casa limpa após terminar a pintura.</Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.reviewItem}>
-            <View style={styles.reviewHeader}>
-              <View style={[styles.reviewAvatar, { backgroundColor: "#f1f5f9" }]}>
-                <Text style={styles.reviewAvatarText}>C</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.reviewName, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Carlos Souza</Text>
-                <View style={styles.starsRow}>
-                  {[1,2,3,4,5].map(s => <MaterialCommunityIcons key={s} name="star" size={12} color="#F69926" />)}
-                  <Text style={styles.reviewDate}>Há 1 semana</Text>
+            
+            {job.clientReviews.map((review: any, i: number) => (
+              <View key={i} style={styles.reviewItem}>
+                <View style={styles.reviewHeader}>
+                  <View style={[styles.reviewAvatar, { backgroundColor: "#f1f5f9" }]}>
+                    <Text style={styles.reviewAvatarText}>{review.fromUserName?.[0] || "U"}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.reviewName, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>{review.fromUserName || "Usuário"}</Text>
+                    <View style={styles.starsRow}>
+                      {[1,2,3,4,5].map(s => <MaterialCommunityIcons key={s} name="star" size={12} color={s <= review.rating ? "#F69926" : "#e2e8f0"} />)}
+                    </View>
+                  </View>
                 </View>
+                <Text style={styles.reviewBody}>{review.comment}</Text>
+                {i < job.clientReviews.length - 1 && <View style={styles.divider} />}
               </View>
-            </View>
-            <Text style={styles.reviewBody}>Chegou no horário e resolveu o problema rápido. Preço justo e trabalho de primeira.</Text>
+            ))}
           </View>
-        </View>
+        )}
       </ScrollView>
 
       {/* Floating Action Bar */}
       <View style={[styles.bottomCard, { paddingBottom: insets.bottom + 15 }]}>
-        <View style={styles.budgetInfo}>
-          <View>
-            <Text style={styles.budgetLabel}>Valor Estimado</Text>
-            <Text style={[styles.budgetValue, { color: "#B45309" }]}>{provider.budget ? provider.budget : "A combinar"}</Text>
+        {job.status === "exclusive_pending" ? (
+          <View style={styles.actionButtons}>
+            <TouchableOpacity 
+              style={[styles.rejectBtn, { borderColor: "#ef4444" }]} 
+              onPress={() => handleRespond("REJECT")}
+            >
+              <Text style={[styles.rejectBtnText, { color: "#ef4444", fontFamily: "Inter_700Bold" }]}>Recusar</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.acceptBtn, { backgroundColor: "#F69926" }]} 
+              onPress={() => handleRespond("ACCEPT")}
+            >
+              <MaterialCommunityIcons name="check" size={22} color={colors.navy} />
+              <Text style={[styles.acceptBtnText, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Aceitar Proposta</Text>
+            </TouchableOpacity>
           </View>
-          <View style={styles.availability}>
-            <MaterialCommunityIcons name="calendar-check-outline" size={16} color={colors.mutedForeground} />
-            <Text style={styles.availabilityText}>{provider.availability}</Text>
+        ) : (
+          <View style={styles.unlockedActions}>
+            <View style={styles.budgetInfo}>
+              <View>
+                <Text style={styles.budgetLabel}>Valor Estimado</Text>
+                <Text style={[styles.budgetValue, { color: "#F69926" }]}>{provider.budget ? provider.budget : "A combinar"}</Text>
+              </View>
+              <View style={styles.availability}>
+                <MaterialCommunityIcons name="calendar-check-outline" size={16} color={colors.mutedForeground} />
+                <Text style={styles.availabilityText}>{provider.availability || "Imediato"}</Text>
+              </View>
+            </View>
+            <TouchableOpacity style={[styles.whatsappBtn, { backgroundColor: "#25D366" }]} onPress={handleOpenWhatsApp}>
+              <MaterialCommunityIcons name="whatsapp" size={22} color="#fff" />
+              <Text style={[styles.whatsappBtnText, { color: "#fff", fontFamily: "Inter_700Bold" }]}>Abrir WhatsApp</Text>
+            </TouchableOpacity>
           </View>
-        </View>
-        <TouchableOpacity style={[styles.whatsappBtn, { backgroundColor: "#F69926" }]} onPress={handleOpenWhatsApp}>
-          <MaterialCommunityIcons name="whatsapp" size={22} color={colors.navy} />
-          <Text style={[styles.whatsappBtnText, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Abrir WhatsApp</Text>
-        </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -308,8 +349,8 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 15 },
   sectionTitle: { fontSize: 16 },
   bio: { fontSize: 14, lineHeight: 22 },
-  portfolioGrid: { flexDirection: "row", gap: 10 },
-  portfolioImg: { flex: 1, aspectRatio: 1, borderRadius: 12, backgroundColor: "#f1f5f9" },
+  portfolioGrid: { flexDirection: "row", gap: 10, marginTop: 10 },
+  portfolioImg: { width: 120, height: 120, borderRadius: 12, backgroundColor: "#f1f5f9", marginRight: 10 },
   reviewItem: { gap: 10 },
   reviewHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
   reviewAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
@@ -339,4 +380,10 @@ const styles = StyleSheet.create({
   availabilityText: { color: "#fff", fontSize: 13 },
   whatsappBtn: { flexDirection: "row", height: 56, alignItems: "center", justifyContent: "center", borderRadius: 15, gap: 10 },
   whatsappBtnText: { fontSize: 16 },
+  actionButtons: { flexDirection: "row", gap: 12 },
+  rejectBtn: { flex: 1, height: 56, alignItems: "center", justifyContent: "center", borderRadius: 15, borderWidth: 2 },
+  rejectBtnText: { fontSize: 16 },
+  acceptBtn: { flex: 2, flexDirection: "row", height: 56, alignItems: "center", justifyContent: "center", borderRadius: 15, gap: 8 },
+  acceptBtnText: { fontSize: 16 },
+  unlockedActions: { gap: 15 },
 });

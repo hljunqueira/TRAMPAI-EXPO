@@ -1,6 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import * as SecureStore from "expo-secure-store";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -17,13 +16,19 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 
 import { useColors } from "@/hooks/useColors";
+import { useAuth } from "@/context/AuthContext";
 
-const API_BASE_URL = "https://api.trampai.com.br";
-const TOKEN_KEY = "trampai_auth_token";
+const MENU_ITEMS = [
+  { label: "Categorias", icon: "tag-multiple", route: "/(admin)/categorias", color: "#3b82f6" },
+  { label: "Reembolsos", icon: "cash-refund", route: "/(admin)/reembolsos", color: "#f59e0b" },
+  { label: "Push Center", icon: "bell-ring", route: "/(admin)/notificacoes", color: "#8b5cf6" },
+  { label: "Suporte", icon: "help-circle", route: "/(admin)/suporte", color: "#10b981" },
+];
 
 export default function AdminConfig() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { api } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [configs, setConfigs] = useState<Record<string, string>>({});
@@ -34,14 +39,8 @@ export default function AdminConfig() {
 
   async function loadConfigs() {
     try {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
-      const res = await fetch(`${API_BASE_URL}/api/admin/config`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setConfigs(data);
-      }
+      const res = await api.get("/admin/config");
+      setConfigs(res.data);
     } catch (e) {
       console.error(e);
       Alert.alert("Erro", "Falha ao carregar configurações");
@@ -53,16 +52,7 @@ export default function AdminConfig() {
   async function saveConfig(key: string, value: string) {
     setSaving(true);
     try {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
-      const res = await fetch(`${API_BASE_URL}/api/admin/config/${key}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ value })
-      });
-      if (!res.ok) throw new Error();
+      await api.patch(`/admin/config/${key}`, { value });
       setConfigs(prev => ({ ...prev, [key]: value }));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e) {
@@ -122,14 +112,32 @@ export default function AdminConfig() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: "#fff", paddingTop: insets.top + (Platform.OS === "web" ? 20 : 10), borderBottomWidth: 1, borderBottomColor: colors.border + "30" }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primary} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>Configurações</Text>
-        <View style={{ width: 40 }} />
+        <Text style={[styles.headerTitle, { color: colors.primary, fontFamily: "Inter_800ExtraBold", marginLeft: 20 }]}>Sistema</Text>
       </View>
 
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} showsVerticalScrollIndicator={false}>
+        
+        {/* Menu Operacional */}
+        <Text style={[styles.sectionLabel, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Ferramentas Operacionais</Text>
+        <View style={styles.menuGrid}>
+          {MENU_ITEMS.map((item) => (
+            <TouchableOpacity 
+              key={item.label} 
+              style={[styles.menuItem, { backgroundColor: "#fff" }]}
+              onPress={() => router.push(item.route as any)}
+            >
+              <View style={[styles.menuIcon, { backgroundColor: item.color + "15" }]}>
+                <MaterialCommunityIcons name={item.icon as any} size={24} color={item.color} />
+              </View>
+              <Text style={[styles.menuLabel, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>{item.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={[styles.divider, { backgroundColor: colors.border + "30" }]} />
+
+        <Text style={[styles.sectionLabel, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Ajustes Globais</Text>
+
         {sections.map(section => (
           <View key={section.title} style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -178,15 +186,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 12,
   },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: { fontSize: 20 },
+  headerTitle: { fontSize: 22, letterSpacing: -1 },
   content: { padding: 20 },
+  sectionLabel: { fontSize: 16, marginBottom: 16, marginLeft: 4 },
+  menuGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 8 },
+  menuItem: { width: "48%", padding: 16, borderRadius: 20, alignItems: "center", justifyContent: "center", gap: 10, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
+  menuIcon: { width: 48, height: 48, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  menuLabel: { fontSize: 13 },
+  divider: { height: 1, marginVertical: 32, marginHorizontal: -20 },
   section: { marginBottom: 28 },
   sectionHeader: {
     flexDirection: "row",
@@ -231,7 +238,7 @@ const styles = StyleSheet.create({
   },
   savingOverlay: {
     position: "absolute",
-    bottom: 40,
+    bottom: 120,
     alignSelf: "center",
     paddingHorizontal: 20,
     paddingVertical: 12,

@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CreditPackageCard } from "@/components/CreditPackageCard";
 import { MIN_CUSTOM_CREDITS } from "@/constants/categories";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, API_BASE_URL } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
 export default function Carteira() {
@@ -41,7 +41,7 @@ export default function Carteira() {
 
   async function loadData() {
     try {
-      const baseUrl = process.env.EXPO_PUBLIC_API_URL || "https://api.trampai.com.br";
+      const baseUrl = API_BASE_URL;
       const [pkgRes, configRes] = await Promise.all([
         fetch(`${baseUrl}/api/packages`),
         fetch(`${baseUrl}/api/config`)

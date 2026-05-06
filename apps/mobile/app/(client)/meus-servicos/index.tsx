@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -24,10 +25,41 @@ const TABS = [
 
 export default function MeusServicos() {
   const colors = useColors();
-  const { user, services, fetchMyData } = useAuth();
+  const { user, services, fetchMyData, updateJobStatus, deleteJob } = useAuth();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState("active");
   const [refreshing, setRefreshing] = useState(false);
+
+  async function handleCloseService(id: string) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert(
+      "Encerrar Serviço",
+      "Deseja encerrar este serviço? Ele não aparecerá mais para novos prestadores.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { 
+          text: "Sim, Encerrar", 
+          style: "destructive",
+          onPress: async () => {
+            const ok = await updateJobStatus(id, "cancelled");
+            if (ok) {
+              Alert.alert("Sucesso", "Serviço encerrado com sucesso.");
+            } else {
+              Alert.alert("Erro", "Não foi possível encerrar o serviço.");
+            }
+          }
+        }
+      ]
+    );
+  }
+
+  async function handleMarkAsDone(id: string) {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const ok = await updateJobStatus(id, "completed");
+    if (ok) {
+      Alert.alert("Sucesso", "Serviço marcado como finalizado.");
+    }
+  }
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -230,7 +262,7 @@ export default function MeusServicos() {
                     {inProgress ? (
                       <TouchableOpacity 
                         style={[styles.fullAction, { backgroundColor: colors.navy }]}
-                        onPress={() => {/* closeService(item.id) */}}
+                        onPress={() => handleMarkAsDone(item.id)}
                       >
                         <MaterialCommunityIcons name="check-circle" size={20} color="#fff" />
                         <Text style={[styles.fullActionText, { color: "#fff", fontFamily: "Inter_700Bold" }]}>Marcar como Resolvido</Text>
@@ -246,7 +278,7 @@ export default function MeusServicos() {
                         </TouchableOpacity>
                         <TouchableOpacity 
                           style={[styles.secondaryAction, { borderColor: colors.navy + "20", flex: 1 }]}
-                          onPress={() => {/* closeService(item.id) */}}
+                          onPress={() => handleCloseService(item.id)}
                         >
                           <Text style={[styles.secondaryActionText, { color: colors.mutedForeground, fontFamily: "Inter_700Bold" }]}>Encerrar</Text>
                         </TouchableOpacity>
@@ -254,7 +286,7 @@ export default function MeusServicos() {
                     ) : (
                       <TouchableOpacity 
                         style={[styles.secondaryAction, { borderColor: colors.navy + "20" }]}
-                        onPress={() => {/* closeService(item.id) */}}
+                        onPress={() => handleCloseService(item.id)}
                       >
                         <Text style={[styles.secondaryActionText, { color: colors.mutedForeground, fontFamily: "Inter_700Bold" }]}>Encerrar Serviço</Text>
                       </TouchableOpacity>

@@ -21,8 +21,10 @@ interface Props {
   onUnlock?: () => void;
   showUnlock?: boolean;
   alreadyUnlocked?: boolean;
+  unlockType?: string;
   onClose?: () => void;
   showClose?: boolean;
+  onSeeDetails?: () => void;
 }
 
 export function ServiceCard({
@@ -30,8 +32,10 @@ export function ServiceCard({
   onUnlock,
   showUnlock,
   alreadyUnlocked,
+  unlockType,
   onClose,
   showClose,
+  onSeeDetails,
 }: Props) {
   const colors = useColors();
   
@@ -43,7 +47,18 @@ export function ServiceCard({
   const isUrgent = (service as any).priority === "URGENT" || (service as any).isUrgent;
 
   const isClosed = status === "CLOSED" || status === "COMPLETED";
-  const imageUrl = CATEGORY_IMAGES[categoryName] || DEFAULT_IMAGE;
+  const uploadedImages = (service as any).images;
+  const imageUrl = (uploadedImages && uploadedImages.length > 0) 
+    ? uploadedImages[0] 
+    : (CATEGORY_IMAGES[categoryName] || DEFAULT_IMAGE);
+
+  const isUnlockedPlus = alreadyUnlocked && (unlockType === "PLUS" || unlockType === "EXCLUSIVE");
+  
+  let displayLocation = locationText;
+  if (isJob && !isUnlockedPlus) {
+    // Esconde endereço completo se não estiver desbloqueado com PLUS/EXCLUSIVE
+    displayLocation = "Localização oculta (Desbloqueie com Plus)";
+  }
 
   return (
     <View
@@ -82,7 +97,7 @@ export function ServiceCard({
           <View style={styles.locationRow}>
             <MaterialCommunityIcons name="map-marker-outline" size={14} color={colors.mutedForeground} />
             <Text style={[styles.location, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-              {locationText}
+              {displayLocation}
             </Text>
           </View>
 
@@ -132,7 +147,7 @@ export function ServiceCard({
           {alreadyUnlocked && (
             <TouchableOpacity 
               style={[styles.detailsBtn, { borderColor: colors.navy }]}
-              onPress={() => router.push({ pathname: "/(provider)/mural", params: { id: service.id } })}
+              onPress={onSeeDetails}
             >
               <Text style={[styles.detailsBtnText, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>
                 Ver Detalhes

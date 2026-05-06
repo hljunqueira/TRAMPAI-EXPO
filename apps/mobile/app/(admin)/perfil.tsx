@@ -79,6 +79,32 @@ export default function AdminPerfil() {
 
         {/* Navigation Section */}
         <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Minhas Ações</Text>
+          <View style={styles.bentoRow}>
+            <TouchableOpacity 
+              style={[styles.bentoCard, { backgroundColor: "#fff" }]}
+              onPress={() => router.push("/(client)/meus-servicos")}
+            >
+              <View style={[styles.bentoIcon, { backgroundColor: colors.primary + "05" }]}>
+                <MaterialCommunityIcons name="clipboard-text-clock" size={24} color={colors.primary} />
+              </View>
+              <Text style={[styles.bentoLabel, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Meus Serviços</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.bentoCard, { backgroundColor: "#fff" }]}
+              onPress={() => router.push("/editar-perfil")}
+            >
+              <View style={[styles.bentoIcon, { backgroundColor: colors.secondary + "15" }]}>
+                <MaterialCommunityIcons name="account-edit" size={24} color={colors.secondary} />
+              </View>
+              <Text style={[styles.bentoLabel, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Editar Perfil</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Navigation Section */}
+        <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Navegação</Text>
           <View style={styles.bentoRow}>
             <TouchableOpacity 

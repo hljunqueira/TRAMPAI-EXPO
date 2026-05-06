@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, API_BASE_URL } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
 export default function ClientDashboard() {
@@ -29,7 +29,7 @@ export default function ClientDashboard() {
     try {
       const token = await SecureStore.getItemAsync("trampai_auth_token");
       // Usar fetch direto para simplicidade ou o api-client se disponível
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/jobs/${jobId}/respond-exclusive`, {
+      const response = await fetch(`${API_BASE_URL}/api/jobs/${jobId}/respond-exclusive`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

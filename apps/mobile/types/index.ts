@@ -44,10 +44,13 @@ export interface User {
   reviewCount?: number;
   token?: string;
   isPremium?: boolean;
-  portfolioImages?: string[];
+  portfolioImages?: { url: string; description?: string }[];
+  documentUrl?: string;
+  selfieUrl?: string;
   hasUnlockedPortfolio?: boolean;
   jobsPostedCount?: number;
 }
+
 
 export interface Service {
   id: string;
@@ -57,6 +60,7 @@ export interface Service {
   budget: string;
   status: ServiceStatus;
   location: string;
+  images?: string[];
   createdAt: string;
   category: {
     id: string;

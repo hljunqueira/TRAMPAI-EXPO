@@ -21,4 +21,5 @@ export interface Job {
   createdAt: Date;
   category?: Category;
   client?: User;
+  images?: string[] | null;
 }

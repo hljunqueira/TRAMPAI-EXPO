@@ -13,7 +13,11 @@ import {
   TouchableOpacity,
   View,
   Modal,
+  Image,
+  ActivityIndicator,
 } from "react-native";
+
+
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
@@ -28,6 +32,57 @@ export default function AdminUsuarios() {
   const [roleFilter, setRoleFilter] = useState<"ALL" | "CLIENT" | "PROVIDER">("ALL");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [detailsVisible, setDetailsVisible] = useState(false);
+  
+  // Estados para Concessão de Créditos
+  const [creditsModalVisible, setCreditsModalVisible] = useState(false);
+  const [creditAmount, setCreditAmount] = useState("");
+  const [creditReason, setCreditReason] = useState("");
+  const [isSubmittingCredits, setIsSubmittingCredits] = useState(false);
+
+  const { api, fetchAdminData } = useAuth();
+
+  const handleGrantCredits = async () => {
+    if (!selectedUser || !creditAmount || isSubmittingCredits) return;
+    
+    setIsSubmittingCredits(true);
+    try {
+      await api.post(`/admin/users/${selectedUser.id}/grant-credits`, {
+        credits: Number(creditAmount),
+        reason: creditReason || `${creditAmount} créditos concedidos pelo admin`
+      });
+      Alert.alert("Sucesso", "Créditos concedidos com sucesso!");
+      setCreditsModalVisible(false);
+      setCreditAmount("");
+      setCreditReason("");
+      fetchAdminData();
+    } catch (error) {
+      Alert.alert("Erro", "Não foi possível conceder créditos.");
+    } finally {
+      setIsSubmittingCredits(false);
+    }
+  };
+
+  const handleResetPassword = async (user: User) => {
+    Alert.alert(
+      "Resetar Senha",
+      `Deseja realmente resetar a senha de ${user.name}? Uma nova senha temporária será enviada por e-mail.`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        { 
+          text: "Confirmar", 
+          onPress: async () => {
+            try {
+              await api.post(`/admin/users/${user.id}/reset-password`, {});
+              Alert.alert("Sucesso", "E-mail de reset enviado!");
+            } catch (error) {
+              Alert.alert("Erro", "Falha ao resetar senha.");
+            }
+          }
+        }
+      ]
+    );
+  };
+
 
   const filteredUsers = allUsers
     .filter((u) => {
@@ -390,8 +445,79 @@ export default function AdminUsuarios() {
                   </View>
                 )}
 
+                {selectedUser.role === "provider" && (selectedUser.documentUrl || selectedUser.selfieUrl) && (
+                  <View style={styles.infoSection}>
+                    <Text style={[styles.infoSectionTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Documentos de Identificação</Text>
+                    <View style={styles.kycRow}>
+                      {selectedUser.documentUrl && (
+                        <View style={styles.kycItem}>
+                          <Text style={[styles.kycLabel, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>Documento (Frente)</Text>
+                          <TouchableOpacity 
+                            onPress={() => Alert.alert("Visualizar", "Abrir imagem do documento?")}
+                            style={[styles.kycImagePlaceholder, { backgroundColor: colors.primary + "08" }]}
+                          >
+                            <Image source={{ uri: selectedUser.documentUrl }} style={styles.kycImage} />
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                      {selectedUser.selfieUrl && (
+                        <View style={styles.kycItem}>
+                          <Text style={[styles.kycLabel, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>Selfie com Documento</Text>
+                          <TouchableOpacity 
+                            onPress={() => Alert.alert("Visualizar", "Abrir selfie?")}
+                            style={[styles.kycImagePlaceholder, { backgroundColor: colors.primary + "08" }]}
+                          >
+                            <Image source={{ uri: selectedUser.selfieUrl }} style={styles.kycImage} />
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                )}
+
+                {selectedUser.role === "provider" && selectedUser.portfolioImages && selectedUser.portfolioImages.length > 0 && (
+                  <View style={styles.infoSection}>
+                    <Text style={[styles.infoSectionTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Portfólio de Trabalhos</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.portfolioScroll}>
+                      {selectedUser.portfolioImages.map((img, index) => (
+                        <View key={index} style={styles.portfolioItem}>
+                          <Image source={{ uri: img.url }} style={styles.portfolioImage} />
+                          {img.description && (
+                            <Text style={[styles.portfolioDesc, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]} numberOfLines={1}>
+                              {img.description}
+                            </Text>
+                          )}
+                        </View>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+
+
                 {selectedUser.role?.toLowerCase() !== "admin" && (
                   <View style={styles.actionSection}>
+                    <TouchableOpacity 
+                      style={[styles.modalActionBtn, { backgroundColor: colors.primary, marginBottom: 12 }]}
+                      onPress={() => {
+                        setCreditsModalVisible(true);
+                      }}
+                    >
+                      <MaterialCommunityIcons name="plus-circle" size={20} color="#fff" />
+                      <Text style={[styles.modalActionText, { color: "#fff", fontFamily: "Inter_800ExtraBold" }]}>
+                        CONCEDER CRÉDITOS
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={[styles.modalActionBtn, { backgroundColor: colors.muted + "40", marginBottom: 12 }]}
+                      onPress={() => handleResetPassword(selectedUser)}
+                    >
+                      <MaterialCommunityIcons name="lock-reset" size={20} color={colors.foreground} />
+                      <Text style={[styles.modalActionText, { color: colors.foreground, fontFamily: "Inter_800ExtraBold" }]}>
+                        RESETAR SENHA
+                      </Text>
+                    </TouchableOpacity>
+
                     <TouchableOpacity 
                       style={[styles.modalActionBtn, { backgroundColor: selectedUser.isBanned ? colors.secondary : "#ef4444" }]}
                       onPress={() => {
@@ -410,12 +536,68 @@ export default function AdminUsuarios() {
                     </TouchableOpacity>
                   </View>
                 )}
+
               </ScrollView>
             )}
           </View>
         </View>
       </Modal>
+
+      {/* Modal de Concessão de Créditos */}
+      <Modal visible={creditsModalVisible} animationType="fade" transparent>
+        <View style={styles.creditsOverlay}>
+          <View style={[styles.creditsContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.creditsTitle, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>Conceder Créditos</Text>
+            <Text style={[styles.creditsSub, { color: colors.mutedForeground }]}>Usuário: {selectedUser?.name}</Text>
+            
+            <View style={styles.creditInputGroup}>
+              <Text style={[styles.creditLabel, { color: colors.foreground }]}>Quantidade</Text>
+              <TextInput
+                style={[styles.creditInput, { color: colors.foreground, borderColor: colors.border }]}
+                keyboardType="numeric"
+                value={creditAmount}
+                onChangeText={setCreditAmount}
+                placeholder="Ex: 50"
+                placeholderTextColor={colors.mutedForeground}
+              />
+            </View>
+
+            <View style={styles.creditInputGroup}>
+              <Text style={[styles.creditLabel, { color: colors.foreground }]}>Motivo / Justificativa</Text>
+              <TextInput
+                style={[styles.creditInput, { color: colors.foreground, borderColor: colors.border, height: 80 }]}
+                multiline
+                value={creditReason}
+                onChangeText={setCreditReason}
+                placeholder="Ex: Bônus por indicação manual"
+                placeholderTextColor={colors.mutedForeground}
+              />
+            </View>
+
+            <View style={styles.creditActions}>
+              <TouchableOpacity 
+                style={[styles.creditBtn, { backgroundColor: colors.muted + "20" }]} 
+                onPress={() => setCreditsModalVisible(false)}
+              >
+                <Text style={{ color: colors.foreground, fontWeight: "600" }}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.creditBtn, { backgroundColor: colors.primary }]} 
+                onPress={handleGrantCredits}
+                disabled={isSubmittingCredits}
+              >
+                {isSubmittingCredits ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={{ color: "#fff", fontWeight: "bold" }}>Confirmar</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
+
   );
 }
 
@@ -600,4 +782,24 @@ const styles = StyleSheet.create({
   actionSection: { marginTop: 12 },
   modalActionBtn: { height: 60, borderRadius: 20, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12 },
   modalActionText: { fontSize: 16, letterSpacing: 1 },
+  kycRow: { flexDirection: "row", gap: 12 },
+  kycItem: { flex: 1, gap: 8 },
+  kycLabel: { fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 },
+  kycImagePlaceholder: { height: 120, borderRadius: 16, overflow: "hidden" },
+  kycImage: { width: "100%", height: "100%", resizeMode: "cover" },
+  portfolioScroll: { gap: 12 },
+  portfolioItem: { width: 140, gap: 8 },
+  portfolioImage: { width: 140, height: 100, borderRadius: 12 },
+  portfolioDesc: { fontSize: 11 },
+  creditsOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", padding: 24 },
+  creditsContent: { borderRadius: 24, padding: 24, gap: 16 },
+  creditsTitle: { fontSize: 20 },
+  creditsSub: { fontSize: 14, marginTop: -8 },
+  creditInputGroup: { gap: 8 },
+  creditLabel: { fontSize: 14, fontWeight: "600" },
+  creditInput: { borderWidth: 1, borderRadius: 12, padding: 12, fontSize: 16 },
+  creditActions: { flexDirection: "row", gap: 12, marginTop: 8 },
+  creditBtn: { flex: 1, height: 48, borderRadius: 12, justifyContent: "center", alignItems: "center" },
 });
+
+

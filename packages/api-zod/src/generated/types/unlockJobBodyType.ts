@@ -11,5 +11,6 @@ export type UnlockJobBodyType =
 
 export const UnlockJobBodyType = {
   NORMAL: "NORMAL",
+  PLUS: "PLUS",
   EXCLUSIVE: "EXCLUSIVE",
 } as const;

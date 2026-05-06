@@ -159,6 +159,7 @@ router.get("/leads/me", authenticate, async (req: AuthRequest, res: any) => {
         clientPhone: users.phone,
         city: users.city,
         neighborhood: users.neighborhood,
+        jobLocation: jobs.location,
       })
       .from(leads)
       .innerJoin(jobs, eq(leads.jobId, jobs.id))

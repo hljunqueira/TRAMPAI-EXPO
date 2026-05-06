@@ -14,6 +14,7 @@ export const jobs = pgTable("jobs", {
   budget: integer("budget"), // em centavos
   status: text("status", { enum: ["open", "in_progress", "completed", "cancelled", "exclusive_pending"] }).notNull().default("open"),
   location: text("location").notNull(),
+  images: text("images").array(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

@@ -1,8 +1,10 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
+import React, { useEffect, useState, useLayoutEffect } from "react";
+import * as ImagePicker from "expo-image-picker";
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -16,8 +18,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
 import * as Haptics from "expo-haptics";
 
-import { useAuth } from "@/context/AuthContext";
-import { useColors } from "@/hooks/useColors";
+import { useAuth, API_BASE_URL } from "@/context/AuthContext";
+import { useColors } from "../../../hooks/useColors";
 
 export default function EditarServico() {
   const colors = useColors();
@@ -27,12 +29,28 @@ export default function EditarServico() {
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const navigation = useNavigation();
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      tabBarStyle: { display: "none" },
+    });
+  }, [navigation]);
   
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [images, setImages] = useState<{uri: string, base64?: string | null, isNew?: boolean}[]>([]);
   
+  const [cep, setCep] = useState("");
+  const [street, setStreet] = useState("");
+  const [number, setNumber] = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [loadingCep, setLoadingCep] = useState(false);
+
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -47,9 +65,64 @@ export default function EditarServico() {
       setDescription(data.description || "");
       setLocation(data.location || "");
       setCategoryId(data.categoryId || "");
+      if (data.images && Array.isArray(data.images)) {
+        setImages(data.images.map((url: string) => ({ uri: url, isNew: false })));
+      }
+      if (data.location) {
+        setLocation(data.location);
+        // Tenta extrair partes do endereço se estiver no formato padrão
+        // "Rua, Num - Bairro, Cidade/UF - CEP: 00000-000"
+        try {
+          const cepMatch = data.location.match(/CEP: (\d{5}-?\d{3})/);
+          if (cepMatch) setCep(cepMatch[1]);
+        } catch(e) {}
+      }
     }
     setLoading(false);
   }
+
+  async function fetchAddressByCep(val: string) {
+    const cleanCep = val.replace(/\D/g, "");
+    if (cleanCep.length !== 8) return;
+
+    setLoadingCep(true);
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const data = await response.json();
+      if (!data.erro) {
+        setStreet(data.logradouro);
+        setCity(data.localidade);
+        setNeighborhood(data.bairro);
+        setState(data.uf);
+        setError("");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingCep(false);
+    }
+  }
+
+  async function pickImage() {
+    if (images.length >= 3) return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.7,
+      base64: true,
+    });
+
+    if (!result.canceled) {
+      const asset = result.assets[0];
+      setImages([...images, { uri: asset.uri, base64: asset.base64, isNew: true }]);
+      Haptics.selectionAsync();
+    }
+  }
+
+  const removeImage = (index: number) => {
+    setImages(images.filter((_: any, i: number) => i !== index));
+  };
 
   async function handleSave() {
     if (!title || !description || !location) {
@@ -60,8 +133,35 @@ export default function EditarServico() {
     setSaving(true);
     setError("");
     try {
-      const token = await SecureStore.getItemAsync("TRAMPAI_TOKEN");
-      const res = await fetch(`${process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000"}/api/jobs/${id}`, {
+      const token = await SecureStore.getItemAsync("trampai_auth_token");
+      
+      // 1. Upload das novas imagens
+      const uploadedUrls: string[] = images.filter(img => !img.isNew).map(img => img.uri);
+      
+      for (const img of images) {
+        if (img.isNew && img.base64) {
+          try {
+            const uploadRes = await fetch(`${API_BASE_URL}/api/upload`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+              },
+              body: JSON.stringify({ imageBase64: img.base64 }),
+            });
+            if (uploadRes.ok) {
+              const data = await uploadRes.json();
+              uploadedUrls.push(data.url);
+            }
+          } catch (uploadErr) {
+            console.error("Erro ao subir imagem:", uploadErr);
+          }
+        }
+      }
+
+      const fullLocation = street ? `${street}, ${number} - ${neighborhood}, ${city}/${state} - CEP: ${cep}` : location;
+
+      const res = await fetch(`${API_BASE_URL}/api/jobs/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -70,8 +170,9 @@ export default function EditarServico() {
         body: JSON.stringify({
           title,
           description,
-          location,
-          categoryId
+          location: fullLocation,
+          categoryId,
+          images: uploadedUrls
         })
       });
 
@@ -153,12 +254,66 @@ export default function EditarServico() {
 
             <View style={styles.inputGroup}>
               <Text style={[styles.label, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Onde será o serviço?</Text>
-              <TextInput
-                style={[styles.input, { borderColor: colors.border }]}
-                value={location}
-                onChangeText={setLocation}
-                placeholder="Endereço completo"
-              />
+              <View style={styles.row}>
+                <TextInput
+                  style={[styles.input, { flex: 1, borderColor: colors.border }]}
+                  placeholder="CEP"
+                  keyboardType="numeric"
+                  value={cep}
+                  onChangeText={(val) => {
+                    setCep(val);
+                    if (val.replace(/\D/g, "").length === 8) fetchAddressByCep(val);
+                  }}
+                  maxLength={9}
+                />
+                {loadingCep && <ActivityIndicator color={colors.primary} style={{ marginLeft: 10 }} />}
+              </View>
+
+              <View style={[styles.row, { marginTop: 12, gap: 12 }]}>
+                <TextInput
+                  style={[styles.input, { flex: 2, borderColor: colors.border, backgroundColor: "#f9f9f9" }]}
+                  placeholder="Rua / Avenida"
+                  value={street}
+                  onChangeText={setStreet}
+                />
+                <TextInput
+                  style={[styles.input, { flex: 1, borderColor: colors.border, backgroundColor: "#f9f9f9" }]}
+                  placeholder="Nº"
+                  keyboardType="numeric"
+                  value={number}
+                  onChangeText={setNumber}
+                />
+              </View>
+
+              <View style={[styles.row, { marginTop: 12, gap: 12 }]}>
+                <TextInput
+                  style={[styles.input, { flex: 1, borderColor: colors.border, backgroundColor: "#f9f9f9" }]}
+                  placeholder="Bairro"
+                  value={neighborhood}
+                  onChangeText={setNeighborhood}
+                />
+                <TextInput
+                  style={[styles.input, { flex: 1, borderColor: colors.border, backgroundColor: "#f9f9f9" }]}
+                  placeholder="Cidade"
+                  value={city}
+                  onChangeText={setCity}
+                />
+              </View>
+
+              <View style={[styles.row, { marginTop: 12 }]}>
+                <TextInput
+                  style={[styles.input, { flex: 1, borderColor: colors.border, backgroundColor: "#f9f9f9" }]}
+                  placeholder="Estado (Ex: SP)"
+                  value={state}
+                  onChangeText={setState}
+                  maxLength={2}
+                  autoCapitalize="characters"
+                />
+              </View>
+              
+              <View style={{ marginTop: 10 }}>
+                <Text style={{ fontSize: 11, color: colors.mutedForeground }}>Localização Atual: {location}</Text>
+              </View>
             </View>
 
             <View style={styles.inputGroup}>
@@ -171,6 +326,49 @@ export default function EditarServico() {
                 numberOfLines={4}
                 placeholder="Explique o que precisa ser feito..."
               />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Fotos do Serviço</Text>
+              <View style={styles.bentoGrid}>
+                <TouchableOpacity style={[styles.mainUpload, { borderColor: colors.navy + "20" }]} onPress={pickImage}>
+                  {images[0] ? (
+                    <View style={{ flex: 1, width: '100%' }}>
+                      <Image source={{ uri: images[0].uri }} style={styles.uploadedImg} />
+                      <TouchableOpacity style={styles.removeBadge} onPress={() => removeImage(0)}>
+                        <MaterialCommunityIcons name="close-circle" size={24} color="#ef4444" />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View style={{ alignItems: 'center' }}>
+                      <MaterialCommunityIcons name="camera-plus" size={32} color={colors.navy + "40"} />
+                      <Text style={{ fontSize: 10, color: colors.navy + "40", marginTop: 4 }}>Adicionar Foto</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                <View style={styles.secondaryUploads}>
+                  <TouchableOpacity style={[styles.subUpload, { borderColor: colors.navy + "20" }]} onPress={pickImage}>
+                    {images[1] ? (
+                      <View style={{ flex: 1, width: '100%' }}>
+                        <Image source={{ uri: images[1].uri }} style={styles.uploadedImg} />
+                        <TouchableOpacity style={styles.removeBadge} onPress={() => removeImage(1)}>
+                          <MaterialCommunityIcons name="close-circle" size={20} color="#ef4444" />
+                        </TouchableOpacity>
+                      </View>
+                    ) : <MaterialCommunityIcons name="plus" size={20} color={colors.navy + "40"} />}
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.subUpload, { borderColor: colors.navy + "20" }]} onPress={pickImage}>
+                    {images[2] ? (
+                      <View style={{ flex: 1, width: '100%' }}>
+                        <Image source={{ uri: images[2].uri }} style={styles.uploadedImg} />
+                        <TouchableOpacity style={styles.removeBadge} onPress={() => removeImage(2)}>
+                          <MaterialCommunityIcons name="close-circle" size={20} color="#ef4444" />
+                        </TouchableOpacity>
+                      </View>
+                    ) : <MaterialCommunityIcons name="plus" size={20} color={colors.navy + "40"} />}
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
             
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -219,4 +417,11 @@ const styles = StyleSheet.create({
   saveBtn: { flexDirection: "row", height: 50, borderRadius: 12, alignItems: "center", justifyContent: "center", gap: 10, marginTop: 10 },
   saveBtnText: { color: "#FFF", fontSize: 16 },
   errorText: { color: "#ef4444", fontSize: 13, textAlign: "center", marginBottom: 15, fontFamily: "Inter_600SemiBold" },
+  row: { flexDirection: "row", alignItems: "center" },
+  bentoGrid: { flexDirection: "row", height: 160, gap: 12 },
+  mainUpload: { flex: 2, borderWidth: 2, borderStyle: 'dashed', borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fafafa' },
+  secondaryUploads: { flex: 1, gap: 12 },
+  subUpload: { flex: 1, borderWidth: 2, borderStyle: 'dashed', borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fafafa' },
+  uploadedImg: { width: '100%', height: '100%', borderRadius: 10 },
+  removeBadge: { position: 'absolute', top: 5, right: 5, backgroundColor: '#fff', borderRadius: 12 },
 });

@@ -16,7 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
 
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, API_BASE_URL } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
 
@@ -41,7 +41,7 @@ export default function EditarPerfil() {
     setLoading(true);
     try {
       const token = await SecureStore.getItemAsync("trampai_auth_token");
-      const res = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/auth/me`, {
+      const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

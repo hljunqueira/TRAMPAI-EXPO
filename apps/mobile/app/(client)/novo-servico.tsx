@@ -19,7 +19,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import * as SecureStore from "expo-secure-store";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, API_BASE_URL } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { SUGGESTED_CATEGORIES } from "@/constants/categories";
 import { useCreateJob, useListCategories, useListJobs } from "@workspace/api-client-react";
@@ -43,7 +43,8 @@ export default function NovoServico() {
   const [number, setNumber] = useState("");
   const [city, setCity] = useState(user?.city || "");
   const [neighborhood, setNeighborhood] = useState(user?.neighborhood || "");
-  const [images, setImages] = useState<string[]>([]);
+  const [state, setState] = useState("");
+  const [images, setImages] = useState<{uri: string, base64?: string | null}[]>([]);
   
   const [loadingCep, setLoadingCep] = useState(false);
   const [error, setError] = useState("");
@@ -80,6 +81,7 @@ export default function NovoServico() {
         setStreet(data.logradouro);
         setCity(data.localidade);
         setNeighborhood(data.bairro);
+        setState(data.uf);
         setError("");
       }
     } catch (err) {
@@ -96,10 +98,12 @@ export default function NovoServico() {
       mediaTypes: ['images'],
       allowsEditing: true,
       quality: 0.7,
+      base64: true,
     });
 
     if (!result.canceled) {
-      setImages([...images, result.assets[0].uri]);
+      const asset = result.assets[0];
+      setImages([...images, { uri: asset.uri, base64: asset.base64 }]);
       Haptics.selectionAsync();
     }
   }
@@ -121,7 +125,7 @@ export default function NovoServico() {
     if (showCustomInput && customCategory.trim()) {
       try {
         const token = await SecureStore.getItemAsync("trampai_auth_token");
-        const catRes = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/categories`, {
+        const catRes = await fetch(`${API_BASE_URL}/api/categories`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -141,7 +145,32 @@ export default function NovoServico() {
     }
 
     try {
-      const fullLocation = street ? `${street}, ${number} - ${neighborhood}, ${city} - CEP: ${cep}` : city;
+      const fullLocation = street ? `${street}, ${number} - ${neighborhood}, ${city}/${state} - CEP: ${cep}` : city;
+
+      // 1. Upload das imagens
+      const uploadedUrls: string[] = [];
+      const token = await SecureStore.getItemAsync("trampai_auth_token");
+
+      for (const img of images) {
+        if (img.base64) {
+          try {
+            const uploadRes = await fetch(`${API_BASE_URL}/api/upload`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+              },
+              body: JSON.stringify({ imageBase64: img.base64 }),
+            });
+            if (uploadRes.ok) {
+              const data = await uploadRes.json();
+              uploadedUrls.push(data.url);
+            }
+          } catch (uploadErr) {
+            console.error("Erro ao subir imagem:", uploadErr);
+          }
+        }
+      }
 
       await createJob({
         data: {
@@ -150,6 +179,7 @@ export default function NovoServico() {
           categoryId: categoryIdToUse,
           budget: 0, 
           location: fullLocation,
+          images: uploadedUrls,
         }
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -334,6 +364,17 @@ export default function NovoServico() {
                   onChangeText={setCity}
                 />
               </View>
+
+              <View style={[styles.row, { marginTop: 12 }]}>
+                <TextInput
+                  style={[styles.input, { flex: 1, borderColor: colors.primary + "10", backgroundColor: "#f9f9f9" }]}
+                  placeholder="Estado (Ex: SP)"
+                  value={state}
+                  onChangeText={setState}
+                  maxLength={2}
+                  autoCapitalize="characters"
+                />
+              </View>
             </View>
 
             <View style={styles.inputGroup}>
@@ -351,9 +392,9 @@ export default function NovoServico() {
             <View style={styles.inputGroup}>
               <Text style={[styles.label, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Fotos (Opcional)</Text>
               <View style={styles.bentoGrid}>
-                <TouchableOpacity style={[styles.mainUpload, { borderColor: colors.primary + "20" }]} onPress={pickImage}>
+                  <TouchableOpacity style={[styles.mainUpload, { borderColor: colors.primary + "20" }]} onPress={pickImage}>
                   {images[0] ? (
-                    <Image source={{ uri: images[0] }} style={styles.uploadedImg} />
+                    <Image source={{ uri: images[0].uri }} style={styles.uploadedImg} />
                   ) : (
                     <View style={{ alignItems: 'center' }}>
                       <MaterialCommunityIcons name="camera-plus" size={32} color={colors.primary + "40"} />
@@ -363,10 +404,10 @@ export default function NovoServico() {
                 </TouchableOpacity>
                 <View style={styles.secondaryUploads}>
                   <TouchableOpacity style={[styles.subUpload, { borderColor: colors.primary + "20" }]} onPress={pickImage}>
-                    {images[1] ? <Image source={{ uri: images[1] }} style={styles.uploadedImg} /> : <MaterialCommunityIcons name="plus" size={20} color={colors.primary + "40"} />}
+                    {images[1] ? <Image source={{ uri: images[1].uri }} style={styles.uploadedImg} /> : <MaterialCommunityIcons name="plus" size={20} color={colors.primary + "40"} />}
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.subUpload, { borderColor: colors.primary + "20" }]} onPress={pickImage}>
-                    {images[2] ? <Image source={{ uri: images[2] }} style={styles.uploadedImg} /> : <MaterialCommunityIcons name="plus" size={20} color={colors.primary + "40"} />}
+                    {images[2] ? <Image source={{ uri: images[2].uri }} style={styles.uploadedImg} /> : <MaterialCommunityIcons name="plus" size={20} color={colors.primary + "40"} />}
                   </TouchableOpacity>
                 </View>
               </View>

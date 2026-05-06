@@ -164,7 +164,11 @@ export default function MeusLeads() {
                   <Text style={[styles.clientName, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>{item.clientName}</Text>
                   <View style={styles.locationRow}>
                     <MaterialCommunityIcons name="map-marker" size={14} color={colors.mutedForeground} />
-                    <Text style={[styles.location, { color: colors.mutedForeground }]}>{item.city || "Local não informado"}</Text>
+                    <Text style={[styles.location, { color: colors.mutedForeground }]}>
+                      {(item.type === "PLUS" || item.type === "EXCLUSIVE") 
+                        ? (item as any).jobLocation 
+                        : `${item.neighborhood || ""}, ${item.city || ""}`}
+                    </Text>
                   </View>
                 </View>
                 <TouchableOpacity 

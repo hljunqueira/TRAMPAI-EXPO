@@ -137,6 +137,7 @@ export const ListJobsResponseItem = zod.object({
       referralCode: zod.string().nullish(),
     })
     .optional(),
+  images: zod.array(zod.string()).nullish(),
 });
 export const ListJobsResponse = zod.array(ListJobsResponseItem);
 
@@ -149,6 +150,7 @@ export const CreateJobBody = zod.object({
   categoryId: zod.string().uuid(),
   budget: zod.number().nullish(),
   location: zod.string(),
+  images: zod.array(zod.string()).nullish(),
 });
 
 /**
@@ -159,7 +161,7 @@ export const UnlockJobParams = zod.object({
 });
 
 export const UnlockJobBody = zod.object({
-  type: zod.enum(["NORMAL", "EXCLUSIVE"]),
+  type: zod.enum(["NORMAL", "PLUS", "EXCLUSIVE"]),
 });
 
 export const unlockJobResponseJobClientCreditBalanceDefault = 0;
@@ -205,6 +207,7 @@ export const UnlockJobResponse = zod.object({
           referralCode: zod.string().nullish(),
         })
         .optional(),
+      images: zod.array(zod.string()).nullish(),
     })
     .optional(),
 });

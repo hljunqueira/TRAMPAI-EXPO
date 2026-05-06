@@ -12,4 +12,5 @@ export interface JobCreate {
   categoryId: string;
   budget?: number | null;
   location: string;
+  images?: string[] | null;
 }

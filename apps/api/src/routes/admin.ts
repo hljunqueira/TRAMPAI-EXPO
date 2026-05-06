@@ -3,6 +3,13 @@ import { db, users, jobs, leads, transactions, appConfig, creditPackages, catego
 import { CONFIG_KEYS, CONFIG_DEFAULTS } from "@workspace/db/schema";
 import { eq, desc, sql, and, inArray } from "drizzle-orm";
 import { authenticate, isAdmin, AuthRequest } from "../middlewares/auth";
+import { auditLog } from "../middlewares/audit";
+import bcrypt from "bcryptjs";
+import { sendPasswordResetEmail } from "../utils/mail";
+import { sendPushNotifications } from "../utils/notifications";
+
+
+
 
 const router = Router();
 
@@ -68,9 +75,25 @@ router.get("/admin/stats", authenticate, isAdmin, async (req, res) => {
     }).from(leads);
 
     const [referralStats] = await db.select({
-      total: sql<number>`count(*) filter (where referred_by is not null)`,
-      bonusGiven: sql<number>`coalesce(sum(credits), 0) filter (where type = 'REFERRAL_BONUS')`,
+      total: sql<number>`count(*) filter (where type = 'REFERRAL_BONUS')`,
+      bonusGiven: sql<number>`coalesce(sum(credits) filter (where type = 'REFERRAL_BONUS'), 0)`,
     }).from(transactions);
+
+    // Faturamento dos últimos 30 dias (para o gráfico)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const revenueHistory = await db.select({
+      date: sql<string>`date_trunc('day', ${transactions.createdAt})::date`,
+      totalCents: sql<number>`coalesce(sum(${transactions.amountCents}), 0)`,
+    })
+    .from(transactions)
+    .where(and(
+      eq(transactions.type, "PURCHASE"),
+      sql`${transactions.createdAt} >= ${thirtyDaysAgo}`
+    ))
+    .groupBy(sql`date_trunc('day', ${transactions.createdAt})::date`)
+    .orderBy(sql`date_trunc('day', ${transactions.createdAt})::date`);
 
     return res.json({
       users: {
@@ -85,15 +108,17 @@ router.get("/admin/stats", authenticate, isAdmin, async (req, res) => {
       },
       revenue: {
         totalCents: Number(revenueStats.totalCents),
+        history: revenueHistory,
       },
       leads: {
         total: Number(leadStats.total),
       },
       referrals: {
-        total: Number(referralStats.total / 2), // Cada indicação gera 2 transações de bônus no meu código
+        total: Number(referralStats.total / 2),
         bonusGiven: Number(referralStats.bonusGiven),
       }
     });
+
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Erro ao buscar estatísticas" });
@@ -145,7 +170,9 @@ router.get("/admin/config", authenticate, isAdmin, async (req, res) => {
 });
 
 // Atualizar uma config
-router.patch("/admin/config/:key", authenticate, isAdmin, async (req, res) => {
+// Atualizar uma config
+router.patch("/admin/config/:key", authenticate, isAdmin, auditLog("UPDATE_CONFIG", "CONFIG"), async (req, res) => {
+
   try {
     const key = req.params.key as string;
     const { value } = req.body;
@@ -201,7 +228,9 @@ router.get("/admin/packages", authenticate, isAdmin, async (req, res) => {
 });
 
 // Criar pacote
-router.post("/admin/packages", authenticate, isAdmin, async (req, res) => {
+// Criar pacote
+router.post("/admin/packages", authenticate, isAdmin, auditLog("CREATE_PACKAGE", "PACKAGE"), async (req, res) => {
+
   try {
     const { name, credits, priceCents, bonusCredits, isHighlighted, sortOrder } = req.body;
 
@@ -226,7 +255,9 @@ router.post("/admin/packages", authenticate, isAdmin, async (req, res) => {
 });
 
 // Editar pacote
-router.patch("/admin/packages/:id", authenticate, isAdmin, async (req, res) => {
+// Editar pacote
+router.patch("/admin/packages/:id", authenticate, isAdmin, auditLog("UPDATE_PACKAGE", "PACKAGE"), async (req, res) => {
+
   try {
     const id = req.params.id as string;
     const { name, credits, priceCents, bonusCredits, isActive, isHighlighted, sortOrder } = req.body;
@@ -255,7 +286,9 @@ router.patch("/admin/packages/:id", authenticate, isAdmin, async (req, res) => {
 });
 
 // Deletar/desativar pacote
-router.delete("/admin/packages/:id", authenticate, isAdmin, async (req, res) => {
+// Deletar/desativar pacote
+router.delete("/admin/packages/:id", authenticate, isAdmin, auditLog("DELETE_PACKAGE", "PACKAGE"), async (req, res) => {
+
   try {
     const id = req.params.id as string;
     await db.update(creditPackages)
@@ -317,7 +350,9 @@ router.get("/admin/users/:id", authenticate, isAdmin, async (req, res) => {
 });
 
 // Conceder créditos manualmente
-router.post("/admin/users/:id/grant-credits", authenticate, isAdmin, async (req: AuthRequest, res: any) => {
+// Conceder créditos manualmente
+router.post("/admin/users/:id/grant-credits", authenticate, isAdmin, auditLog("GRANT_CREDITS", "USER"), async (req: AuthRequest, res: any) => {
+
   try {
     const id = req.params.id as string;
     const { credits, reason } = req.body;
@@ -351,7 +386,9 @@ router.post("/admin/users/:id/grant-credits", authenticate, isAdmin, async (req:
 });
 
 // Banir usuário
-router.patch("/admin/users/:id/ban", authenticate, isAdmin, async (req, res) => {
+// Banir usuário
+router.patch("/admin/users/:id/ban", authenticate, isAdmin, auditLog("BAN_USER", "USER"), async (req, res) => {
+
   try {
     const id = req.params.id as string;
     const { reason } = req.body;
@@ -389,8 +426,36 @@ router.patch("/admin/users/:id/unban", authenticate, isAdmin, async (req, res) =
   }
 });
 
+// Resetar senha do usuário
+router.post("/admin/users/:id/reset-password", authenticate, isAdmin, auditLog("RESET_PASSWORD", "USER"), async (req, res) => {
+  try {
+    const id = req.params.id as string;
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+
+    // Gerar senha temporária aleatória (8 caracteres)
+    const tempPassword = Math.random().toString(36).slice(-8);
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+    await db.update(users)
+      .set({ password: hashedPassword, updatedAt: new Date() })
+      .where(eq(users.id, id));
+
+    // Enviar e-mail
+    await sendPasswordResetEmail(user.email, tempPassword);
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erro ao resetar senha" });
+  }
+});
+
+
 // Atualizar verificação do usuário
-router.patch("/admin/users/:id/verify", authenticate, isAdmin, async (req, res) => {
+// Atualizar verificação do usuário
+router.patch("/admin/users/:id/verify", authenticate, isAdmin, auditLog("VERIFY_USER", "USER"), async (req, res) => {
+
   try {
     const id = req.params.id as string;
     const { status } = req.body;
@@ -409,8 +474,35 @@ router.patch("/admin/users/:id/verify", authenticate, isAdmin, async (req, res) 
   }
 });
 
+// Listar leads recentes para reembolso
+router.get("/admin/leads/recent", authenticate, isAdmin, async (req, res) => {
+  try {
+    const recentLeads = await db
+      .select({
+        id: leads.id,
+        jobTitle: jobs.title,
+        providerName: users.name,
+        providerId: users.id,
+        cost: leads.cost,
+        refundedAt: leads.refundedAt,
+        createdAt: leads.createdAt,
+      })
+      .from(leads)
+      .innerJoin(jobs, eq(leads.jobId, jobs.id))
+      .innerJoin(users, eq(leads.providerId, users.id))
+      .orderBy(desc(leads.createdAt))
+      .limit(50);
+
+    return res.json(recentLeads);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erro ao buscar leads" });
+  }
+});
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // JOBS (Admin)
+
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // Listar todos os jobs (admin — sem filtro de status)
@@ -441,7 +533,9 @@ router.get("/admin/jobs", authenticate, isAdmin, async (req, res) => {
 });
 
 // Forçar mudança de status de um job
-router.patch("/admin/jobs/:id/status", authenticate, isAdmin, async (req, res) => {
+// Forçar mudança de status de um job
+router.patch("/admin/jobs/:id/status", authenticate, isAdmin, auditLog("UPDATE_JOB_STATUS", "JOB"), async (req, res) => {
+
   try {
     const id = req.params.id as string;
     const { status } = req.body;
@@ -458,5 +552,87 @@ router.patch("/admin/jobs/:id/status", authenticate, isAdmin, async (req, res) =
   }
 });
 
+// Reembolsar um lead
+router.post("/admin/leads/:id/refund", authenticate, isAdmin, auditLog("REFUND_LEAD", "LEAD"), async (req, res) => {
+  try {
+    const id = req.params.id as string;
+    
+    // 1. Buscar o lead
+    const [lead] = await db.select().from(leads).where(eq(leads.id, id));
+    if (!lead) return res.status(404).json({ error: "Lead não encontrado" });
+    if (lead.refundedAt) return res.status(400).json({ error: "Este lead já foi reembolsado" });
+
+    // 2. Buscar o usuário (prestador)
+    const [provider] = await db.select().from(users).where(eq(users.id, lead.providerId));
+    if (!provider) return res.status(404).json({ error: "Prestador não encontrado" });
+
+    // 3. Processar reembolso em transação
+    await db.transaction(async (tx) => {
+      // Marcar lead como reembolsado
+      await tx.update(leads)
+        .set({ refundedAt: new Date() })
+        .where(eq(leads.id, id));
+
+      // Devolver créditos
+      await tx.update(users)
+        .set({ creditBalance: provider.creditBalance + lead.cost })
+        .where(eq(users.id, provider.id));
+
+      // Registrar transação de reembolso
+      await tx.insert(transactions).values({
+        userId: provider.id,
+        type: "REFUND",
+        credits: lead.cost,
+        amountCents: 0,
+        description: `Reembolso de lead #${id.slice(0, 8)}`,
+      } as any);
+    });
+
+    return res.json({ ok: true, refundedCredits: lead.cost });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erro ao processar reembolso" });
+  }
+});
+
+// Enviar notificações push em massa
+router.post("/admin/notifications/send", authenticate, isAdmin, auditLog("SEND_PUSH_MASS", "NOTIFICATION"), async (req, res) => {
+
+  try {
+    const { title, message, target } = req.body;
+
+    if (!title || !message) {
+      return res.status(400).json({ error: "Título e mensagem são obrigatórios" });
+    }
+
+    // Buscar tokens dos usuários alvo
+    let query = db.select({ pushToken: users.pushToken }).from(users).where(sql`${users.pushToken} IS NOT NULL`);
+
+    if (target === "CLIENTS") {
+      query = db.select({ pushToken: users.pushToken }).from(users).where(and(eq(users.role, "client"), sql`${users.pushToken} IS NOT NULL`)) as any;
+    } else if (target === "PROVIDERS") {
+      query = db.select({ pushToken: users.pushToken }).from(users).where(and(eq(users.role, "provider"), sql`${users.pushToken} IS NOT NULL`)) as any;
+    }
+
+    const userTokens = await query;
+    const tokens = userTokens.map(u => u.pushToken).filter(Boolean) as string[];
+
+    if (tokens.length === 0) {
+      return res.json({ ok: true, sentCount: 0, message: "Nenhum usuário com token encontrado" });
+    }
+
+    // Disparar notificações (em lotes se necessário, mas o Expo aceita até 100 por vez)
+    // Para simplificar, vamos enviar todos de uma vez (Expo limita a 100 por request, mas o utility pode ser expandido)
+    const result = await sendPushNotifications(tokens, title, message);
+
+    return res.json({ ok: true, sentCount: tokens.length, result });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erro ao enviar notificações" });
+  }
+});
+
 export { getConfig };
+
+
 export default router;

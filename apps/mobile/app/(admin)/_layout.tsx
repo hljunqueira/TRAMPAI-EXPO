@@ -52,32 +52,32 @@ export default function AdminLayout() {
         }}
       />
       <Tabs.Screen
-        name="pacotes"
+        name="moderacao"
         options={{
-          title: "Pacotes",
+          title: "Moderação",
           tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons name={(focused ? "package-variant" : "package-variant") as any} size={22} color={color} />
+            <MaterialCommunityIcons name={focused ? "shield-check" : "shield-check-outline"} size={22} color={color} />
           ),
         }}
       />
+
       <Tabs.Screen
         name="configuracoes"
         options={{
-          title: "Ajustes",
+          title: "Sistema",
           tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons name={focused ? "cog" : "cog-outline"} size={22} color={color} />
+            <MaterialCommunityIcons name={focused ? "view-grid" : "view-grid-outline"} size={22} color={color} />
           ),
         }}
       />
-      <Tabs.Screen
-        name="perfil"
-        options={{
-          title: "Perfil",
-          tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons name={focused ? "account" : "account-outline"} size={22} color={color} />
-          ),
-        }}
-      />
+      
+      {/* Telas ocultas da barra (acessadas via menu ou dashboard) */}
+      <Tabs.Screen name="notificacoes" options={{ href: null }} />
+      <Tabs.Screen name="reembolsos" options={{ href: null }} />
+      <Tabs.Screen name="categorias" options={{ href: null }} />
+      <Tabs.Screen name="suporte" options={{ href: null }} />
+      <Tabs.Screen name="perfil" options={{ href: null }} />
+      <Tabs.Screen name="pacotes" options={{ href: null }} />
     </Tabs>
   );
 }

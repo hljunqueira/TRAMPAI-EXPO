@@ -1,8 +1,8 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
+import React, { useEffect, useState, useLayoutEffect } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -27,6 +27,13 @@ export default function Interessados() {
   const [loading, setLoading] = useState(true);
   const [job, setJob] = useState<any>(null);
   const [leads, setLeads] = useState<any[]>([]);
+  const navigation = useNavigation();
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      tabBarStyle: { display: "none" },
+    });
+  }, [navigation]);
 
   useEffect(() => {
     loadData();

@@ -12,7 +12,9 @@ export const leads = pgTable("leads", {
   type: text("type", { enum: ["NORMAL", "PLUS", "EXCLUSIVE"] }).notNull(),
   cost: integer("cost").notNull(),
   whatsappLink: text("whatsapp_link").notNull(),
+  refundedAt: timestamp("refunded_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+
 });
 
 export const insertLeadSchema = createInsertSchema(leads);

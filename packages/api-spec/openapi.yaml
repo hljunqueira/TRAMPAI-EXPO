@@ -145,7 +145,7 @@ paths:
             schema:
               type: object
               properties:
-                type: { type: string, enum: [NORMAL, EXCLUSIVE] }
+                type: { type: string, enum: [NORMAL, PLUS, EXCLUSIVE] }
               required: [type]
       responses:
         "200":
@@ -234,6 +234,11 @@ components:
         createdAt: { type: string, format: date-time }
         category: { $ref: "#/components/schemas/Category" }
         client: { $ref: "#/components/schemas/User" }
+        images:
+          type: array
+          items:
+            type: string
+          nullable: true
       required: [id, title, description, categoryId, clientId, status, location, createdAt]
 
     JobCreate:
@@ -244,6 +249,11 @@ components:
         categoryId: { type: string, format: uuid }
         budget: { type: integer, nullable: true }
         location: { type: string }
+        images:
+          type: array
+          items:
+            type: string
+          nullable: true
       required: [title, description, categoryId, location]
 
     Category:

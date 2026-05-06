@@ -112,6 +112,7 @@ export interface Job {
   createdAt: string;
   category?: Category;
   client?: User;
+  images?: string[] | null;
 }
 
 export interface JobCreate {
@@ -120,6 +121,7 @@ export interface JobCreate {
   categoryId: string;
   budget?: number | null;
   location: string;
+  images?: string[] | null;
 }
 
 export type LoginBody = {
@@ -137,6 +139,7 @@ export type UnlockJobBodyType =
 
 export const UnlockJobBodyType = {
   NORMAL: "NORMAL",
+  PLUS: "PLUS",
   EXCLUSIVE: "EXCLUSIVE",
 } as const;
 

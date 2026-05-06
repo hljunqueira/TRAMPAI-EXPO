@@ -4,6 +4,8 @@ import { eq, desc, sql } from "drizzle-orm";
 import { authenticate, AuthRequest } from "../middlewares/auth";
 import { getConfig } from "./admin";
 import { CONFIG_KEYS } from "@workspace/db/schema";
+import { sanitizeDescription } from "../utils/anti-fraud";
+
 
 
 const router = Router();
@@ -20,6 +22,7 @@ router.get("/jobs", async (req, res) => {
         budget: jobs.budget,
         status: jobs.status,
         location: jobs.location,
+        images: jobs.images,
         createdAt: jobs.createdAt,
         category: {
           id: categories.id,
@@ -49,7 +52,7 @@ router.get("/jobs", async (req, res) => {
 
 router.post("/jobs", authenticate, async (req: AuthRequest, res: any) => {
   try {
-    const { title, description, categoryId, budget, location } = req.body;
+    const { title, description, categoryId, budget, location, images } = req.body;
     const clientId = req.user?.userId;
 
     if (!clientId) {
@@ -58,11 +61,13 @@ router.post("/jobs", authenticate, async (req: AuthRequest, res: any) => {
 
     const [newJob] = await db.insert(jobs).values({
       title,
-      description,
+      description: sanitizeDescription(description),
+
       categoryId,
       clientId,
       budget,
       location,
+      images,
       status: "open",
     }).returning();
 
@@ -117,11 +122,17 @@ router.post("/jobs/:id/unlock", authenticate, async (req: AuthRequest, res: any)
     }
 
     // 4. Gerar link do WhatsApp
-    const phone = job.client.phone?.replace(/\D/g, "");
-    if (!phone) return res.status(400).json({ error: "Cliente não possui telefone cadastrado" });
+    let cleanPhone = job.client.phone?.replace(/\D/g, "") || "";
+    if (!cleanPhone) return res.status(400).json({ error: "Cliente não possui telefone cadastrado" });
+
+    if (cleanPhone.startsWith("55") && cleanPhone.length > 11) {
+      // Já tem DDI
+    } else {
+      cleanPhone = `55${cleanPhone}`;
+    }
     
     const message = encodeURIComponent(`Olá ${job.client.name}, vi seu pedido no Trampaí: "${job.title}". Tenho interesse em ajudar!`);
-    const whatsappLink = `https://wa.me/55${phone}?text=${message}`;
+    const whatsappLink = `https://wa.me/${cleanPhone}?text=${message}`;
 
     // 5. Transação: Deduzir créditos e criar lead
     await db.transaction(async (tx) => {
@@ -263,6 +274,7 @@ router.get("/jobs/me", authenticate, async (req: AuthRequest, res: any) => {
         budget: jobs.budget,
         status: jobs.status,
         location: jobs.location,
+        images: jobs.images,
         createdAt: jobs.createdAt,
         category: {
           id: categories.id,
@@ -301,6 +313,7 @@ router.get("/jobs/:id", authenticate, async (req: AuthRequest, res: any) => {
         budget: jobs.budget,
         status: jobs.status,
         location: jobs.location,
+        images: jobs.images,
         createdAt: jobs.createdAt,
         category: {
           id: categories.id,
@@ -323,12 +336,14 @@ router.get("/jobs/:id", authenticate, async (req: AuthRequest, res: any) => {
         provider: {
           id: users.id,
           name: users.name,
+          phone: users.phone,
           avatarUrl: users.avatarUrl,
           providerBio: users.providerBio,
           rating: users.rating,
           reviewCount: users.reviewCount,
           city: users.city,
         },
+        whatsappLink: leads.whatsappLink,
       })
       .from(leads)
       .innerJoin(users, eq(leads.providerId, users.id))
@@ -370,7 +385,7 @@ router.patch("/jobs/:id/status", authenticate, async (req: AuthRequest, res: any
 router.put("/jobs/:id", authenticate, async (req: AuthRequest, res: any) => {
   try {
     const jobId = req.params.id;
-    const { title, description, categoryId, location } = req.body;
+    const { title, description, categoryId, location, images } = req.body;
     const userId = req.user?.userId;
 
     const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId as string));
@@ -381,7 +396,15 @@ router.put("/jobs/:id", authenticate, async (req: AuthRequest, res: any) => {
     }
 
     const [updatedJob] = await db.update(jobs)
-      .set({ title, description, categoryId, location, updatedAt: new Date() })
+      .set({ 
+        title, 
+        description: sanitizeDescription(description), 
+        categoryId, 
+        location, 
+        images, 
+        updatedAt: new Date() 
+      })
+
       .where(eq(jobs.id, jobId as string))
       .returning();
 

@@ -68,6 +68,18 @@ export default function Mural() {
     setUnlockError("");
   }
 
+  function handleSeeDetails(job: Job) {
+    const lead = leads.find((l) => l.jobId === job.id);
+    if (lead) {
+      setSelectedService(job);
+      setUnlockResult({
+        job: { ...job, client: { ...job.client, phone: lead.clientPhone, name: lead.clientName } },
+        whatsappLink: lead.whatsappLink
+      });
+      setUnlockError("");
+    }
+  }
+
   async function handleUnlock(type: UnlockType) {
     if (!selectedService) return;
     setUnlocking(true);
@@ -184,14 +196,19 @@ export default function Mural() {
             </View>
           ) : null
         }
-        renderItem={({ item }) => (
-          <ServiceCard 
-            service={item} 
-            showUnlock 
-            alreadyUnlocked={myLeadServiceIds.includes(item.id)} 
-            onUnlock={() => openUnlockModal(item)} 
-          />
-        )}
+        renderItem={({ item }) => {
+          const lead = leads.find((l) => l.jobId === item.id);
+          return (
+            <ServiceCard 
+              service={item} 
+              showUnlock 
+              alreadyUnlocked={!!lead}
+              unlockType={lead?.type}
+              onUnlock={() => openUnlockModal(item)} 
+              onSeeDetails={() => handleSeeDetails(item)}
+            />
+          );
+        }}
       />
 
       {/* Unlock Modal (Same logic, slightly updated style) */}

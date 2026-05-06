@@ -17,6 +17,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { SimpleChart } from "@/components/admin/SimpleChart";
+
 
 export default function AdminDashboard() {
   const colors = useColors();
@@ -113,6 +115,12 @@ export default function AdminDashboard() {
             <Text style={[styles.revFooterText, { color: "#fff", fontFamily: "Inter_600SemiBold" }]}>Receita Bruta Acumulada</Text>
           </View>
         </View>
+
+        {/* BI Charts */}
+        {revenue.history && revenue.history.length > 0 && (
+          <SimpleChart data={revenue.history} title="Faturamento Diário (Últimos 7 dias)" />
+        )}
+
 
         {/* Quick Actions */}
         <View style={styles.actionRow}>
