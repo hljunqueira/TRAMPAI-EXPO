@@ -11,6 +11,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Modal,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -20,9 +21,9 @@ import { useAuth } from "@/context/AuthContext";
 
 const MENU_ITEMS = [
   { label: "Categorias", icon: "tag-multiple", route: "/(admin)/categorias", color: "#3b82f6" },
+  { label: "Pacotes", icon: "package-variant-closed", route: "/(admin)/pacotes", color: "#ec4899" },
   { label: "Reembolsos", icon: "cash-refund", route: "/(admin)/reembolsos", color: "#f59e0b" },
   { label: "Push Center", icon: "bell-ring", route: "/(admin)/notificacoes", color: "#8b5cf6" },
-  { label: "Suporte", icon: "help-circle", route: "/(admin)/suporte", color: "#10b981" },
 ];
 
 export default function AdminConfig() {
@@ -32,6 +33,8 @@ export default function AdminConfig() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [configs, setConfigs] = useState<Record<string, string>>({});
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedSection, setSelectedSection] = useState<any>(null);
 
   useEffect(() => {
     loadConfigs();
@@ -72,40 +75,46 @@ export default function AdminConfig() {
 
   const sections = [
     {
-      title: "Custos de Leads",
-      icon: "cash-multiple",
+      title: "Regras de Negócio",
+      description: "Controle os custos de leads, expiração de serviços e limites operacionais da plataforma.",
+      icon: "shield-crown-outline",
+      color: "#3b82f6",
       keys: [
-        { key: "lead_normal_cost", label: "Custo Lead Normal (créditos)", keyboard: "number-pad" },
-        { key: "lead_exclusive_cost", label: "Custo Lead Exclusivo (créditos)", keyboard: "number-pad" },
+        { key: "lead_normal_cost", label: "Custo Lead Normal", icon: "flash-outline", suffix: "cr", keyboard: "number-pad" },
+        { key: "lead_exclusive_cost", label: "Custo Lead Exclusivo", icon: "crown-outline", suffix: "cr", keyboard: "number-pad" },
+        { key: "service_expiration_days", label: "Expiração de Serviços", icon: "calendar-clock", suffix: "dias", keyboard: "number-pad" },
+        { key: "min_custom_credits", label: "Compra Mínima (Avulsa)", icon: "cart-arrow-down", suffix: "cr", keyboard: "number-pad" },
       ]
     },
     {
       title: "Boas-vindas e Indicações",
-      icon: "gift",
+      description: "Defina os incentivos para novos usuários e recompensas por recomendação.",
+      icon: "gift-outline",
+      color: "#ec4899",
       keys: [
-        { key: "welcome_credits", label: "Créditos de Boas-vindas", keyboard: "number-pad" },
-        { key: "referral_bonus", label: "Bônus por Indicação", keyboard: "number-pad" },
+        { key: "welcome_credits", label: "Bônus de Boas-vindas", icon: "auto-fix", suffix: "cr", keyboard: "number-pad" },
+        { key: "referral_bonus", label: "Bônus por Indicação", icon: "account-multiple-plus-outline", suffix: "cr", keyboard: "number-pad" },
       ]
     },
     {
-      title: "Configurações de PIX",
-      icon: "qrcode",
+      title: "Pagamentos e Integrações",
+      description: "Configurações do gateway Stripe e métodos de recebimento.",
+      icon: "credit-card-settings-outline",
+      color: "#10b981",
       keys: [
-        { key: "pix_key", label: "Chave PIX", keyboard: "default" },
-        { key: "pix_holder_name", label: "Titular da Conta", keyboard: "default" },
-        { key: "pix_key_type", label: "Tipo de Chave (CPF, CNPJ, EMAIL, PHONE, RANDOM)", keyboard: "default" },
+        { key: "stripe_enabled", label: "Stripe Ativo (true/false)", icon: "stripe", keyboard: "default" },
       ]
     },
     {
-      title: "Plataforma e Suporte",
-      icon: "cog",
+      title: "Suporte e Plataforma",
+      description: "Canais de atendimento e links institucionais para os usuários.",
+      icon: "help-circle-outline",
+      color: "#f59e0b",
       keys: [
-        { key: "service_expiration_days", label: "Expiração de Serviços (Dias)", keyboard: "number-pad" },
-        { key: "max_service_images", label: "Máximo de Imagens por Serviço", keyboard: "number-pad" },
-        { key: "support_whatsapp", label: "WhatsApp de Suporte (DDI+DDD+Número)", keyboard: "phone-pad" },
-        { key: "min_custom_credits", label: "Mínimo para Compra Avulsa", keyboard: "number-pad" },
+        { key: "support_whatsapp", label: "WhatsApp Suporte", icon: "whatsapp", keyboard: "phone-pad" },
+        { key: "terms_url", label: "Link Termos de Uso", icon: "file-document-outline", keyboard: "url" },
       ]
-    }
+    },
   ];
 
   return (
@@ -136,41 +145,87 @@ export default function AdminConfig() {
 
         <View style={[styles.divider, { backgroundColor: colors.border + "30" }]} />
 
-        <Text style={[styles.sectionLabel, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Ajustes Globais</Text>
+        <Text style={[styles.sectionLabel, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Configurações do Sistema</Text>
+        <View style={styles.menuGrid}>
+          {sections.map((section) => (
+            <TouchableOpacity 
+              key={section.title} 
+              style={[styles.menuItem, { backgroundColor: "#fff" }]}
+              onPress={() => {
+                setSelectedSection(section);
+                setModalVisible(true);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+            >
+              <View style={[styles.menuIcon, { backgroundColor: section.color + "15" }]}>
+                <MaterialCommunityIcons name={section.icon as any} size={24} color={section.color} />
+              </View>
+              <Text style={[styles.menuLabel, { color: colors.foreground, fontFamily: "Inter_600SemiBold", textAlign: 'center' }]}>{section.title}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-        {sections.map(section => (
-          <View key={section.title} style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <MaterialCommunityIcons name={section.icon as any} size={18} color={colors.primary} />
-              <Text style={[styles.sectionTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>{section.title}</Text>
+        <Text style={styles.footerNote}>Clique nos cards para ajustar as regras de negócio e configurações da plataforma.</Text>
+      </ScrollView>
+
+      {/* Modal de Edição de Configurações */}
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: "#fff" }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.modalTitle, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{selectedSection?.title}</Text>
+                <Text style={[styles.modalDesc, { color: colors.mutedForeground }]}>{selectedSection?.description}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeBtn}>
+                <MaterialCommunityIcons name="close" size={24} color={colors.primary} />
+              </TouchableOpacity>
             </View>
-            
-            <View style={[styles.card, { backgroundColor: "#fff" }]}>
-              {section.keys.map((item, idx) => (
-                <View key={item.key} style={[styles.inputRow, idx !== section.keys.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border + "10" }]}>
-                  <Text style={[styles.label, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>{item.label}</Text>
-                  <TextInput
-                    style={[styles.input, { color: colors.primary, fontFamily: "Inter_700Bold" }]}
-                    value={configs[item.key] || ""}
-                    onChangeText={(text) => setConfigs(prev => ({ ...prev, [item.key]: text }))}
-                    onBlur={() => saveConfig(item.key, configs[item.key])}
-                    keyboardType={item.keyboard as any}
-                    placeholder="Não definido"
-                    placeholderTextColor={colors.mutedForeground + "40"}
-                  />
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 20 }}>
+              {selectedSection?.keys.map((item: any) => (
+                <View key={item.key} style={styles.modalInputGroup}>
+                  <View style={styles.inputLabelRow}>
+                    <MaterialCommunityIcons name={item.icon as any} size={16} color={colors.primary + "60"} />
+                    <Text style={[styles.label, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>{item.label}</Text>
+                  </View>
+                  <View style={[styles.inputWrapper, { backgroundColor: colors.primary + "03", borderColor: colors.primary + "10" }]}>
+                    <TextInput
+                      style={[styles.modalInput, { color: colors.primary, fontFamily: "Inter_700Bold" }]}
+                      value={configs[item.key] || ""}
+                      onChangeText={(text) => setConfigs(prev => ({ ...prev, [item.key]: text }))}
+                      onBlur={() => saveConfig(item.key, configs[item.key])}
+                      keyboardType={item.keyboard as any}
+                      placeholder="Não definido"
+                      placeholderTextColor={colors.mutedForeground + "40"}
+                    />
+                    {item.suffix && (
+                      <Text style={[styles.suffix, { color: colors.primary + "40", fontFamily: "Inter_700Bold" }]}>{item.suffix}</Text>
+                    )}
+                  </View>
                 </View>
               ))}
-            </View>
+            </ScrollView>
+            
+            <TouchableOpacity 
+              style={[styles.doneBtn, { backgroundColor: colors.primary }]}
+              onPress={() => setModalVisible(false)}
+            >
+              <Text style={{ color: "#fff", fontFamily: "Inter_700Bold" }}>CONCLUÍDO</Text>
+            </TouchableOpacity>
           </View>
-        ))}
-
-        <Text style={styles.footerNote}>As alterações são salvas automaticamente ao sair do campo de edição.</Text>
-      </ScrollView>
+        </View>
+      </Modal>
 
       {saving && (
         <View style={[styles.savingOverlay, { backgroundColor: colors.primary }]}>
           <ActivityIndicator size="small" color={colors.secondary} />
-          <Text style={{ color: "#fff", marginLeft: 10, fontFamily: "Inter_600SemiBold" }}>Salvando alterações...</Text>
+          <Text style={{ color: "#fff", marginLeft: 10, fontFamily: "Inter_600SemiBold" }}>Salvando...</Text>
         </View>
       )}
     </View>
@@ -194,51 +249,91 @@ const styles = StyleSheet.create({
   menuIcon: { width: 48, height: 48, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   menuLabel: { fontSize: 13 },
   divider: { height: 1, marginVertical: 32, marginHorizontal: -20 },
-  section: { marginBottom: 28 },
+  section: { marginBottom: 32 },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-    marginLeft: 4,
+    gap: 16,
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  sectionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
   },
   sectionTitle: {
-    fontSize: 14,
-    textTransform: "uppercase",
-    letterSpacing: 1,
+    fontSize: 18,
+    letterSpacing: -0.5,
+  },
+  sectionDesc: {
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 2,
+    opacity: 0.7,
   },
   card: {
     borderRadius: 24,
     shadowColor: "#0b1339",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
     elevation: 3,
     overflow: "hidden",
   },
   inputRow: {
-    padding: 16,
+    padding: 18,
     paddingHorizontal: 20,
+    gap: 8,
+  },
+  inputLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   label: {
-    fontSize: 12,
-    marginBottom: 6,
+    fontSize: 13,
+    letterSpacing: 0.3,
+  },
+  inputValueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
   },
   input: {
-    fontSize: 16,
+    fontSize: 17,
     padding: 0,
+    flex: 1,
   },
+  suffix: {
+    fontSize: 14,
+    textTransform: "lowercase",
+  },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(11, 19, 57, 0.6)", justifyContent: "flex-end" },
+  modalContent: { height: "70%", padding: 24, borderTopLeftRadius: 32, borderTopRightRadius: 32, gap: 20 },
+  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 },
+  modalTitle: { fontSize: 20 },
+  modalDesc: { fontSize: 13, marginTop: 4, opacity: 0.7, lineHeight: 18 },
+  closeBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "#f1f5f9" },
+  modalInputGroup: { gap: 10 },
+  inputWrapper: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, height: 56, borderRadius: 16, borderWidth: 1 },
+  modalInput: { flex: 1, fontSize: 16 },
+  doneBtn: { height: 56, borderRadius: 18, alignItems: "center", justifyContent: "center", marginTop: 10 },
   footerNote: {
     textAlign: "center",
     color: "#94a3b8",
     fontSize: 12,
-    marginTop: 12,
+    marginTop: 24,
     paddingHorizontal: 40,
     lineHeight: 18,
+    fontFamily: "Inter_500Medium",
   },
   savingOverlay: {
     position: "absolute",
-    bottom: 120,
+    bottom: 40,
     alignSelf: "center",
     paddingHorizontal: 20,
     paddingVertical: 12,

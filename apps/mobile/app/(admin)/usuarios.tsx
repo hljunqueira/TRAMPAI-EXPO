@@ -29,7 +29,7 @@ export default function AdminUsuarios() {
   const { allUsers, banUser, unbanUser, approveVerification, rejectVerification } = useAuth();
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState<"ALL" | "CLIENT" | "PROVIDER">("ALL");
+  const [roleFilter, setRoleFilter] = useState<"ALL" | "CLIENT" | "PROVIDER" | "ADMIN">("ALL");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [detailsVisible, setDetailsVisible] = useState(false);
   
@@ -39,7 +39,35 @@ export default function AdminUsuarios() {
   const [creditReason, setCreditReason] = useState("");
   const [isSubmittingCredits, setIsSubmittingCredits] = useState(false);
 
-  const { api, fetchAdminData } = useAuth();
+  const { api, fetchAdminData, user: loggedUser } = useAuth();
+
+  const handlePromoteToAdmin = async (targetUser: User) => {
+    if (loggedUser?.email !== "henrique@trampai.com.br") {
+      Alert.alert("Erro", "Apenas o Super Admin pode realizar esta ação.");
+      return;
+    }
+
+    Alert.alert(
+      "Promover a Admin",
+      `Deseja realmente promover ${targetUser.name} a administrador? Esta ação dará acesso total ao painel.`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        { 
+          text: "Promover", 
+          onPress: async () => {
+            try {
+              await api.patch(`/admin/users/${targetUser.id}/role`, { role: "admin" });
+              Alert.alert("Sucesso", `${targetUser.name} agora é um administrador!`);
+              fetchAdminData();
+              setDetailsVisible(false);
+            } catch (error) {
+              Alert.alert("Erro", "Não foi possível promover o usuário.");
+            }
+          }
+        }
+      ]
+    );
+  };
 
   const handleGrantCredits = async () => {
     if (!selectedUser || !creditAmount || isSubmittingCredits) return;
@@ -203,7 +231,7 @@ export default function AdminUsuarios() {
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-          {(["ALL", "CLIENT", "PROVIDER"] as const).map((role) => (
+          {(["ALL", "CLIENT", "PROVIDER", "ADMIN"] as const).map((role) => (
             <TouchableOpacity
               key={role}
               style={[
@@ -227,7 +255,7 @@ export default function AdminUsuarios() {
                   color: roleFilter === role ? "#fff" : colors.mutedForeground
                 }
               ]}>
-                {role === "ALL" ? "Todos" : role === "CLIENT" ? "Clientes" : "Prestadores"}
+                {role === "ALL" ? "Todos" : role === "CLIENT" ? "Clientes" : role === "PROVIDER" ? "Prestadores" : "Admins"}
               </Text>
             </TouchableOpacity>
           ))}
@@ -253,7 +281,7 @@ export default function AdminUsuarios() {
         }
         renderItem={({ item: u }) => {
           const uRole = u.role?.toLowerCase();
-          const isProvider = uRole === "provider";
+          const isProvider = uRole === "provider" || u.isProvider;
           const isPending = uRole !== "admin" && isProvider && u.verificationStatus === "PENDING";
           const isBanned = u.isBanned || !!(u as any).bannedAt;
           
@@ -294,7 +322,7 @@ export default function AdminUsuarios() {
                     </Text>
                     {isBanned && (
                       <View style={[styles.badge, { backgroundColor: "#ef444415" }]}>
-                        <Text style={[styles.badgeText, { color: "#ef4444", fontFamily: "Inter_800ExtraBold" }]}>BAN</Text>
+                        <Text style={[styles.badgeText, { color: "#ef4444", fontFamily: "Inter_800ExtraBold" }]}>BANIDO</Text>
                       </View>
                     )}
                   </View>
@@ -303,9 +331,23 @@ export default function AdminUsuarios() {
                   </Text>
                 </View>
 
-                <View style={[styles.roleLabel, { backgroundColor: isProvider ? colors.primary + "08" : colors.primary + "05" }]}>
-                  <Text style={[styles.roleLabelText, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>
-                    {isProvider ? "PRO" : "CLIENT"}
+                <View style={[
+                  styles.roleLabel, 
+                  { 
+                    backgroundColor: 
+                      uRole === "admin" ? colors.secondary + "20" :
+                      isProvider ? colors.primary + "08" : 
+                      colors.primary + "05" 
+                  }
+                ]}>
+                  <Text style={[
+                    styles.roleLabelText, 
+                    { 
+                      color: uRole === "admin" ? colors.secondary : colors.primary, 
+                      fontFamily: "Inter_800ExtraBold" 
+                    }
+                  ]}>
+                    {uRole === "admin" ? "ADMIN" : isProvider ? "PRESTADOR" : "CLIENTE"}
                   </Text>
                 </View>
               </View>
@@ -330,7 +372,9 @@ export default function AdminUsuarios() {
                       fontFamily: "Inter_700Bold" 
                     }
                   ]}>
-                    {u.verificationStatus || "PENDENTE"}
+                    {u.verificationStatus === "APPROVED" ? "APROVADO" : 
+                     u.verificationStatus === "REJECTED" ? "REJEITADO" : 
+                     "PENDENTE"}
                   </Text>
                 </View>
               </View>
@@ -388,9 +432,9 @@ export default function AdminUsuarios() {
                     </Text>
                   </View>
                   <Text style={[styles.profileName, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{selectedUser.name}</Text>
-                  <View style={[styles.modalRoleBadge, { backgroundColor: selectedUser.role === "provider" ? colors.secondary + "20" : colors.primary + "10" }]}>
-                    <Text style={[styles.modalRoleText, { color: selectedUser.role === "provider" ? colors.secondary : colors.primary, fontFamily: "Inter_800ExtraBold" }]}>
-                      {selectedUser.role === "provider" ? "PRESTADOR DE SERVIÇOS" : "CLIENTE"}
+                  <View style={[styles.modalRoleBadge, { backgroundColor: (selectedUser.role === "provider" || selectedUser.isProvider) ? colors.secondary + "20" : colors.primary + "10" }]}>
+                    <Text style={[styles.modalRoleText, { color: (selectedUser.role === "provider" || selectedUser.isProvider) ? colors.secondary : colors.primary, fontFamily: "Inter_800ExtraBold" }]}>
+                      {(selectedUser.role === "provider" || selectedUser.isProvider) ? "PRESTADOR DE SERVIÇOS" : "CLIENTE"}
                     </Text>
                   </View>
                 </View>
@@ -401,7 +445,11 @@ export default function AdminUsuarios() {
                     <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>Créditos</Text>
                   </View>
                   <View style={[styles.statItem, { backgroundColor: colors.primary + "03" }]}>
-                    <Text style={[styles.statValue, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{selectedUser.verificationStatus || "Pendente"}</Text>
+                    <Text style={[styles.statValue, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>
+                      {selectedUser.verificationStatus === "APPROVED" ? "Aprovado" : 
+                       selectedUser.verificationStatus === "REJECTED" ? "Rejeitado" : 
+                       "Pendente"}
+                    </Text>
                     <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>Status</Text>
                   </View>
                 </View>
@@ -445,32 +493,45 @@ export default function AdminUsuarios() {
                   </View>
                 )}
 
-                {selectedUser.role === "provider" && (selectedUser.documentUrl || selectedUser.selfieUrl) && (
+                {selectedUser.role === "provider" && (
                   <View style={styles.infoSection}>
                     <Text style={[styles.infoSectionTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Documentos de Identificação</Text>
                     <View style={styles.kycRow}>
-                      {selectedUser.documentUrl && (
-                        <View style={styles.kycItem}>
-                          <Text style={[styles.kycLabel, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>Documento (Frente)</Text>
-                          <TouchableOpacity 
-                            onPress={() => Alert.alert("Visualizar", "Abrir imagem do documento?")}
-                            style={[styles.kycImagePlaceholder, { backgroundColor: colors.primary + "08" }]}
-                          >
+                      <View style={styles.kycItem}>
+                        <Text style={[styles.kycLabel, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>Documento (Frente)</Text>
+                        <TouchableOpacity 
+                          disabled={!selectedUser.documentUrl}
+                          onPress={() => Alert.alert("Visualizar", "Abrir imagem do documento?")}
+                          style={[styles.kycImagePlaceholder, { backgroundColor: colors.primary + "05", borderStyle: 'dashed', borderWidth: 1, borderColor: colors.primary + "20" }]}
+                        >
+                          {selectedUser.documentUrl ? (
                             <Image source={{ uri: selectedUser.documentUrl }} style={styles.kycImage} />
-                          </TouchableOpacity>
-                        </View>
-                      )}
-                      {selectedUser.selfieUrl && (
-                        <View style={styles.kycItem}>
-                          <Text style={[styles.kycLabel, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>Selfie com Documento</Text>
-                          <TouchableOpacity 
-                            onPress={() => Alert.alert("Visualizar", "Abrir selfie?")}
-                            style={[styles.kycImagePlaceholder, { backgroundColor: colors.primary + "08" }]}
-                          >
+                          ) : (
+                            <View style={styles.kycMissing}>
+                              <MaterialCommunityIcons name="image-off-outline" size={24} color={colors.primary + "20"} />
+                              <Text style={{ fontSize: 10, color: colors.primary + "30" }}>Não enviado</Text>
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                      
+                      <View style={styles.kycItem}>
+                        <Text style={[styles.kycLabel, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>Selfie c/ Documento</Text>
+                        <TouchableOpacity 
+                          disabled={!selectedUser.selfieUrl}
+                          onPress={() => Alert.alert("Visualizar", "Abrir selfie?")}
+                          style={[styles.kycImagePlaceholder, { backgroundColor: colors.primary + "05", borderStyle: 'dashed', borderWidth: 1, borderColor: colors.primary + "20" }]}
+                        >
+                          {selectedUser.selfieUrl ? (
                             <Image source={{ uri: selectedUser.selfieUrl }} style={styles.kycImage} />
-                          </TouchableOpacity>
-                        </View>
-                      )}
+                          ) : (
+                            <View style={styles.kycMissing}>
+                              <MaterialCommunityIcons name="camera-off-outline" size={24} color={colors.primary + "20"} />
+                              <Text style={{ fontSize: 10, color: colors.primary + "30" }}>Não enviado</Text>
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </View>
                 )}
@@ -493,6 +554,33 @@ export default function AdminUsuarios() {
                   </View>
                 )}
 
+
+                {selectedUser.role === "provider" && selectedUser.verificationStatus === "PENDING" && (
+                  <View style={styles.infoSection}>
+                    <Text style={[styles.infoSectionTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Ações de Verificação</Text>
+                    <View style={styles.actionRow}>
+                      <TouchableOpacity
+                        style={[styles.actionBtn, { backgroundColor: colors.secondary, flex: 1.5 }]}
+                        onPress={() => {
+                          handleApprove(selectedUser);
+                          setDetailsVisible(false);
+                        }}
+                      >
+                        <MaterialCommunityIcons name="check-decagram" size={20} color={colors.primary} />
+                        <Text style={[styles.actionBtnText, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>APROVAR CONTA</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionBtn, { backgroundColor: "#ef444415", borderWidth: 1, borderColor: "#ef444420", flex: 1 }]}
+                        onPress={() => {
+                          handleReject(selectedUser);
+                          setDetailsVisible(false);
+                        }}
+                      >
+                        <Text style={[styles.actionBtnText, { color: "#ef4444", fontFamily: "Inter_800ExtraBold" }]}>REJEITAR</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
 
                 {selectedUser.role?.toLowerCase() !== "admin" && (
                   <View style={styles.actionSection}>
@@ -517,6 +605,41 @@ export default function AdminUsuarios() {
                         RESETAR SENHA
                       </Text>
                     </TouchableOpacity>
+
+                    {loggedUser?.email === "henrique@trampai.com.br" && selectedUser.role !== "admin" && (
+                      <TouchableOpacity 
+                        style={[styles.modalActionBtn, { backgroundColor: colors.secondary, marginBottom: 12 }]}
+                        onPress={() => handlePromoteToAdmin(selectedUser)}
+                      >
+                        <MaterialCommunityIcons name="shield-star" size={20} color={colors.primary} />
+                        <Text style={[styles.modalActionText, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>
+                          PROMOVER A ADMIN
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+
+                    {selectedUser.role !== "admin" && (
+                      <TouchableOpacity 
+                        style={[styles.modalActionBtn, { backgroundColor: colors.primary + "10", marginBottom: 12, borderWidth: 1, borderColor: colors.primary + "20" }]}
+                        onPress={async () => {
+                          const newRole = (selectedUser.role === "provider" || selectedUser.isProvider) ? "client" : "provider";
+                          try {
+                            await api.patch(`/admin/users/${selectedUser.id}/role`, { role: newRole });
+                            Alert.alert("Sucesso", `Cargo alterado para ${newRole === 'provider' ? 'Prestador' : 'Cliente'}`);
+                            fetchAdminData();
+                            setDetailsVisible(false);
+                          } catch (e: any) {
+                            const errorMsg = e.response?.data?.error || e.message || "Erro desconhecido";
+                            Alert.alert("Erro", `Falha ao alterar cargo: ${errorMsg}`);
+                          }
+                        }}
+                      >
+                        <MaterialCommunityIcons name="swap-horizontal" size={20} color={colors.primary} />
+                        <Text style={[styles.modalActionText, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>
+                          ALTERAR PARA {(selectedUser.role === "provider" || selectedUser.isProvider) ? "CLIENTE" : "PRESTADOR"}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
 
                     <TouchableOpacity 
                       style={[styles.modalActionBtn, { backgroundColor: selectedUser.isBanned ? colors.secondary : "#ef4444" }]}
@@ -785,8 +908,9 @@ const styles = StyleSheet.create({
   kycRow: { flexDirection: "row", gap: 12 },
   kycItem: { flex: 1, gap: 8 },
   kycLabel: { fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 },
-  kycImagePlaceholder: { height: 120, borderRadius: 16, overflow: "hidden" },
+  kycImagePlaceholder: { height: 160, borderRadius: 16, overflow: "hidden" },
   kycImage: { width: "100%", height: "100%", resizeMode: "cover" },
+  kycMissing: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 },
   portfolioScroll: { gap: 12 },
   portfolioItem: { width: 140, gap: 8 },
   portfolioImage: { width: 140, height: 100, borderRadius: 12 },

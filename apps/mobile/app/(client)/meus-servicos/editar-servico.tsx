@@ -103,8 +103,9 @@ export default function EditarServico() {
     }
   }
 
-  async function pickImage() {
-    if (images.length >= 3) return;
+  async function pickImage(index?: number) {
+    const maxImages = 4;
+    if (typeof index !== 'number' && images.length >= maxImages) return;
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
@@ -115,7 +116,15 @@ export default function EditarServico() {
 
     if (!result.canceled) {
       const asset = result.assets[0];
-      setImages([...images, { uri: asset.uri, base64: asset.base64, isNew: true }]);
+      const newImage = { uri: asset.uri, base64: asset.base64, isNew: true };
+      
+      if (typeof index === 'number' && index < images.length) {
+        const newImages = [...images];
+        newImages[index] = newImage;
+        setImages(newImages);
+      } else {
+        setImages([...images, newImage]);
+      }
       Haptics.selectionAsync();
     }
   }
@@ -326,12 +335,23 @@ export default function EditarServico() {
                 numberOfLines={4}
                 placeholder="Explique o que precisa ser feito..."
               />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+                <Text style={{ fontSize: 11, color: description.length < 20 ? "#ef4444" : colors.secondary, fontFamily: "Inter_600SemiBold" }}>
+                  Mínimo 20 caracteres
+                </Text>
+                <Text style={{ fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_500Medium" }}>
+                  {description.length} caracteres
+                </Text>
+              </View>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Fotos do Serviço</Text>
+              <Text style={[styles.label, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Fotos do Serviço (Máx 4)</Text>
               <View style={styles.bentoGrid}>
-                <TouchableOpacity style={[styles.mainUpload, { borderColor: colors.navy + "20" }]} onPress={pickImage}>
+                <TouchableOpacity 
+                  style={[styles.mainUpload, { borderColor: colors.navy + "20" }]} 
+                  onPress={() => pickImage(0)}
+                >
                   {images[0] ? (
                     <View style={{ flex: 1, width: '100%' }}>
                       <Image source={{ uri: images[0].uri }} style={styles.uploadedImg} />
@@ -346,27 +366,26 @@ export default function EditarServico() {
                     </View>
                   )}
                 </TouchableOpacity>
+
                 <View style={styles.secondaryUploads}>
-                  <TouchableOpacity style={[styles.subUpload, { borderColor: colors.navy + "20" }]} onPress={pickImage}>
-                    {images[1] ? (
-                      <View style={{ flex: 1, width: '100%' }}>
-                        <Image source={{ uri: images[1].uri }} style={styles.uploadedImg} />
-                        <TouchableOpacity style={styles.removeBadge} onPress={() => removeImage(1)}>
-                          <MaterialCommunityIcons name="close-circle" size={20} color="#ef4444" />
-                        </TouchableOpacity>
-                      </View>
-                    ) : <MaterialCommunityIcons name="plus" size={20} color={colors.navy + "40"} />}
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.subUpload, { borderColor: colors.navy + "20" }]} onPress={pickImage}>
-                    {images[2] ? (
-                      <View style={{ flex: 1, width: '100%' }}>
-                        <Image source={{ uri: images[2].uri }} style={styles.uploadedImg} />
-                        <TouchableOpacity style={styles.removeBadge} onPress={() => removeImage(2)}>
-                          <MaterialCommunityIcons name="close-circle" size={20} color="#ef4444" />
-                        </TouchableOpacity>
-                      </View>
-                    ) : <MaterialCommunityIcons name="plus" size={20} color={colors.navy + "40"} />}
-                  </TouchableOpacity>
+                  {[1, 2, 3].map((idx) => (
+                    <TouchableOpacity 
+                      key={idx}
+                      style={[styles.subUpload, { borderColor: colors.navy + "20" }]} 
+                      onPress={() => pickImage(idx)}
+                    >
+                      {images[idx] ? (
+                        <View style={{ flex: 1, width: '100%' }}>
+                          <Image source={{ uri: images[idx].uri }} style={styles.uploadedImg} />
+                          <TouchableOpacity style={styles.removeBadge} onPress={() => removeImage(idx)}>
+                            <MaterialCommunityIcons name="close-circle" size={20} color="#ef4444" />
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <MaterialCommunityIcons name="plus" size={20} color={colors.navy + "40"} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
                 </View>
               </View>
             </View>
@@ -418,9 +437,9 @@ const styles = StyleSheet.create({
   saveBtnText: { color: "#FFF", fontSize: 16 },
   errorText: { color: "#ef4444", fontSize: 13, textAlign: "center", marginBottom: 15, fontFamily: "Inter_600SemiBold" },
   row: { flexDirection: "row", alignItems: "center" },
-  bentoGrid: { flexDirection: "row", height: 160, gap: 12 },
-  mainUpload: { flex: 2, borderWidth: 2, borderStyle: 'dashed', borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fafafa' },
-  secondaryUploads: { flex: 1, gap: 12 },
+  bentoGrid: { flexDirection: "row", height: 180, gap: 12 },
+  mainUpload: { flex: 1.5, borderWidth: 2, borderStyle: 'dashed', borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fafafa' },
+  secondaryUploads: { flex: 1, gap: 8 },
   subUpload: { flex: 1, borderWidth: 2, borderStyle: 'dashed', borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fafafa' },
   uploadedImg: { width: '100%', height: '100%', borderRadius: 10 },
   removeBadge: { position: 'absolute', top: 5, right: 5, backgroundColor: '#fff', borderRadius: 12 },

@@ -453,9 +453,7 @@ router.post("/admin/users/:id/reset-password", authenticate, isAdmin, auditLog("
 
 
 // Atualizar verificação do usuário
-// Atualizar verificação do usuário
 router.patch("/admin/users/:id/verify", authenticate, isAdmin, auditLog("VERIFY_USER", "USER"), async (req, res) => {
-
   try {
     const id = req.params.id as string;
     const { status } = req.body;
@@ -471,6 +469,37 @@ router.patch("/admin/users/:id/verify", authenticate, isAdmin, auditLog("VERIFY_
     return res.json(updatedUser);
   } catch (err) {
     return res.status(500).json({ error: "Erro ao atualizar status do usuário" });
+  }
+});
+
+// Alterar cargo do usuário (Super Admin Only para cargo admin)
+router.patch("/admin/users/:id/role", authenticate, isAdmin, auditLog("UPDATE_USER_ROLE", "USER"), async (req: AuthRequest, res: any) => {
+  try {
+    const id = req.params.id as string;
+    const { role } = req.body;
+
+    // Trava de segurança: apenas Henrique pode promover a Admin
+    if (role === "admin" && req.user?.email !== "henrique@trampai.com.br") {
+      return res.status(403).json({ error: "Apenas o Super Admin (Henrique) pode promover outros administradores." });
+    }
+
+    if (!["client", "provider", "admin"].includes(role)) {
+      return res.status(400).json({ error: "Cargo inválido" });
+    }
+
+    const [updatedUser] = await (db.update(users)
+      .set({ 
+        role, 
+        isProvider: role === "provider",
+        updatedAt: new Date() 
+      })
+      .where(eq(users.id, id))
+      .returning() as Promise<any[]>);
+
+    return res.json(updatedUser);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erro ao atualizar cargo do usuário" });
   }
 });
 
@@ -514,10 +543,18 @@ router.get("/admin/jobs", authenticate, isAdmin, async (req, res) => {
         title: jobs.title,
         status: jobs.status,
         location: jobs.location,
+        description: jobs.description,
         budget: jobs.budget,
         createdAt: jobs.createdAt,
         category: { id: categories.id, name: categories.name, icon: categories.icon },
-        client: { id: users.id, name: users.name, avatarUrl: users.avatarUrl },
+        client: { 
+          id: users.id, 
+          name: users.name, 
+          email: users.email,
+          phone: users.phone,
+          avatarUrl: users.avatarUrl,
+          jobsPostedCount: users.jobsPostedCount
+        },
       })
       .from(jobs)
       .innerJoin(categories, eq(jobs.categoryId, categories.id))

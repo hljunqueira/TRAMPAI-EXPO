@@ -121,7 +121,10 @@ router.post("/auth/login", async (req: any, res: any) => {
       return res.status(401).json({ error: "Credenciais inválidas" });
     }
 
-    const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET);
+    const token = jwt.sign(
+      { userId: user.id, role: user.role, email: user.email },
+      JWT_SECRET
+    );
     
     // @ts-ignore - remover password do retorno
     delete user.password;
@@ -178,7 +181,10 @@ router.post("/auth/google", async (req: any, res: any) => {
         .returning() as Promise<any[]>);
     }
 
-    const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET);
+    const token = jwt.sign(
+      { userId: user.id, role: user.role, email: user.email },
+      JWT_SECRET
+    );
     
     // @ts-ignore
     delete user.password;
