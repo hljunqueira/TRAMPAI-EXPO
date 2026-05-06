@@ -44,7 +44,7 @@ router.post("/payments/checkout", authenticate, async (req: AuthRequest, res: an
 
     console.log("💳 [Checkout] Criando sessão no Stripe para:", pkg.name);
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
+      payment_method_types: ["card", "pix"],
       line_items: [
         {
           price_data: {
