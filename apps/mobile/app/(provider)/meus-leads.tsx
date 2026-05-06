@@ -104,7 +104,7 @@ export default function MeusLeads() {
       <FlatList
         data={filteredLeads}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={[styles.list, { paddingBottom: 100 + insets.bottom }]}
+        contentContainerStyle={[styles.list, { paddingBottom: 40 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FF6B35" />}
         ListEmptyComponent={

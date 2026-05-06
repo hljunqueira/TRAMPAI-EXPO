@@ -144,6 +144,14 @@ export default function LoginScreen() {
               onChangeText={setPassword}
               secureTextEntry
             />
+            {!isRegister && (
+              <TouchableOpacity 
+                onPress={() => router.push("/esqueci-senha")}
+                style={{ alignSelf: "flex-end", marginTop: 8 }}
+              >
+                <Text style={{ color: "#F7EFCF", fontSize: 13, fontFamily: "Inter_600SemiBold" }}>Esqueci minha senha</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}

@@ -58,6 +58,7 @@
   },
   "dependencies": {
     "@react-native-google-signin/google-signin": "^16.1.2",
-    "expo-dev-client": "^55.0.30"
+    "expo-dev-client": "^55.0.30",
+    "date-fns": "^4.1.0"
   }
 }

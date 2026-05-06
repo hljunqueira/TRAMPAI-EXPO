@@ -1,3 +1,6 @@
+import { db, notifications, users } from "@workspace/db";
+import { eq } from "drizzle-orm";
+
 /**
  * Envia notificações push via Expo API
  */
@@ -29,5 +32,34 @@ export async function sendPushNotifications(tokens: string[], title: string, bod
   } catch (error) {
     console.error("Erro ao enviar notificações push:", error);
     return { success: false, error };
+  }
+}
+
+/**
+ * Cria uma notificação no banco e tenta enviar push se o usuário tiver tokens
+ */
+export async function createNotification(userId: string, title: string, body: string, type: string, data?: any) {
+  try {
+    // 1. Salvar no banco
+    const [notif] = await db.insert(notifications).values({
+      userId,
+      title,
+      body,
+      type,
+    }).returning();
+
+    // 2. Buscar tokens do usuário
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    
+    if (user?.pushToken) {
+      // Se tiver múltiplos tokens (ex: array), ou apenas um
+      const tokens = Array.isArray(user.pushToken) ? user.pushToken : [user.pushToken];
+      await sendPushNotifications(tokens, title, body, { ...data, notificationId: notif.id });
+    }
+
+    return notif;
+  } catch (error) {
+    console.error("Erro ao criar notificação:", error);
+    return null;
   }
 }

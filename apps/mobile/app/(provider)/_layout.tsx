@@ -18,26 +18,29 @@ export default function ProviderLayout() {
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.mutedForeground,
         tabBarStyle: {
-          position: "absolute",
-          backgroundColor: isIOS ? "transparent" : colors.card,
-          borderTopWidth: 0,
-          elevation: 0,
+          backgroundColor: colors.card,
+          borderTopWidth: 1,
+          borderTopColor: colors.border + "20",
+          elevation: 8,
+          height: isIOS ? 88 : 64,
+          paddingBottom: isIOS ? 30 : 10,
+          paddingTop: 10,
           ...(isWeb ? { height: 84 } : {}),
         },
         tabBarLabelStyle: {
-          fontFamily: "Inter_500Medium",
+          fontFamily: "Inter_600SemiBold",
           fontSize: 11,
         },
         tabBarBackground: () =>
           isIOS ? (
             <BlurView
-              intensity={95}
+              intensity={80}
               tint={isDark ? "dark" : "light"}
               style={StyleSheet.absoluteFill}
             />
-          ) : isWeb ? (
+          ) : (
             <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.card }]} />
-          ) : null,
+          ),
       }}
     >
       <Tabs.Screen

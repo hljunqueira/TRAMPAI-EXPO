@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
-import React, { useState, useMemo } from "react";
+import { router, useFocusEffect } from "expo-router";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   FlatList,
   Linking,
@@ -21,6 +21,8 @@ import { SUGGESTED_CATEGORIES, UNLOCK_COSTS } from "@/constants/categories";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { useListJobs } from "@workspace/api-client-react";
+import * as SecureStore from "expo-secure-store";
+import { API_BASE_URL } from "@/context/AuthContext";
 import type { UnlockType } from "@/types";
 import type { Job } from "@workspace/api-client-react";
 
@@ -37,6 +39,26 @@ export default function Mural() {
   const [unlocking, setUnlocking] = useState(false);
   const [unlockResult, setUnlockResult] = useState<any | null>(null);
   const [unlockError, setUnlockError] = useState("");
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      checkNotifications();
+    }, [])
+  );
+
+  async function checkNotifications() {
+    try {
+      const token = await SecureStore.getItemAsync("trampai_auth_token");
+      const res = await fetch(`${API_BASE_URL}/api/notifications`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUnreadCount(data.filter((n: any) => !n.read).length);
+      }
+    } catch (e) {}
+  }
 
   const isVerified = user?.verificationStatus === "APPROVED" || user?.role === "admin";
 
@@ -124,8 +146,14 @@ export default function Mural() {
               <MaterialCommunityIcons name="swap-horizontal" size={22} color={colors.primary} />
             </TouchableOpacity>
           )}
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity 
+            style={styles.iconBtn}
+            onPress={() => router.push("/notificacoes")}
+          >
             <MaterialCommunityIcons name="bell-outline" size={24} color={colors.primary} />
+            {unreadCount > 0 && (
+              <View style={[styles.badge, { backgroundColor: colors.accent }]} />
+            )}
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.initialsAvatar, { backgroundColor: colors.primary }]}
@@ -141,7 +169,7 @@ export default function Mural() {
       <FlatList
         data={visibleJobs}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={[styles.list, { paddingBottom: 120 + insets.bottom }]}
+        contentContainerStyle={[styles.list, { paddingBottom: 40 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={colors.accent} />}
         ListHeaderComponent={
@@ -408,6 +436,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   list: { padding: 20 },
+  badge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
   pageHeader: { marginBottom: 24 },
   titleSection: { marginBottom: 20 },
   pageTitle: { fontSize: 28 },

@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { logger } from "../lib/logger";
-import { sendVerificationEmail } from "../utils/mail";
+import { sendVerificationEmail, sendForgotPasswordEmail } from "../utils/mail";
 import { authenticate, AuthRequest } from "../middlewares/auth";
 import { OAuth2Client } from "google-auth-library";
 import { generateReferralCode } from "../utils/referral";
@@ -277,6 +277,67 @@ router.patch("/auth/me", authenticate, async (req: AuthRequest, res: any) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Erro ao atualizar perfil" });
+  }
+});
+
+// Solicitar recuperação de senha
+router.post("/auth/forgot-password", async (req: any, res: any) => {
+  try {
+    const { email } = req.body;
+    
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    
+    // Por segurança, não informamos se o e-mail existe ou não
+    if (!user) {
+      return res.json({ message: "Se este e-mail estiver cadastrado, você receberá instruções para redefinir sua senha." });
+    }
+
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const resetExpires = new Date(Date.now() + 3600000); // 1 hora de validade
+
+    await db.update(users)
+      .set({ 
+        resetPasswordToken: resetToken, 
+        resetPasswordExpires: resetExpires 
+      })
+      .where(eq(users.id, user.id));
+
+    await sendForgotPasswordEmail(email, resetToken);
+
+    return res.json({ message: "Se este e-mail estiver cadastrado, você receberá instruções para redefinir sua senha." });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erro ao processar solicitação" });
+  }
+});
+
+// Redefinir senha com o token
+router.post("/auth/reset-password", async (req: any, res: any) => {
+  try {
+    const { token, password } = req.body;
+
+    const [user] = await db.select()
+      .from(users)
+      .where(eq(users.resetPasswordToken, token));
+
+    if (!user || !user.resetPasswordExpires || user.resetPasswordExpires < new Date()) {
+      return res.status(400).json({ error: "Token inválido ou expirado" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await db.update(users)
+      .set({ 
+        password: hashedPassword, 
+        resetPasswordToken: null, 
+        resetPasswordExpires: null 
+      })
+      .where(eq(users.id, user.id));
+
+    return res.json({ message: "Senha redefinida com sucesso!" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erro ao redefinir senha" });
   }
 });
 

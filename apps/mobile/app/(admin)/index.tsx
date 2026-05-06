@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import React from "react";
 import {
   ActivityIndicator,
@@ -18,6 +18,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { SimpleChart } from "@/components/admin/SimpleChart";
+import * as SecureStore from "expo-secure-store";
+import { API_BASE_URL } from "@/context/AuthContext";
 
 
 export default function AdminDashboard() {
@@ -32,6 +34,26 @@ export default function AdminDashboard() {
   } = useAuth();
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = React.useState(false);
+  const [unreadCount, setUnreadCount] = React.useState(0);
+
+  async function checkNotifications() {
+    try {
+      const token = await SecureStore.getItemAsync("trampai_auth_token");
+      const res = await fetch(`${API_BASE_URL}/api/notifications`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUnreadCount(data.filter((n: any) => !n.read).length);
+      }
+    } catch (e) {}
+  }
+
+  useFocusEffect(
+    React.useCallback(() => {
+      checkNotifications();
+    }, [])
+  );
   
   React.useEffect(() => {
     fetchAdminData();
@@ -79,6 +101,15 @@ export default function AdminDashboard() {
         </View>
 
         <View style={styles.headerRight}>
+          <TouchableOpacity 
+            style={styles.iconBtn}
+            onPress={() => router.push("/notificacoes")}
+          >
+            <MaterialCommunityIcons name="bell-outline" size={24} color={colors.primary} />
+            {unreadCount > 0 && (
+              <View style={[styles.badge, { backgroundColor: colors.accent }]} />
+            )}
+          </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.initialsAvatar, { backgroundColor: colors.primary }]}
             onPress={() => router.push("/(admin)/perfil")}
@@ -438,5 +469,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 32,
     gap: 8,
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: "#fff",
   },
 });

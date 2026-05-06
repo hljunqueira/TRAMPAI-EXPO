@@ -6,7 +6,7 @@ import { authenticate, isAdmin, AuthRequest } from "../middlewares/auth";
 import { auditLog } from "../middlewares/audit";
 import bcrypt from "bcryptjs";
 import { sendPasswordResetEmail } from "../utils/mail";
-import { sendPushNotifications } from "../utils/notifications";
+import { sendPushNotifications, createNotification } from "../utils/notifications";
 
 
 
@@ -465,6 +465,20 @@ router.patch("/admin/users/:id/verify", authenticate, isAdmin, auditLog("VERIFY_
       })
       .where(eq(users.id, id))
       .returning() as Promise<any[]>);
+
+    // Notificar usuário sobre o status da verificação
+    (async () => {
+      try {
+        const title = status === "APPROVED" ? "Conta Verificada! ✅" : "Verificação Recusada ❌";
+        const body = status === "APPROVED" 
+          ? "Parabéns! Sua conta foi aprovada e você já pode desbloquear leads." 
+          : "Houve um problema com seus documentos. Verifique seu perfil para mais detalhes.";
+        
+        await createNotification(id, title, body, "verification", { status });
+      } catch (e) {
+        console.error("Erro ao notificar usuário sobre verificação:", e);
+      }
+    })();
 
     return res.json(updatedUser);
   } catch (err) {

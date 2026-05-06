@@ -7,3 +7,4 @@ export * from "./transactions";
 export * from "./app_config";
 export * from "./credit_packages";
 export * from "./audit_logs";
+export * from "./notifications";

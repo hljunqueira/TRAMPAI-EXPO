@@ -3,6 +3,7 @@ import { db, users, creditPackages, transactions, leads, jobs, categories, revie
 import { eq, sql, desc } from "drizzle-orm";
 import { authenticate, AuthRequest } from "../middlewares/auth";
 import { supabase } from "../lib/supabase";
+import { createNotification } from "../utils/notifications";
 
 const router = Router();
 
@@ -131,6 +132,21 @@ router.post("/packages/buy", authenticate, async (req: AuthRequest, res: any) =>
         description,
       });
     });
+
+    // Notificar o usuário sobre a compra
+    (async () => {
+      try {
+        await createNotification(
+          userId as string,
+          "Créditos Adicionados! 💰",
+          `Você recebeu ${creditsToAdd} créditos com sucesso.`,
+          "purchase",
+          { credits: creditsToAdd }
+        );
+      } catch (e) {
+        console.error("Erro ao notificar usuário sobre compra:", e);
+      }
+    })();
 
     return res.json({ success: true, newBalance: user.creditBalance + creditsToAdd });
   } catch (err) {

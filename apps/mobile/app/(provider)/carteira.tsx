@@ -180,7 +180,7 @@ export default function Carteira() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 100 + insets.bottom }]} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 40 + insets.bottom }]} showsVerticalScrollIndicator={false}>
         {/* Balance Hero Section */}
         <View style={[styles.balanceHero, { backgroundColor: "#FFF" }]}>
           <Text style={[styles.balanceLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Saldo Disponível</Text>

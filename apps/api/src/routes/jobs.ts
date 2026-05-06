@@ -5,6 +5,8 @@ import { authenticate, AuthRequest } from "../middlewares/auth";
 import { getConfig } from "./admin";
 import { CONFIG_KEYS } from "@workspace/db/schema";
 import { sanitizeDescription } from "../utils/anti-fraud";
+import { createNotification } from "../utils/notifications";
+import { and } from "drizzle-orm";
 
 
 
@@ -62,7 +64,6 @@ router.post("/jobs", authenticate, async (req: AuthRequest, res: any) => {
     const [newJob] = await db.insert(jobs).values({
       title,
       description: sanitizeDescription(description),
-
       categoryId,
       clientId,
       budget,
@@ -70,6 +71,30 @@ router.post("/jobs", authenticate, async (req: AuthRequest, res: any) => {
       images,
       status: "open",
     }).returning();
+
+    // Notificar prestadores da categoria (async para não travar a resposta)
+    (async () => {
+      try {
+        const [cat] = await db.select().from(categories).where(eq(categories.id, categoryId));
+        const categoryName = cat?.name || "Nova Oportunidade";
+
+        // Buscar prestadores que possam estar interessados (simplificado: todos que são providers)
+        // No futuro podemos filtrar por categorias de interesse
+        const providers = await db.select({ id: users.id }).from(users).where(eq(users.role, "provider"));
+        
+        for (const p of providers) {
+          await createNotification(
+            p.id,
+            `Novo Trampo: ${categoryName}`,
+            `${title} disponível agora no mural!`,
+            "new_job",
+            { jobId: newJob.id }
+          );
+        }
+      } catch (e) {
+        console.error("Erro ao notificar prestadores:", e);
+      }
+    })();
 
     return res.status(201).json(newJob);
   } catch (err) {

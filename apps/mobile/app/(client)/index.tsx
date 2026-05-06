@@ -1,6 +1,6 @@
 import * as SecureStore from "expo-secure-store";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import React from "react";
 import {
   Platform,
@@ -20,6 +20,26 @@ export default function ClientDashboard() {
   const colors = useColors();
   const { user, services, activeMode, switchActiveMode, fetchMyData } = useAuth();
   const insets = useSafeAreaInsets();
+  const [unreadCount, setUnreadCount] = React.useState(0);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      checkNotifications();
+    }, [])
+  );
+
+  async function checkNotifications() {
+    try {
+      const token = await SecureStore.getItemAsync("trampai_auth_token");
+      const res = await fetch(`${API_BASE_URL}/api/notifications`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUnreadCount(data.filter((n: any) => !n.read).length);
+      }
+    } catch (e) {}
+  }
 
   const myServices = services.filter((s) => s.clientId === user?.id);
   const openServices = myServices.filter((s) => s.status === "open");
@@ -68,8 +88,14 @@ export default function ClientDashboard() {
               <Text style={[styles.switchModeText, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>Cliente</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity 
+            style={styles.iconBtn}
+            onPress={() => router.push("/notificacoes")}
+          >
             <MaterialCommunityIcons name="bell-outline" size={24} color={colors.primary} />
+            {unreadCount > 0 && (
+              <View style={[styles.badge, { backgroundColor: colors.accent }]} />
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -187,7 +213,7 @@ export default function ClientDashboard() {
               <View key={s.id} style={[styles.exclusiveCard, { backgroundColor: colors.navy + "05", borderColor: colors.navy + "20" }]}>
                 <View style={styles.exclusiveHeader}>
                   <Text style={[styles.exclusiveJobTitle, { color: colors.navy, fontFamily: "Inter_600SemiBold" }]}>{s.title}</Text>
-                  <View style={[styles.badge, { backgroundColor: colors.accent }]}>
+                  <View style={[styles.exclusiveBadge, { backgroundColor: colors.accent }]}>
                     <Text style={[styles.badgeText, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>EXCLUSIVO</Text>
                   </View>
                 </View>
@@ -437,10 +463,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   exclusiveJobTitle: { fontSize: 15, flex: 1, marginRight: 8 },
-  badge: {
+  exclusiveBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
+  },
+  badge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: "#fff",
   },
   badgeText: { fontSize: 10 },
   exclusiveActions: {
