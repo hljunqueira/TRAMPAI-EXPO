@@ -29,7 +29,7 @@ router.post("/payments/checkout", authenticate, async (req: AuthRequest, res: an
     const { packageId } = req.body;
     console.log("🛒 [Checkout] Iniciando para pacote:", packageId);
 
-    if (!req.user?.id) {
+    if (!req.user?.userId) {
       console.log("❌ [Checkout] Usuário não identificado no req");
       return res.status(401).json({ error: "Não autorizado" });
     }
@@ -62,7 +62,7 @@ router.post("/payments/checkout", authenticate, async (req: AuthRequest, res: an
       success_url: `${process.env.APP_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.APP_URL}/payment-cancel`,
       metadata: {
-        userId: req.user.id,
+        userId: req.user.userId,
         packageId: pkg.id,
       },
     });
