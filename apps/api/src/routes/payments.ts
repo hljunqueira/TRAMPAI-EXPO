@@ -27,17 +27,22 @@ router.get("/payments/packages", async (req, res: any) => {
 router.post("/payments/checkout", authenticate, async (req: AuthRequest, res: any) => {
   try {
     const { packageId } = req.body;
-    const userId = req.user?.userId;
+    console.log("🛒 [Checkout] Iniciando para pacote:", packageId);
 
-    if (!userId) return res.status(401).json({ error: "Não autorizado" });
+    if (!req.user?.id) {
+      console.log("❌ [Checkout] Usuário não identificado no req");
+      return res.status(401).json({ error: "Não autorizado" });
+    }
 
-    const [pkg] = await db
-      .select()
-      .from(creditPackages)
-      .where(eq(creditPackages.id, packageId));
+    console.log("🔍 [Checkout] Buscando pacote no banco...");
+    const [pkg] = await db.select().from(creditPackages).where(eq(creditPackages.id, packageId)).limit(1);
 
-    if (!pkg) return res.status(404).json({ error: "Pacote não encontrado" });
+    if (!pkg) {
+      console.log("❌ [Checkout] Pacote não encontrado:", packageId);
+      return res.status(404).json({ error: "Pacote não encontrado" });
+    }
 
+    console.log("💳 [Checkout] Criando sessão no Stripe para:", pkg.name);
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [
@@ -45,10 +50,10 @@ router.post("/payments/checkout", authenticate, async (req: AuthRequest, res: an
           price_data: {
             currency: "brl",
             product_data: {
-              name: pkg.name,
-              description: `${pkg.credits + pkg.bonusCredits} créditos para o Trampaí`,
+              name: `Créditos Trampaí - ${pkg.name}`,
+              description: `${pkg.credits + pkg.bonusCredits} créditos para sua conta`,
             },
-            unit_amount: pkg.priceCents,
+            unit_amount: Math.round(pkg.priceCents),
           },
           quantity: 1,
         },
@@ -56,18 +61,17 @@ router.post("/payments/checkout", authenticate, async (req: AuthRequest, res: an
       mode: "payment",
       success_url: `${process.env.APP_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.APP_URL}/payment-cancel`,
-      customer_email: req.user.email,
       metadata: {
-        userId: userId,
+        userId: req.user.id,
         packageId: pkg.id,
-        credits: (pkg.credits + pkg.bonusCredits).toString(),
       },
     });
 
+    console.log("✅ [Checkout] Sessão criada com sucesso:", session.id);
     return res.json({ id: session.id, url: session.url });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Erro ao criar sessão de pagamento" });
+  } catch (err: any) {
+    console.error("❌ [Checkout] Erro fatal:", err);
+    return res.status(500).json({ error: "Erro ao criar sessão de pagamento", details: err.message });
   }
 });
 
