@@ -127,6 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const role = parsedUser.role?.toLowerCase();
         setActiveMode(role === "admin" ? "ADMIN" : role === "provider" ? "PROVIDER" : "CLIENT");
         fetchMyData();
+        if (role === "admin") fetchAdminData();
       }
     } catch (e) {
       console.error("Erro ao carregar sessão:", e);
@@ -301,6 +302,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const role = response.user.role?.toLowerCase();
       setActiveMode(role === "admin" ? "ADMIN" : role === "provider" ? "PROVIDER" : "CLIENT");
       fetchMyData();
+      if (role === "admin") fetchAdminData();
     }
   }
 

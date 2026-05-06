@@ -32,6 +32,10 @@ export default function AdminDashboard() {
   } = useAuth();
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = React.useState(false);
+  
+  React.useEffect(() => {
+    fetchAdminData();
+  }, []);
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
