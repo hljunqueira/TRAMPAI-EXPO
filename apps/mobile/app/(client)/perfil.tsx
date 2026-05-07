@@ -12,7 +12,6 @@ import {
   TouchableOpacity,
   View,
   ActivityIndicator,
-  Share,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
@@ -22,7 +21,7 @@ import { useImageUpload } from "@/hooks/useImageUpload";
 
 export default function ClientPerfil() {
   const colors = useColors();
-  const { user, logout, transactions, reviews, activeMode, switchActiveMode, fetchMyData, api } = useAuth();
+  const { user, logout, reviews, switchActiveMode, fetchMyData, api } = useAuth();
   const insets = useSafeAreaInsets();
   const { uploading, pickImage, takePhoto } = useImageUpload();
 
@@ -52,11 +51,6 @@ export default function ClientPerfil() {
       Alert.alert("Erro", "Não foi possível atualizar a foto de perfil.");
     }
   }
-
-  const myTransactions = transactions
-    .filter((t) => t.userId === user?.id)
-    .slice(-5)
-    .reverse();
 
   function handleLogout() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -96,7 +90,6 @@ export default function ClientPerfil() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Custom Header */}
       <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 20 : 10), borderBottomWidth: 1, borderBottomColor: colors.border + "30", backgroundColor: colors.background }]}>
         <View style={styles.headerLeft}>
           <Text style={[styles.headerLogo, { fontFamily: "Inter_800ExtraBold", color: colors.primary }]}>Perfil</Text>
@@ -125,7 +118,6 @@ export default function ClientPerfil() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 40 + insets.bottom }} showsVerticalScrollIndicator={false}>
-        {/* Profile Section */}
         <View style={[styles.profileHero, { backgroundColor: colors.card }]}>
           <TouchableOpacity style={styles.avatarWrapper} onPress={pickAvatarImage} disabled={uploading}>
             <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
@@ -145,32 +137,30 @@ export default function ClientPerfil() {
           </TouchableOpacity>
 
           <View style={{ alignItems: 'center' }}>
-            <View style={{ alignItems: 'center' }}>
-              <Text style={[styles.userName, { color: colors.primary, fontFamily: "Inter_800ExtraBold", textAlign: 'center' }]}>{user?.name}</Text>
-              
-              <View style={[styles.badgesRowBelow, { marginTop: 4 }]}>
-                {(!user?.reviewCount || user.reviewCount === 0) && (
-                  <View style={[styles.ratingChip, { backgroundColor: colors.secondary + "15" }]}>
-                    <MaterialCommunityIcons name="leaf" size={12} color={colors.secondary} />
-                    <Text style={[styles.ratingText, { color: colors.secondary, fontFamily: "Inter_700Bold" }]}>Novo</Text>
-                  </View>
-                )}
-                {user?.isPremium && (
-                  <View style={[styles.premiumBadge, { backgroundColor: colors.accent }]}>
-                    <MaterialCommunityIcons name="crown" size={12} color={colors.navy} />
-                    <Text style={[styles.premiumBadgeText, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>PREMIUM</Text>
-                  </View>
-                )}
-                {user?.reviewCount && user.reviewCount > 0 && (
-                  <View style={[styles.ratingChip, { backgroundColor: colors.secondary + "15" }]}>
-                    <MaterialCommunityIcons name="star" size={12} color={colors.secondary} />
-                    <Text style={[styles.ratingText, { color: colors.secondary, fontFamily: "Inter_700Bold" }]}>{user.rating}</Text>
-                  </View>
-                )}
-              </View>
-            </View>
+            <Text style={[styles.userName, { color: colors.primary, fontFamily: "Inter_800ExtraBold", textAlign: 'center' }]}>{user?.name}</Text>
             
-            <Text style={[styles.userEmail, { color: colors.mutedForeground, fontFamily: "Inter_400Regular", textAlign: 'center', marginBottom: 12 }]}>
+            <View style={[styles.badgesRowBelow, { marginTop: 4 }]}>
+              {(!user?.reviewCount || user.reviewCount === 0) && (
+                <View style={[styles.ratingChip, { backgroundColor: colors.secondary + "15" }]}>
+                  <MaterialCommunityIcons name="leaf" size={12} color={colors.secondary} />
+                  <Text style={[styles.ratingText, { color: colors.secondary, fontFamily: "Inter_700Bold" }]}>Novo</Text>
+                </View>
+              )}
+              {user?.isPremium && (
+                <View style={[styles.premiumBadge, { backgroundColor: colors.accent }]}>
+                  <MaterialCommunityIcons name="crown" size={12} color={colors.navy} />
+                  <Text style={[styles.premiumBadgeText, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>PREMIUM</Text>
+                </View>
+              )}
+              {user?.reviewCount && user.reviewCount > 0 && (
+                <View style={[styles.ratingChip, { backgroundColor: colors.secondary + "15" }]}>
+                  <MaterialCommunityIcons name="star" size={12} color={colors.secondary} />
+                  <Text style={[styles.ratingText, { color: colors.secondary, fontFamily: "Inter_700Bold" }]}>{String(user.rating || "0.0")}</Text>
+                </View>
+              )}
+            </View>
+
+            <Text style={[styles.userEmail, { color: colors.mutedForeground, fontFamily: "Inter_400Regular", textAlign: 'center', marginTop: 12, marginBottom: 12 }]}>
               {user?.email}
             </Text>
 
@@ -241,11 +231,9 @@ export default function ClientPerfil() {
           </TouchableOpacity>
         </View>
 
-
-
         <View style={[styles.sectionCard, { backgroundColor: "#FFF", marginBottom: 12 }]}>
           <Text style={[styles.sectionTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Avaliações Recebidas</Text>
-          {user?.reviewCount && reviews.length > 0 ? (
+          {user?.reviewCount && reviews && reviews.length > 0 ? (
             <View style={styles.reviewCard}>
               {reviews.map((rev: any) => (
                 <View key={rev.id} style={styles.reviewItem}>
@@ -321,22 +309,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   profileHero: { alignItems: "center", paddingTop: 24, paddingBottom: 24, paddingHorizontal: 20, gap: 12 },
   avatarWrapper: { position: "relative", marginBottom: 12 },
   avatarCircle: { width: 90, height: 90, borderRadius: 45, alignItems: "center", justifyContent: "center", shadowColor: "#0b1339", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 4, overflow: "hidden" },
   editBadge: { position: "absolute", bottom: 0, right: 0, width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "#FFF" },
-  verifiedBadge: { position: "absolute", top: -4, left: -4, width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "#FFF", zIndex: 10 },
-  headerInfo: { flex: 1 },
-  nameRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 4 },
-  badgesRowBelow: { flexDirection: "row", alignItems: "center", gap: 8 },
   userName: { fontSize: 20 },
+  badgesRowBelow: { flexDirection: "row", alignItems: "center", gap: 8 },
   ratingChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 100 },
   ratingText: { fontSize: 13 },
   premiumBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
@@ -351,7 +329,6 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 20, marginBottom: 2 },
   statLabel: { fontSize: 11 },
   statDivider: { width: 1, height: 24 },
-
   quickActionsVertical: { paddingHorizontal: 20, gap: 12, marginBottom: 24 },
   primaryActionFull: { flexDirection: "row", padding: 16, alignItems: "center", borderRadius: 20, gap: 16, shadowColor: "#e8c08a", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 10, elevation: 3 },
   secondaryActionFull: { flexDirection: "row", padding: 16, alignItems: "center", borderRadius: 20, borderWidth: 1.5, gap: 16 },
@@ -367,48 +344,11 @@ const styles = StyleSheet.create({
   reviewDate: { fontSize: 11 },
   reviewComment: { fontSize: 13, lineHeight: 18 },
   supportRow: { flexDirection: "row", alignItems: "center", gap: 16, paddingVertical: 8 },
-  growthBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", padding: 14, borderRadius: 16, gap: 10 },
-  growthBtnTitle: { fontSize: 15 },
   infoIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-
-  transactionsSection: {
-    marginHorizontal: 20,
-    borderRadius: 24,
-    padding: 20,
-    shadowColor: "#0b1339",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 2,
-  },
   sectionCard: { marginHorizontal: 20, borderRadius: 24, padding: 20, marginBottom: 16, shadowColor: "#0b1339", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
-  sectionHeader: { marginBottom: 16 },
   sectionTitle: { fontSize: 16, marginBottom: 12 },
   emptyPortfolio: { alignItems: "center", justifyContent: "center", paddingVertical: 24, borderWidth: 1, borderColor: "#00000008", borderRadius: 16, backgroundColor: "#FDFBF7", gap: 8 },
   emptyText: { fontSize: 13 },
-  txRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-    paddingVertical: 12,
-  },
-  txIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  txDesc: {
-    fontSize: 14,
-    marginBottom: 2,
-  },
-  txDate: {
-    fontSize: 12,
-  },
-  txAmount: {
-    fontSize: 16,
-  },
   logoutBtnFull: { 
     marginHorizontal: 20, 
     flexDirection: "row", 

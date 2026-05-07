@@ -365,7 +365,6 @@ export default function ProviderPerfil() {
           <View style={styles.headerInfo}>
             <View style={{ alignItems: 'center' }}>
               <Text style={[styles.userName, { color: colors.primary, fontFamily: "Inter_800ExtraBold", textAlign: 'center' }]}>{user?.name}</Text>
-              
               <View style={[styles.badgesRowBelow, { marginTop: 4 }]}>
                 {(!user?.reviewCount || user.reviewCount === 0) && (
                   <View style={[styles.ratingChip, { backgroundColor: colors.secondary + "15" }]}>
@@ -382,7 +381,7 @@ export default function ProviderPerfil() {
                 {user?.reviewCount && user.reviewCount > 0 && (
                   <View style={[styles.ratingChip, { backgroundColor: colors.secondary + "15" }]}>
                     <MaterialCommunityIcons name="star" size={12} color={colors.secondary} />
-                    <Text style={[styles.ratingText, { color: colors.secondary, fontFamily: "Inter_700Bold" }]}>{user.rating}</Text>
+                    <Text style={[styles.ratingText, { color: colors.secondary, fontFamily: "Inter_700Bold" }]}>{String(user.rating || "0.0")}</Text>
                   </View>
                 )}
               </View>
