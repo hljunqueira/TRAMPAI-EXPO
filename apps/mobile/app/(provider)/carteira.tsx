@@ -111,12 +111,18 @@ export default function CarteiraScreen() {
       const data = await res.json();
 
       if (res.ok && data.url) {
-        // Abrir o checkout no in-app browser
-        WebBrowser.openBrowserAsync(data.url);
+        // Abrir o checkout
+        try {
+          await WebBrowser.openBrowserAsync(data.url);
+        } catch (e) {
+          // Fallback para o navegador do sistema
+          Linking.openURL(data.url);
+        }
       } else {
         Alert.alert("Erro", data.error || "Não foi possível iniciar o pagamento.");
       }
     } catch (error) {
+      console.error(error);
       Alert.alert("Erro", "Falha na conexão.");
     } finally {
       setBuying(null);
