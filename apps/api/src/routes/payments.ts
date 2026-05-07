@@ -219,6 +219,15 @@ router.post("/payments/cakto/webhook", async (req: any, res: any) => {
     const payload = req.body;
     console.log("🔔 [Cakto Webhook] Recebido:", JSON.stringify(payload, null, 2));
 
+    // Validacao de seguranca (Webhook Secret)
+    const webhookSecret = process.env.CAKTO_WEBHOOK_SECRET;
+    const receivedSecret = payload.fields?.secret || payload.secret;
+    
+    if (webhookSecret && receivedSecret !== webhookSecret) {
+      console.warn("🔒 [Cakto Webhook] Secret invalido! Recebido:", receivedSecret);
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
     // O evento de compra aprovada na Cakto e 'purchase_approved'
     // Alguns webhooks da Cakto podem vir dentro de um array ou objeto 'event'
     const eventType = payload.event?.custom_id || payload.event_type; 
