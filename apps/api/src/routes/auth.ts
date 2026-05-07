@@ -363,6 +363,7 @@ router.patch("/auth/me", authenticate, async (req: AuthRequest, res: any) => {
     if (!userId) return res.status(401).json({ error: "Não autorizado" });
 
     const body = req.body;
+    console.log("DADOS RECEBIDOS PATCH ME:", JSON.stringify(body));
     
     const updateData: any = {
       updatedAt: new Date(),
@@ -389,17 +390,29 @@ router.patch("/auth/me", authenticate, async (req: AuthRequest, res: any) => {
       updateData.onboardingCompletedAt = new Date(body.onboardingCompletedAt);
     }
 
+    console.log("DADOS PARA UPDATE NO BANCO:", JSON.stringify(updateData));
 
-    const [updatedUser] = await (db.update(users)
+    const results = await (db.update(users)
       .set(updateData)
       .where(eq(users.id, userId as string))
       .returning() as Promise<any[]>);
 
+    console.log("RESULTADO DO BANCO:", JSON.stringify(results));
+
+    if (!results || results.length === 0) {
+      return res.status(404).json({ error: "Usuário não encontrado para atualização" });
+    }
+
+    const updatedUser = results[0];
+
     // @ts-ignore
-    delete updatedUser.password;
+    if (updatedUser && updatedUser.password) {
+      delete updatedUser.password;
+    }
+    
     return res.json(updatedUser);
   } catch (err) {
-    console.error(err);
+    console.error("ERRO DETALHADO NO PATCH ME:", err);
     return res.status(500).json({ error: "Erro ao atualizar perfil" });
   }
 });

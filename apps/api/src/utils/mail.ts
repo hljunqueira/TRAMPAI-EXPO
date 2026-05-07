@@ -32,7 +32,7 @@ export async function sendVerificationEmail(email: string, token: string) {
     });
 
     if (error) {
-      console.error("Erro ao enviar e-mail:", error);
+      console.error("ERRO DETALHADO RESEND:", JSON.stringify(error, null, 2));
       return { success: false, error };
     }
 
@@ -59,7 +59,7 @@ export async function sendPasswordResetEmail(email: string, newPassword: string)
     });
 
     if (error) {
-      console.error("Erro ao enviar e-mail de reset:", error);
+      console.error("ERRO DETALHADO RESET:", JSON.stringify(error, null, 2));
       return { success: false, error };
     }
 
@@ -97,7 +97,7 @@ export async function sendForgotPasswordEmail(email: string, token: string) {
     });
 
     if (error) {
-      console.error("Erro ao enviar e-mail de esqueci senha:", error);
+      console.error("ERRO DETALHADO ESQUECI:", JSON.stringify(error, null, 2));
       return { success: false, error };
     }
 

@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
   Image,
+  KeyboardAvoidingView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
@@ -22,7 +23,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { CATEGORIES } from "@/constants/categories";
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 5;
 
 type ProfileGoal = "CLIENT" | "PROVIDER" | "BOTH";
 
@@ -152,7 +153,7 @@ export default function OnboardingScreen() {
       }
     }
 
-    if (step < TOTAL_STEPS) {
+    if (step < (isProvider ? TOTAL_STEPS : 3)) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setStep((s) => s + 1);
     } else {
@@ -181,19 +182,6 @@ export default function OnboardingScreen() {
         referralCode: referralCode.trim() || undefined,
       });
 
-      // Se enviou fotos, chamar endpoint de documentos
-      if (isProvider && (docPhoto || selfiePhoto)) {
-        const token = await (require("expo-secure-store").getItemAsync("trampai_auth_token"));
-        await fetch("https://api.trampai.com.br/api/users/me/documents", {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify({ documentBase64: docPhoto, selfieBase64: selfiePhoto })
-        });
-      }
-
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/");
     } catch (e) {
@@ -217,256 +205,243 @@ export default function OnboardingScreen() {
         },
       ]}
     >
-      <View style={styles.progressBarWrapper}>
-        <View style={[styles.progressTrack, { backgroundColor: "#FFFFFF20" }]}>
-          <View
-            style={[
-              styles.progressFill,
-              {
-                width: `${progress * 100}%`,
-                backgroundColor: "#F69926",
-              },
-            ]}
-          />
-        </View>
-        <Text style={[styles.stepCounter, { color: "#FFFFFF90", fontFamily: "Inter_500Medium" }]}>
-          Progresso: {Math.round(progress * 100)}%
-        </Text>
-      </View>
-
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
-        <View style={styles.centerBlock}>
-          {step === 1 && (
-            <View style={styles.stepContainer}>
-              <Text style={[styles.stepTitle, { color: "#FFFFFF", fontFamily: "Inter_700Bold" }]}>Como quer ser chamado?</Text>
-              <Text style={[styles.stepSub, { color: "#FFFFFF90", fontFamily: "Inter_400Regular" }]}>Use seu nome real para gerar confiança</Text>
-              <View style={styles.inputGroup}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Seu nome completo"
-                  placeholderTextColor="#999"
-                  value={name}
-                  onChangeText={setName}
-                />
-              </View>
-            </View>
-          )}
+        <View style={styles.progressBarWrapper}>
+          <View style={[styles.progressTrack, { backgroundColor: "#FFFFFF20" }]}>
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${progress * 100}%`,
+                  backgroundColor: "#F69926",
+                },
+              ]}
+            />
+          </View>
+          <Text style={[styles.stepCounter, { color: "#FFFFFF90", fontFamily: "Inter_500Medium" }]}>
+            Progresso: {Math.round(progress * 100)}%
+          </Text>
+        </View>
 
-          {step === 1.5 && (
-            <View style={styles.stepContainer}>
-              <Text style={[styles.stepTitle, { color: "#FFFFFF", fontFamily: "Inter_700Bold" }]}>Tem um cupom ou indicação?</Text>
-              <Text style={[styles.stepSub, { color: "#FFFFFF90", fontFamily: "Inter_400Regular" }]}>Insira o código para ganhar bônus de boas-vindas</Text>
-              <View style={styles.inputGroup}>
-                <TextInput
-                  style={[styles.input, { textAlign: 'center', fontSize: 24, letterSpacing: 2, fontFamily: 'Inter_900Black' }]}
-                  placeholder="CÓDIGO (OPCIONAL)"
-                  placeholderTextColor="#999"
-                  value={referralCode}
-                  onChangeText={(t) => setReferralCode(t.toUpperCase())}
-                  autoCapitalize="characters"
-                />
-              </View>
-            </View>
-          )}
-
-          {step === 2 && (
-            <View style={styles.stepContainer}>
-              <Text style={[styles.stepTitle, { color: "#FFFFFF", fontFamily: "Inter_700Bold" }]}>Onde você está?</Text>
-              <Text style={[styles.stepSub, { color: "#FFFFFF90", fontFamily: "Inter_400Regular" }]}>Informe seu CEP para facilitar o preenchimento</Text>
-
-              <View style={styles.inputGroup}>
-                <View style={{ position: 'relative' }}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.centerBlock}>
+            {step === 1 && (
+              <View style={styles.stepContainer}>
+                <Text style={[styles.stepTitle, { color: "#FFFFFF", fontFamily: "Inter_700Bold" }]}>Como quer ser chamado?</Text>
+                <Text style={[styles.stepSub, { color: "#FFFFFF90", fontFamily: "Inter_400Regular" }]}>Use seu nome real para gerar confiança</Text>
+                <View style={styles.inputGroup}>
                   <TextInput
                     style={styles.input}
-                    placeholder="CEP"
+                    placeholder="Seu nome completo"
                     placeholderTextColor="#999"
-                    value={cep}
-                    onChangeText={handleCepChange}
-                    keyboardType="numeric"
+                    value={name}
+                    onChangeText={setName}
                   />
-                  {isFetchingCep && (
-                    <ActivityIndicator 
-                      style={{ position: 'absolute', right: 16, top: 18 }} 
-                      color="#F69926" 
-                    />
-                  )}
                 </View>
+              </View>
+            )}
 
-                <View style={{ flexDirection: 'row', gap: 12 }}>
-                  <TextInput 
-                    style={[styles.input, { flex: 2 }]} 
-                    placeholder="Cidade" 
-                    placeholderTextColor="#999" 
-                    value={city} 
-                    onChangeText={setCity} 
-                  />
-                  <TextInput 
-                    style={[styles.input, { flex: 1 }]} 
-                    placeholder="UF" 
-                    placeholderTextColor="#999" 
-                    value={state} 
-                    onChangeText={setState} 
-                    maxLength={2}
+            {step === 1.5 && (
+              <View style={styles.stepContainer}>
+                <Text style={[styles.stepTitle, { color: "#FFFFFF", fontFamily: "Inter_700Bold" }]}>Tem um cupom ou indicação?</Text>
+                <Text style={[styles.stepSub, { color: "#FFFFFF90", fontFamily: "Inter_400Regular" }]}>Insira o código para ganhar bônus de boas-vindas</Text>
+                <View style={styles.inputGroup}>
+                  <TextInput
+                    style={[styles.input, { textAlign: 'center', fontSize: 24, letterSpacing: 2, fontFamily: 'Inter_900Black' }]}
+                    placeholder="CÓDIGO (OPCIONAL)"
+                    placeholderTextColor="#999"
+                    value={referralCode}
+                    onChangeText={(t) => setReferralCode(t.toUpperCase())}
                     autoCapitalize="characters"
                   />
                 </View>
+              </View>
+            )}
 
-                <TextInput 
-                  style={styles.input} 
-                  placeholder="Bairro" 
-                  placeholderTextColor="#999" 
-                  value={neighborhood} 
-                  onChangeText={setNeighborhood} 
-                />
-                
-                <TextInput 
-                  style={styles.input} 
-                  placeholder="Endereço (Rua/Av)" 
-                  placeholderTextColor="#999" 
-                  value={address} 
-                  onChangeText={setAddress} 
-                />
+            {step === 2 && (
+              <View style={styles.stepContainer}>
+                <Text style={[styles.stepTitle, { color: "#FFFFFF", fontFamily: "Inter_700Bold" }]}>Onde você está?</Text>
+                <Text style={[styles.stepSub, { color: "#FFFFFF90", fontFamily: "Inter_400Regular" }]}>Informe seu CEP para facilitar o preenchimento</Text>
 
-                <View style={{ flexDirection: 'row', gap: 12 }}>
+                <View style={styles.inputGroup}>
+                  <View style={{ position: 'relative' }}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="CEP"
+                      placeholderTextColor="#999"
+                      value={cep}
+                      onChangeText={handleCepChange}
+                      keyboardType="numeric"
+                    />
+                    {isFetchingCep && (
+                      <ActivityIndicator 
+                        style={{ position: 'absolute', right: 16, top: 18 }} 
+                        color="#F69926" 
+                      />
+                    )}
+                  </View>
+
+                  <View style={{ flexDirection: 'row', gap: 12 }}>
+                    <TextInput 
+                      style={[styles.input, { flex: 2 }]} 
+                      placeholder="Cidade" 
+                      placeholderTextColor="#999" 
+                      value={city} 
+                      onChangeText={setCity} 
+                    />
+                    <TextInput 
+                      style={[styles.input, { flex: 1 }]} 
+                      placeholder="UF" 
+                      placeholderTextColor="#999" 
+                      value={state} 
+                      onChangeText={setState} 
+                      maxLength={2}
+                      autoCapitalize="characters"
+                    />
+                  </View>
+
                   <TextInput 
-                    style={[styles.input, { flex: 1 }]} 
-                    placeholder="Número" 
+                    style={styles.input} 
+                    placeholder="Bairro" 
                     placeholderTextColor="#999" 
-                    value={number} 
-                    onChangeText={setNumber} 
-                    keyboardType="numeric"
+                    value={neighborhood} 
+                    onChangeText={setNeighborhood} 
                   />
+                  
                   <TextInput 
-                    style={[styles.input, { flex: 2 }]} 
-                    placeholder="Complemento" 
+                    style={styles.input} 
+                    placeholder="Endereço (Rua/Av)" 
                     placeholderTextColor="#999" 
-                    value={complement} 
-                    onChangeText={setComplement} 
+                    value={address} 
+                    onChangeText={setAddress} 
+                  />
+
+                  <View style={{ flexDirection: 'row', gap: 12 }}>
+                    <TextInput 
+                      style={[styles.input, { flex: 1 }]} 
+                      placeholder="Número" 
+                      placeholderTextColor="#999" 
+                      value={number} 
+                      onChangeText={setNumber} 
+                      keyboardType="numeric"
+                    />
+                    <TextInput 
+                      style={[styles.input, { flex: 2 }]} 
+                      placeholder="Complemento" 
+                      placeholderTextColor="#999" 
+                      value={complement} 
+                      onChangeText={setComplement} 
+                    />
+                  </View>
+
+                  <TextInput
+                    style={styles.input}
+                    placeholder="WhatsApp"
+                    placeholderTextColor="#999"
+                    value={phone}
+                    onChangeText={(t) => setPhone(formatPhone(t))}
+                    keyboardType="phone-pad"
                   />
                 </View>
+              </View>
+            )}
 
+            {step === 3 && (
+              <View style={styles.stepContainer}>
+                <Text style={[styles.stepTitle, { color: "#FFFFFF", fontFamily: "Inter_700Bold" }]}>Qual seu objetivo?</Text>
+                <View style={styles.goalOptions}>
+                  {[
+                    { id: "CLIENT", label: "Contratar", icon: "account-search-outline", desc: "Quero encontrar profissionais" },
+                    { id: "PROVIDER", label: "Trabalhar", icon: "briefcase-outline", desc: "Quero oferecer meus serviços" },
+                    { id: "BOTH", label: "Os Dois!", icon: "account-switch-outline", desc: "Quero contratar e trabalhar" },
+                  ].map((opt) => (
+                    <TouchableOpacity
+                      key={opt.id}
+                      style={[styles.goalCard, goal === opt.id && styles.goalCardActive]}
+                      onPress={() => setGoal(opt.id as ProfileGoal)}
+                    >
+                      <MaterialCommunityIcons name={opt.icon as any} size={32} color={goal === opt.id ? "#FFF" : "#F69926"} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.goalLabel, goal === opt.id && { color: "#FFF" }]}>{opt.label}</Text>
+                        <Text style={[styles.goalDesc, goal === opt.id && { color: "#FFF9" }]}>{opt.desc}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {step === 4 && isProvider && (
+              <View style={styles.stepContainer}>
+                <Text style={[styles.stepTitle, { color: "#FFFFFF", fontFamily: "Inter_700Bold" }]}>O que você faz?</Text>
+                <Text style={[styles.stepSub, { color: "#FFFFFF90", fontFamily: "Inter_400Regular" }]}>Selecione suas especialidades</Text>
+                <View style={styles.chipContainer}>
+                  {CATEGORIES.map((cat: { id: string; name: string }) => (
+                    <TouchableOpacity
+                      key={cat.id}
+                      style={[styles.chip, selectedCategories.includes(cat.id) && styles.chipActive]}
+                      onPress={() => {
+                        setSelectedCategories(prev => 
+                          prev.includes(cat.id) ? prev.filter(i => i !== cat.id) : [...prev, cat.id]
+                        );
+                      }}
+                    >
+                      <Text style={[styles.chipText, selectedCategories.includes(cat.id) && styles.chipTextActive]}>{cat.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {step === 5 && isProvider && (
+              <View style={styles.stepContainer}>
+                <Text style={[styles.stepTitle, { color: "#FFFFFF", fontFamily: "Inter_700Bold" }]}>Sua Bio</Text>
+                <Text style={[styles.stepSub, { color: "#FFFFFF90", fontFamily: "Inter_400Regular" }]}>Conte um pouco sobre sua experiência e como você trabalha.</Text>
                 <TextInput
-                  style={styles.input}
-                  placeholder="WhatsApp"
+                  style={[styles.input, { height: 120, textAlignVertical: "top" }]}
+                  placeholder="Ex: Sou eletricista há 10 anos, especializado em reformas residenciais e automação..."
                   placeholderTextColor="#999"
-                  value={phone}
-                  onChangeText={(t) => setPhone(formatPhone(t))}
-                  keyboardType="phone-pad"
+                  multiline
+                  value={bio}
+                  onChangeText={setBio}
                 />
               </View>
-            </View>
+            )}
+
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+          </View>
+        </ScrollView>
+
+        <View style={styles.footer}>
+          {step > 1 && (
+            <TouchableOpacity style={styles.backBtn} onPress={() => { 
+              if (step === 2) setStep(1.5);
+              else if (step === 1.5) setStep(1);
+              else setStep((s) => s - 1); 
+              setError(""); 
+            }}>
+              <MaterialCommunityIcons name="arrow-left" size={24} color="#FFF" />
+            </TouchableOpacity>
           )}
 
-          {step === 3 && (
-            <View style={styles.stepContainer}>
-              <Text style={[styles.stepTitle, { color: "#FFFFFF", fontFamily: "Inter_700Bold" }]}>Qual seu objetivo?</Text>
-              <View style={styles.goalOptions}>
-                {[
-                  { id: "CLIENT", label: "Contratar", icon: "account-search-outline", desc: "Quero encontrar profissionais" },
-                  { id: "PROVIDER", label: "Trabalhar", icon: "briefcase-outline", desc: "Quero oferecer meus serviços" },
-                  { id: "BOTH", label: "Os Dois!", icon: "account-switch-outline", desc: "Quero contratar e trabalhar" },
-                ].map((opt) => (
-                  <TouchableOpacity
-                    key={opt.id}
-                    style={[styles.goalCard, goal === opt.id && styles.goalCardActive]}
-                    onPress={() => setGoal(opt.id as ProfileGoal)}
-                  >
-                    <MaterialCommunityIcons name={opt.icon as any} size={32} color={goal === opt.id ? "#FFF" : "#F69926"} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.goalLabel, goal === opt.id && { color: "#FFF" }]}>{opt.label}</Text>
-                      <Text style={[styles.goalDesc, goal === opt.id && { color: "#FFF9" }]}>{opt.desc}</Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {step === 4 && isProvider && (
-            <View style={styles.stepContainer}>
-              <Text style={[styles.stepTitle, { color: "#FFFFFF", fontFamily: "Inter_700Bold" }]}>O que você faz?</Text>
-              <Text style={[styles.stepSub, { color: "#FFFFFF90", fontFamily: "Inter_400Regular" }]}>Selecione suas especialidades</Text>
-              <View style={styles.chipContainer}>
-                {CATEGORIES.map((cat: { id: string; name: string }) => (
-                  <TouchableOpacity
-                    key={cat.id}
-                    style={[styles.chip, selectedCategories.includes(cat.id) && styles.chipActive]}
-                    onPress={() => {
-                      setSelectedCategories(prev => 
-                        prev.includes(cat.id) ? prev.filter(i => i !== cat.id) : [...prev, cat.id]
-                      );
-                    }}
-                  >
-                    <Text style={[styles.chipText, selectedCategories.includes(cat.id) && styles.chipTextActive]}>{cat.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {step === 5 && isProvider && (
-            <View style={styles.stepContainer}>
-              <Text style={[styles.stepTitle, { color: "#FFFFFF", fontFamily: "Inter_700Bold" }]}>Sua Bio</Text>
-              <Text style={[styles.stepSub, { color: "#FFFFFF90", fontFamily: "Inter_400Regular" }]}>Conte um pouco sobre sua experiência e como você trabalha.</Text>
-              <TextInput
-                style={[styles.input, { height: 120, textAlignVertical: "top" }]}
-                placeholder="Ex: Sou eletricista há 10 anos, especializado em reformas residenciais e automação..."
-                placeholderTextColor="#999"
-                multiline
-                value={bio}
-                onChangeText={setBio}
-              />
-            </View>
-          )}
-
-          {step === 6 && isProvider && (
-            <View style={styles.stepContainer}>
-              <Text style={[styles.stepTitle, { color: "#FFFFFF", fontFamily: "Inter_700Bold" }]}>Verificação</Text>
-              <Text style={[styles.stepSub, { color: "#FFFFFF90", fontFamily: "Inter_400Regular" }]}>Segurança é prioridade. Envie seus documentos para análise.</Text>
-              
-              <View style={styles.uploadRow}>
-                <TouchableOpacity style={styles.uploadBox} onPress={() => pickImage('doc')}>
-                  {docPhoto ? <MaterialCommunityIcons name="check-circle" size={40} color="#22c55e" /> : <MaterialCommunityIcons name="card-account-details-outline" size={40} color="#F69926" />}
-                  <Text style={styles.uploadLabel}>Foto do Documento (Frente)</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity style={styles.uploadBox} onPress={() => pickImage('selfie')}>
-                  {selfiePhoto ? <MaterialCommunityIcons name="check-circle" size={40} color="#22c55e" /> : <MaterialCommunityIcons name="camera-account" size={40} color="#F69926" />}
-                  <Text style={styles.uploadLabel}>Selfie com Documento</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-        </View>
-      </ScrollView>
-
-      <View style={styles.footer}>
-        {step > 1 && (
-          <TouchableOpacity style={styles.backBtn} onPress={() => { 
-            if (step === 2) setStep(1.5);
-            else if (step === 1.5) setStep(1);
-            else setStep((s) => s - 1); 
-            setError(""); 
-          }}>
-            <MaterialCommunityIcons name="arrow-left" size={24} color="#FFF" />
+          <TouchableOpacity style={styles.nextBtn} onPress={nextStep} disabled={loading} activeOpacity={0.85}>
+            {loading ? <ActivityIndicator color="#fff" /> : (
+              <>
+                <Text style={styles.nextBtnText}>{ (isProvider ? step === TOTAL_STEPS : step === 3) ? "FINALIZAR" : "PRÓXIMO" }</Text>
+                <MaterialCommunityIcons name="arrow-right" size={20} color="#fff" />
+              </>
+            )}
           </TouchableOpacity>
-        )}
-
-        <TouchableOpacity style={styles.nextBtn} onPress={nextStep} disabled={loading} activeOpacity={0.85}>
-          {loading ? <ActivityIndicator color="#fff" /> : (
-            <>
-              <Text style={styles.nextBtnText}>{ (isProvider ? step === TOTAL_STEPS : step === 3) ? "FINALIZAR" : "PRÓXIMO" }</Text>
-              <MaterialCommunityIcons name="arrow-right" size={20} color="#fff" />
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
+        </View>
+      </KeyboardAvoidingView>
     </LinearGradient>
   );
 }
