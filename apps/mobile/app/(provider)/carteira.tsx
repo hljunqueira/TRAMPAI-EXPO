@@ -89,30 +89,33 @@ export default function CarteiraScreen() {
 
     const { id: packageId, amount: customAmount } = pendingPackage;
     setShowPaymentModal(false);
+    
+    // Pequeno delay para garantir que o modal fechou antes de abrir o browser
+    await new Promise(resolve => setTimeout(resolve, 300));
 
     try {
       setBuying(packageId);
       const token = await SecureStore.getItemAsync("trampai_auth_token");
-
+      
       const endpoint = method === "stripe" ? "/api/payments/checkout" : "/api/payments/cakto/checkout";
 
       const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: "POST",
-        headers: {
+        headers: { 
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}` 
         },
-        body: JSON.stringify({
+        body: JSON.stringify({ 
           packageId,
           ...(customAmount ? { customCredits: customAmount } : {})
         }),
       });
 
       const data = await res.json();
-
+      
       if (res.ok && data.url) {
-        // Redirecionar para o pagamento
-        Linking.openURL(data.url);
+        // Abrir o checkout no navegador interno
+        await WebBrowser.openBrowserAsync(data.url);
       } else {
         Alert.alert("Erro", data.error || "Não foi possível iniciar o pagamento.");
       }
