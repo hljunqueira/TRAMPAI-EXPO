@@ -360,10 +360,13 @@ router.get("/auth/me", authenticate, async (req: AuthRequest, res: any) => {
 router.patch("/auth/me", authenticate, async (req: AuthRequest, res: any) => {
   try {
     const userId = req.user?.userId;
-    if (!userId) return res.status(401).json({ error: "Não autorizado" });
+    logger.info({ userId, body: req.body }, "Iniciando PATCH /auth/me");
+    
+    if (!userId) {
+      return res.status(401).json({ error: "Token inválido ou ID de usuário ausente" });
+    }
 
     const body = req.body;
-    console.log("DADOS RECEBIDOS PATCH ME:", JSON.stringify(body));
     
     const updateData: any = {
       updatedAt: new Date(),
@@ -390,14 +393,14 @@ router.patch("/auth/me", authenticate, async (req: AuthRequest, res: any) => {
       updateData.onboardingCompletedAt = new Date(body.onboardingCompletedAt);
     }
 
-    console.log("DADOS PARA UPDATE NO BANCO:", JSON.stringify(updateData));
+    logger.info({ updateData }, "DADOS PARA UPDATE NO BANCO");
 
     const results = await (db.update(users)
       .set(updateData)
       .where(eq(users.id, userId as string))
       .returning() as Promise<any[]>);
 
-    console.log("RESULTADO DO BANCO:", JSON.stringify(results));
+    logger.info({ resultsCount: results?.length }, "RESULTADO DO BANCO");
 
     if (!results || results.length === 0) {
       return res.status(404).json({ error: "Usuário não encontrado para atualização" });
@@ -412,7 +415,7 @@ router.patch("/auth/me", authenticate, async (req: AuthRequest, res: any) => {
     
     return res.json(updatedUser);
   } catch (err) {
-    console.error("ERRO DETALHADO NO PATCH ME:", err);
+    logger.error({ err, userId: req.user?.userId }, "ERRO DETALHADO NO PATCH ME");
     return res.status(500).json({ error: "Erro ao atualizar perfil" });
   }
 });
