@@ -6,7 +6,7 @@ export async function sendVerificationEmail(email: string, token: string) {
   try {
     const verifyUrl = `${process.env.APP_URL}/api/auth/verify?token=${token}`;
     const { data, error } = await resend.emails.send({
-      from: "Trampaí <contato@trampai.com.br>",
+      from: "Trampaí <contato@send.trampai.com.br>",
       to: [email],
       subject: "Ative sua conta no Trampaí",
       html: `
@@ -75,7 +75,7 @@ export async function sendForgotPasswordEmail(email: string, token: string) {
     const resetUrl = `${process.env.APP_URL}/api/auth/reset-password?token=${token}`;
 
     const { data, error } = await resend.emails.send({
-      from: "Trampaí <contato@trampai.com.br>",
+      from: "Trampaí <contato@send.trampai.com.br>",
       to: [email],
       subject: "Recuperação de Senha - Trampaí",
       html: `
