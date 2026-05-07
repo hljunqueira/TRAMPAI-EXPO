@@ -51,6 +51,8 @@ export default function CarteiraScreen() {
   const [buying, setBuying] = useState<string | null>(null);
   const [customModalVisible, setCustomModalVisible] = useState(false);
   const [customCredits, setCustomCredits] = useState("10");
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [pendingPackage, setPendingPackage] = useState<{ id: string, amount?: number } | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -77,28 +79,17 @@ export default function CarteiraScreen() {
     }
   }
 
-  async function handleBuy(packageId: string, customAmount?: number) {
-    Alert.alert(
-      "Forma de Pagamento",
-      "Selecione como deseja pagar seus créditos:",
-      [
-        {
-          text: "Pix",
-          onPress: () => processPayment("cakto", packageId, customAmount),
-        },
-        {
-          text: "Cartão / Boleto",
-          onPress: () => processPayment("stripe", packageId, customAmount),
-        },
-        {
-          text: "Cancelar",
-          style: "cancel",
-        },
-      ]
-    );
+  async function handleBuy(packageId: string, amount?: number) {
+    setPendingPackage({ id: packageId, amount });
+    setShowPaymentModal(true);
   }
 
-  async function processPayment(method: "stripe" | "cakto", packageId: string, customAmount?: number) {
+  async function processPayment(method: "stripe" | "cakto") {
+    if (!pendingPackage) return;
+
+    const { id: packageId, amount: customAmount } = pendingPackage;
+    setShowPaymentModal(false);
+
     try {
       setBuying(packageId);
       const token = await SecureStore.getItemAsync("trampai_auth_token");
@@ -129,6 +120,7 @@ export default function CarteiraScreen() {
       Alert.alert("Erro", "Falha na conexão.");
     } finally {
       setBuying(null);
+      setPendingPackage(null);
     }
   }
 
@@ -267,7 +259,7 @@ export default function CarteiraScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
             <Text style={[styles.modalTitle, { color: colors.primary }]}>Créditos Avulsos</Text>
-            <Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>
+            <Text style={[styles.modalSubtitle, { color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }]}>
               Digite a quantidade desejada (mínimo de 10 créditos). O valor é calculado a partir de R$ 9,99 a cada 10 créditos.
             </Text>
 
@@ -301,29 +293,70 @@ export default function CarteiraScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: colors.muted }]}
-                onPress={() => setCustomModalVisible(false)}
-              >
-                <Text style={[styles.modalBtnText, { color: colors.primary }]}>Cancelar</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
+              <TouchableOpacity onPress={() => setCustomModalVisible(false)}>
+                <Text style={{ color: colors.mutedForeground, fontWeight: '600', padding: 8 }}>Cancelar</Text>
               </TouchableOpacity>
-
               <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: colors.primary }]}
                 onPress={() => {
-                  const amount = parseInt(customCredits, 10);
-                  if (amount >= 10) {
-                    setCustomModalVisible(false);
-                    handleBuy("custom", amount);
-                  } else {
-                    Alert.alert("Atenção", "O mínimo é de 10 créditos.");
-                  }
+                  setCustomModalVisible(false);
+                  handleBuy("custom", parseInt(customCredits));
                 }}
+                disabled={!customCredits || parseInt(customCredits) < 10}
               >
-                <Text style={[styles.modalBtnText, { color: "#FFF" }]}>Confirmar</Text>
+                <Text style={{ color: colors.primary, fontWeight: '700', padding: 8 }}>Confirmar</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Selecao de Pagamento */}
+      <Modal
+        visible={showPaymentModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPaymentModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card, maxWidth: 320 }]}>
+            <Text style={[styles.modalTitle, { color: colors.primary, textAlign: 'center' }]}>Forma de Pagamento</Text>
+            <Text style={[styles.modalSubtitle, { color: colors.mutedForeground, textAlign: 'center', marginBottom: 24, fontFamily: 'Inter_400Regular' }]}>
+              Escolha como deseja concluir sua compra
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.paymentOption, { borderColor: colors.border }]}
+              onPress={() => processPayment("cakto")}
+            >
+              <View style={[styles.paymentIconContainer, { backgroundColor: '#E7F9F3' }]}>
+                <MaterialCommunityIcons name="qrcode" size={24} color="#00BFA5" />
+              </View>
+              <View>
+                <Text style={[styles.paymentOptionTitle, { color: colors.foreground }]}>Pix</Text>
+                <Text style={[styles.paymentOptionSub, { color: colors.mutedForeground }]}>Aprovação imediata</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.paymentOption, { borderColor: colors.border, marginTop: 12 }]}
+              onPress={() => processPayment("stripe")}
+            >
+              <View style={[styles.paymentIconContainer, { backgroundColor: '#F0F2FF' }]}>
+                <MaterialCommunityIcons name="credit-card-outline" size={24} color="#635BFF" />
+              </View>
+              <View>
+                <Text style={[styles.paymentOptionTitle, { color: colors.foreground }]}>Cartão / Boleto</Text>
+                <Text style={[styles.paymentOptionSub, { color: colors.mutedForeground }]}>Boleto a partir de R$99,99</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setShowPaymentModal(false)}
+              style={{ marginTop: 20, alignSelf: 'center' }}
+            >
+              <Text style={{ color: colors.mutedForeground, fontWeight: '600' }}>Cancelar</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -361,10 +394,36 @@ const styles = StyleSheet.create({
   transDate: { fontSize: 12 },
   transAmount: { fontSize: 16, fontFamily: "Inter_700Bold" },
   empty: { padding: 40, alignItems: "center" },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalContent: { borderRadius: 16, padding: 24, alignItems: 'center' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalContent: { borderRadius: 16, padding: 24, alignItems: 'center', width: '100%' },
   modalTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 8 },
-  modalSubtitle: { fontSize: 14, textAlign: 'center', marginBottom: 20, fontFamily: 'Inter_400Regular' },
+  modalSubtitle: {
+    fontSize: 14,
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  paymentOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 16,
+  },
+  paymentIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  paymentOptionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  paymentOptionSub: {
+    fontSize: 12,
+  },
   modalInput: { width: '100%', borderWidth: 1, borderRadius: 8, padding: 16, fontSize: 24, textAlign: 'center', fontFamily: 'Inter_700Bold', marginBottom: 24 },
   modalButtons: { flexDirection: 'row', gap: 12, width: '100%' },
   modalBtn: { flex: 1, padding: 14, borderRadius: 8, alignItems: 'center' },
