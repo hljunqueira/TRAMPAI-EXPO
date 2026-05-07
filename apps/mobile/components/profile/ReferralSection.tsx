@@ -28,7 +28,7 @@ export const ReferralSection: React.FC<ReferralSectionProps> = ({ referralCode, 
       
       <View style={[styles.codeBox, { backgroundColor: "rgba(255,255,255,0.1)" }]}>
           <Text style={styles.codeLabel}>SEU CÓDIGO EXCLUSIVO</Text>
-          <Text style={[styles.codeText, { color: colors.accent }]}>{referralCode || "TRAMPAI2024"}</Text>
+          <Text style={[styles.codeText, { color: colors.accent }]}>{referralCode || "------"}</Text>
       </View>
 
       <TouchableOpacity 

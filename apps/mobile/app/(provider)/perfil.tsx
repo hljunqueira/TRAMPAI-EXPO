@@ -86,7 +86,7 @@ export default function ProviderPerfil() {
 
   async function shareReferral() {
     try {
-      const code = user?.referralCode || "TRAMPAI26";
+      const code = user?.referralCode || "INDIQUE26";
       const referralLink = `https://trampai.com.br?ref=${code}`;
       const message = `Ei! Use meu código *${code}* no Trampaí para ganhar ${appConfig?.REFERRAL_BONUS || 10} créditos de bônus e oferecer seus serviços para milhares de clientes! 🚀\n\nBaixe agora: ${referralLink}`;
       

@@ -108,7 +108,7 @@ export default function Mural() {
 
   async function shareReferral() {
     try {
-      const code = user?.referralCode || "TRAMPAI26";
+      const code = user?.referralCode || "INDIQUE26";
       const bonus = appConfig?.REFERRAL_BONUS || "10";
       const referralLink = `https://trampai.com.br?ref=${code}`;
       const message = `Ei! Use meu código *${code}* no Trampaí para ganhar ${bonus} créditos de bônus e encontrar os melhores profissionais ou serviços! 🚀\n\nBaixe agora: ${referralLink}`;
