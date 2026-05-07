@@ -152,12 +152,12 @@ export default function ClientPerfil() {
                   <Text style={[styles.premiumBadgeText, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>PREMIUM</Text>
                 </View>
               )}
-              {user?.reviewCount && user.reviewCount > 0 && (
+              {user?.reviewCount ? user.reviewCount > 0 && (
                 <View style={[styles.ratingChip, { backgroundColor: colors.secondary + "15" }]}>
                   <MaterialCommunityIcons name="star" size={12} color={colors.secondary} />
                   <Text style={[styles.ratingText, { color: colors.secondary, fontFamily: "Inter_700Bold" }]}>{String(user.rating || "0.0")}</Text>
                 </View>
-              )}
+              ) : null}
             </View>
 
             <Text style={[styles.userEmail, { color: colors.mutedForeground, fontFamily: "Inter_400Regular", textAlign: 'center', marginTop: 12, marginBottom: 12 }]}>
