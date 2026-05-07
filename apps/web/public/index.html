@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trampaí - Faz tua grana, no teu tempo, do teu jeito</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">Trampaí</div>
+            <div class="nav-links">
+                <a href="#como-funciona">Como funciona</a>
+                <a href="#seja-prestador">Seja um Prestador</a>
+                <a href="https://app.trampai.com.br" class="btn-primary-sm">Abrir Web App</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="hero-content">
+                <h1>Faz tua grana, no teu tempo, <span class="highlight">do teu jeito.</span></h1>
+                <p>O Trampaí conecta você aos melhores profissionais ou às melhores oportunidades de serviço. Tudo simples, rápido e seguro.</p>
+                
+                <div class="cta-group">
+                    <a href="https://play.google.com/store/apps/details?id=com.trampai.app" class="store-btn google-play">
+                        <i data-lucide="play"></i>
+                        <div class="btn-text">
+                            <span>Disponível no</span>
+                            <strong>Google Play</strong>
+                        </div>
+                    </a>
+                    <a href="https://app.trampai.com.br" class="store-btn web-app">
+                        <i data-lucide="smartphone"></i>
+                        <div class="btn-text">
+                            <span>Acessar o</span>
+                            <strong>Web App (iOS)</strong>
+                        </div>
+                    </a>
+                </div>
+                
+                <div class="pwa-guide">
+                    <p><i data-lucide="info"></i> No iPhone? Use o <strong>Web App</strong> e selecione <strong>"Adicionar à Tela de Início"</strong>.</p>
+                </div>
+            </div>
+            <div class="hero-image">
+                <img src="hero-bg.png" alt="Trampaí App">
+            </div>
+        </section>
+
+        <section id="como-funciona" class="features">
+            <h2>Por que usar o Trampaí?</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="icon-box blue"><i data-lucide="search"></i></div>
+                    <h3>Encontre Fácil</h3>
+                    <p>Milhares de prestadores prontos para te atender em diversas categorias.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon-box orange"><i data-lucide="shield-check"></i></div>
+                    <h3>Segurança</h3>
+                    <p>Prestadores verificados e sistema de avaliações para sua total confiança.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon-box teal"><i data-lucide="zap"></i></div>
+                    <h3>Agilidade</h3>
+                    <p>Publique sua necessidade e receba propostas em instantes.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="seja-prestador" class="cta-section">
+            <div class="cta-card">
+                <h2>Quer ganhar dinheiro com seus talentos?</h2>
+                <p>Seja um parceiro Trampaí e tenha acesso a centenas de clientes todos os dias.</p>
+                <a href="https://app.trampai.com.br" class="btn-secondary">Começar Agora</a>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-logo">Trampaí</div>
+            <p>&copy; 2024 Trampaí. Todos os direitos reservados.</p>
+            <div class="social-links">
+                <a href="#"><i data-lucide="instagram"></i></a>
+                <a href="#"><i data-lucide="facebook"></i></a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+      lucide.createIcons();
+      
+      // Detect referral code in URL and store it for the Web App links
+      const urlParams = new URLSearchParams(window.location.search);
+      const ref = urlParams.get('ref');
+      if (ref) {
+          const links = document.querySelectorAll('a[href*="app.trampai.com.br"]');
+          links.forEach(link => {
+              const url = new URL(link.href);
+              url.searchParams.set('ref', ref);
+              link.href = url.toString();
+          });
+      }
+    </script>
+</body>
+</html>

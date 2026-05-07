@@ -39,6 +39,18 @@ services:
     volumes:
       - trampai-api-uploads:/app/public/uploads
 
+  # ── TRAMPAI LANDING PAGE ─────────────────────
+  trampai-web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: trampai-web
+    restart: unless-stopped
+    ports:
+      - "3008:80"
+    networks:
+      - trampai-network
+
   # ── SUPABASE DATABASE ─────────────────────────
   supabase-db-trampai:
     image: supabase/postgres:15.1.1.78

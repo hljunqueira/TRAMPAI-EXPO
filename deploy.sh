@@ -55,7 +55,8 @@ echo ""
 echo "✅ Deploy concluído!"
 echo ""
 echo "🔗 Serviços disponíveis:"
-echo "   API Trampaí:       http://23.80.89.116:3007"
-echo "   Supabase Studio:   http://23.80.89.116:8031"
+echo "   API Trampaí:       http://23.80.89.116:3007
+   Landing Page:      http://23.80.89.116:3008
+   Supabase Studio:   http://23.80.89.116:8031"
 echo "   Supabase API:      http://23.80.89.116:8030"
 echo "   Postgres DB:       23.80.89.116:5437"
