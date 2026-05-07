@@ -44,7 +44,7 @@ export default function CarteiraScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, fetchMyData } = useAuth();
-  
+
   const [packages, setPackages] = useState<CreditPackage[]>([]);
   const [transactionsData, setTransactionsData] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,26 +78,49 @@ export default function CarteiraScreen() {
   }
 
   async function handleBuy(packageId: string, customAmount?: number) {
+    Alert.alert(
+      "Forma de Pagamento",
+      "Selecione como deseja pagar seus créditos:",
+      [
+        {
+          text: "Pix",
+          onPress: () => processPayment("cakto", packageId, customAmount),
+        },
+        {
+          text: "Cartão / Boleto",
+          onPress: () => processPayment("stripe", packageId, customAmount),
+        },
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
+      ]
+    );
+  }
+
+  async function processPayment(method: "stripe" | "cakto", packageId: string, customAmount?: number) {
     try {
       setBuying(packageId);
       const token = await SecureStore.getItemAsync("trampai_auth_token");
-      
-      const res = await fetch(`${API_BASE_URL}/api/payments/checkout`, {
+
+      const endpoint = method === "stripe" ? "/api/payments/checkout" : "/api/payments/cakto/checkout";
+
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}` 
+          Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           packageId,
           ...(customAmount ? { customCredits: customAmount } : {})
         }),
       });
 
       const data = await res.json();
-      
+
       if (res.ok && data.url) {
-        // Abrir o checkout do Stripe no in-app browser
+        // Abrir o checkout no in-app browser
         WebBrowser.openBrowserAsync(data.url);
       } else {
         Alert.alert("Erro", data.error || "Não foi possível iniciar o pagamento.");
@@ -137,10 +160,10 @@ export default function CarteiraScreen() {
       {/* Lista de Pacotes (Grid 2x2) */}
       <View style={styles.packagesContainer}>
         {packages.map(pkg => (
-          <TouchableOpacity 
-            key={pkg.id} 
+          <TouchableOpacity
+            key={pkg.id}
             style={[
-              styles.packageCard, 
+              styles.packageCard,
               { borderColor: pkg.isHighlighted ? colors.accent : colors.border },
               pkg.isHighlighted && { borderWidth: 2 }
             ]}
@@ -157,7 +180,7 @@ export default function CarteiraScreen() {
               <Text style={[styles.pkgBonus, { color: "#22c55e" }]}>+{pkg.bonusCredits} BÔNUS</Text>
             )}
             <Text style={[styles.pkgPrice, { color: colors.mutedForeground }]}>{formatCurrency(pkg.priceCents)}</Text>
-            
+
             <View style={[styles.buyBtn, { backgroundColor: pkg.isHighlighted ? colors.accent : colors.primary }]}>
               {buying === pkg.id ? (
                 <ActivityIndicator size="small" color={pkg.isHighlighted ? colors.primary : "#FFF"} />
@@ -169,7 +192,7 @@ export default function CarteiraScreen() {
         ))}
 
         {/* Pacote Personalizado */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.packageCard, { borderColor: colors.border, justifyContent: 'center' }]}
           onPress={() => setCustomModalVisible(true)}
           disabled={!!buying}
@@ -209,10 +232,10 @@ export default function CarteiraScreen() {
           renderItem={({ item }) => (
             <View style={styles.transactionItem}>
               <View style={[styles.transIcon, { backgroundColor: item.credits > 0 ? "#22c55e15" : "#ef444415" }]}>
-                <MaterialCommunityIcons 
-                  name={item.credits > 0 ? "arrow-up-right" : "arrow-down-left"} 
-                  size={20} 
-                  color={item.credits > 0 ? "#22c55e" : "#ef4444"} 
+                <MaterialCommunityIcons
+                  name={item.credits > 0 ? "arrow-up-right" : "arrow-down-left"}
+                  size={20}
+                  color={item.credits > 0 ? "#22c55e" : "#ef4444"}
                 />
               </View>
               <View style={{ flex: 1 }}>
@@ -249,7 +272,7 @@ export default function CarteiraScreen() {
             </Text>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24, width: '100%' }}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.selectorBtn, { backgroundColor: colors.muted }]}
                 onPress={() => {
                   const val = parseInt(customCredits || "0");
@@ -267,7 +290,7 @@ export default function CarteiraScreen() {
                 maxLength={4}
               />
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.selectorBtn, { backgroundColor: colors.muted }]}
                 onPress={() => {
                   const val = parseInt(customCredits || "0");
@@ -279,15 +302,15 @@ export default function CarteiraScreen() {
             </View>
 
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={[styles.modalBtn, { backgroundColor: colors.muted }]} 
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: colors.muted }]}
                 onPress={() => setCustomModalVisible(false)}
               >
                 <Text style={[styles.modalBtnText, { color: colors.primary }]}>Cancelar</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.modalBtn, { backgroundColor: colors.primary }]} 
+
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: colors.primary }]}
                 onPress={() => {
                   const amount = parseInt(customCredits, 10);
                   if (amount >= 10) {
