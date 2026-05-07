@@ -386,7 +386,6 @@ export default function ProviderPerfil() {
                 )}
               </View>
             </View>
-            
             <Text style={[styles.userRole, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
               {user?.providerBio ? user.providerBio.substring(0, 80) + (user.providerBio.length > 80 ? "..." : "") : "Profissional de Serviços"}
             </Text>
