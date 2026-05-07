@@ -14,6 +14,28 @@ const router = Router();
 
 router.get("/jobs", async (req, res) => {
   try {
+    const { lat, lng, radius, categoryId } = req.query;
+
+    let whereClause = eq(jobs.status, "open");
+
+    // Filtro por Categoria
+    if (categoryId) {
+      whereClause = and(whereClause, eq(jobs.categoryId, categoryId as string)) as any;
+    }
+
+    // Filtro por Distância (Haversine)
+    if (lat && lng && radius) {
+      const latitude = parseFloat(lat as string);
+      const longitude = parseFloat(lng as string);
+      const dist = parseFloat(radius as string);
+
+      // 6371 é o raio da terra em km
+      whereClause = and(
+        whereClause,
+        sql`(6371 * acos(cos(radians(${latitude})) * cos(radians(NULLIF(${jobs.latitude}, '')::numeric)) * cos(radians(NULLIF(${jobs.longitude}, '')::numeric) - radians(${longitude})) + sin(radians(${latitude})) * sin(radians(NULLIF(${jobs.latitude}, '')::numeric)))) <= ${dist}`
+      ) as any;
+    }
+
     const allJobs = await db
       .select({
         id: jobs.id,
@@ -24,6 +46,8 @@ router.get("/jobs", async (req, res) => {
         budget: jobs.budget,
         status: jobs.status,
         location: jobs.location,
+        latitude: jobs.latitude,
+        longitude: jobs.longitude,
         images: jobs.images,
         createdAt: jobs.createdAt,
         category: {
@@ -42,7 +66,7 @@ router.get("/jobs", async (req, res) => {
       .from(jobs)
       .innerJoin(categories, eq(jobs.categoryId, categories.id))
       .innerJoin(users, eq(jobs.clientId, users.id))
-      .where(eq(jobs.status, "open"))
+      .where(whereClause)
       .orderBy(desc(jobs.createdAt));
 
     return res.json(allJobs);
@@ -54,7 +78,7 @@ router.get("/jobs", async (req, res) => {
 
 router.post("/jobs", authenticate, async (req: AuthRequest, res: any) => {
   try {
-    const { title, description, categoryId, budget, location, images } = req.body;
+    const { title, description, categoryId, budget, location, latitude, longitude, images } = req.body;
     const clientId = req.user?.userId;
 
     if (!clientId) {
@@ -68,6 +92,8 @@ router.post("/jobs", authenticate, async (req: AuthRequest, res: any) => {
       clientId,
       budget,
       location,
+      latitude: latitude?.toString(),
+      longitude: longitude?.toString(),
       images,
       status: "open",
     }).returning();
@@ -203,6 +229,7 @@ router.post("/jobs/:id/unlock", authenticate, async (req: AuthRequest, res: any)
         credits: -cost,
         amountCents: 0,
         description: `Lead ${type}: ${job.title}`,
+        referenceId: jobId as string, // Link ao serviço
       });
 
       // Criar lead
@@ -336,6 +363,7 @@ router.post("/jobs/:id/respond-exclusive", authenticate, async (req: AuthRequest
           credits: lead.cost,
           amountCents: 0,
           description: `Estorno Lead Exclusivo Recusado: ${job.title}`,
+          referenceId: jobId as string,
         });
         
         // Deletar o lead para o job voltar ao mural para outros
@@ -391,7 +419,7 @@ router.get("/jobs/me", authenticate, async (req: AuthRequest, res: any) => {
       .where(eq(jobs.clientId, clientId))
       .orderBy(desc(jobs.createdAt));
 
-    // For each job, check how many leads it has
+    // For each job, check how many leads it has and if it's already reviewed
     const jobsWithLeads = await Promise.all(myJobs.map(async (j) => {
       const jobLeads = await db
         .select({
@@ -408,8 +436,14 @@ router.get("/jobs/me", authenticate, async (req: AuthRequest, res: any) => {
         .from(leads)
         .innerJoin(users, eq(leads.providerId, users.id))
         .where(eq(leads.jobId, j.id));
+
+      const [review] = await db
+        .select()
+        .from(reviews)
+        .where(and(eq(reviews.jobId, j.id), eq(reviews.fromUserId, clientId)))
+        .limit(1);
         
-      return { ...j, unlockedByProviders: jobLeads };
+      return { ...j, unlockedByProviders: jobLeads, isReviewed: !!review };
     }));
 
     return res.json(jobsWithLeads);

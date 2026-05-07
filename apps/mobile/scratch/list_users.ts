@@ -1,11 +1,11 @@
-import { db, users } from "../packages/db/src";
+import { db, users } from "../../../packages/db/src";
 import { desc } from "drizzle-orm";
 
 async function listUsers() {
   try {
     const allUsers = await db.select().from(users).orderBy(desc(users.createdAt));
     console.log("=== USUÁRIOS CADASTRADOS NO BANCO (VPS) ===");
-    console.table(allUsers.map(u => ({
+    console.table(allUsers.map((u: any) => ({
       ID: u.id,
       Nome: u.name,
       Email: u.email,

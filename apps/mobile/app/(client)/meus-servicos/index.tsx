@@ -12,6 +12,9 @@ import {
   View,
   RefreshControl,
   Alert,
+  Modal,
+  TextInput,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -25,10 +28,16 @@ const TABS = [
 
 export default function MeusServicos() {
   const colors = useColors();
-  const { user, services, fetchMyData, updateJobStatus, deleteJob } = useAuth();
+  const { user, services, fetchMyData, updateJobStatus, deleteJob, api } = useAuth();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState("active");
   const [refreshing, setRefreshing] = useState(false);
+
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [selectedJobForReview, setSelectedJobForReview] = useState<any>(null);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   async function handleCloseService(id: string) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -58,6 +67,33 @@ export default function MeusServicos() {
     const ok = await updateJobStatus(id, "completed");
     if (ok) {
       Alert.alert("Sucesso", "Serviço marcado como finalizado.");
+      fetchMyData();
+    }
+  }
+
+  async function submitReview() {
+    if (!selectedJobForReview) return;
+    
+    setSubmittingReview(true);
+    try {
+      const providerId = selectedJobForReview.unlockedByProviders?.[0]?.providerId;
+      if (!providerId) throw new Error("Prestador não encontrado");
+
+      await api.post("/reviews", {
+        jobId: selectedJobForReview.id,
+        toUserId: providerId,
+        rating,
+        comment,
+      });
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Sucesso", "Sua avaliação foi enviada com sucesso! Obrigado.");
+      setReviewModalVisible(false);
+      fetchMyData();
+    } catch (e: any) {
+      Alert.alert("Erro", e.message || "Não foi possível enviar a avaliação.");
+    } finally {
+      setSubmittingReview(false);
     }
   }
 
@@ -165,6 +201,7 @@ export default function MeusServicos() {
           const inProgress = status === "in_progress";
           const isExclusivePending = status === "exclusive_pending";
           const proposalsCount = item.unlockedByProviders?.length || 0;
+          const isReviewed = (item as any).isReviewed; // Precisaremos desta flag ou checar reviews
 
           return (
             <TouchableOpacity 
@@ -269,13 +306,18 @@ export default function MeusServicos() {
                   </View>
                 )}
 
-                {isClosed && (
+                {isClosed && !isReviewed && (
                   <View style={[styles.reviewBanner, { backgroundColor: colors.orange + "10", borderColor: colors.orange + "30" }]}>
                     <View style={styles.reviewTextRow}>
                       <MaterialCommunityIcons name="star" size={18} color={colors.orange} />
                       <Text style={[styles.reviewLabel, { color: colors.orange, fontFamily: "Inter_700Bold" }]}>Avaliação pendente</Text>
                     </View>
-                    <TouchableOpacity>
+                    <TouchableOpacity onPress={() => {
+                      setSelectedJobForReview(item);
+                      setReviewModalVisible(true);
+                      setRating(5);
+                      setComment("");
+                    }}>
                       <Text style={[styles.reviewAction, { color: colors.orange, fontFamily: "Inter_700Bold" }]}>Avaliar</Text>
                     </TouchableOpacity>
                   </View>
@@ -323,6 +365,75 @@ export default function MeusServicos() {
           );
         }}
       />
+
+      <ReviewModal 
+        visible={reviewModalVisible}
+        onClose={() => setReviewModalVisible(false)}
+        onSubmit={submitReview}
+        rating={rating}
+        setRating={setRating}
+        comment={comment}
+        setComment={setComment}
+        loading={submittingReview}
+        providerName={selectedJobForReview?.unlockedByProviders?.[0]?.provider?.name}
+      />
+    </View>
+  );
+}
+
+function ReviewModal({ visible, onClose, onSubmit, rating, setRating, comment, setComment, loading, providerName }: any) {
+  const colors = useColors();
+  
+  return (
+    <View style={{ position: 'absolute' }}>
+      <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: '#fff' }]}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={[styles.modalTitle, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Avaliar Prestador</Text>
+              <TouchableOpacity onPress={onClose}>
+                <MaterialCommunityIcons name="close" size={24} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>
+              Como foi sua experiência com <Text style={{ fontWeight: 'bold' }}>{providerName || "o profissional"}</Text>?
+            </Text>
+
+            <View style={styles.starsRow}>
+              {[1, 2, 3, 4, 5].map((s) => (
+                <TouchableOpacity key={s} onPress={() => setRating(s)}>
+                  <MaterialCommunityIcons 
+                    name={s <= rating ? "star" : "star-outline"} 
+                    size={40} 
+                    color={s <= rating ? "#FFB14A" : "#CBD5E1"} 
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.commentContainer}>
+              <TextInput
+                style={[styles.commentInput, { borderColor: colors.border + "50" }]}
+                placeholder="Escreva um comentário sobre o serviço..."
+                placeholderTextColor={colors.mutedForeground + "80"}
+                multiline
+                numberOfLines={4}
+                value={comment}
+                onChangeText={setComment}
+              />
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.submitReviewBtn, { backgroundColor: colors.primary }]}
+              onPress={onSubmit}
+              disabled={loading}
+            >
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitReviewBtnText}>Enviar Avaliação</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -457,4 +568,57 @@ const styles = StyleSheet.create({
   emptyDesc: { fontSize: 14, textAlign: "center", color: "#64748b" },
   postBtn: { paddingHorizontal: 25, paddingVertical: 12, borderRadius: 12, marginTop: 10 },
   postBtnText: { color: "#fff", fontWeight: "800", fontSize: 14 },
+  
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    padding: 20,
+  },
+  modalContent: {
+    padding: 24,
+    borderRadius: 24,
+    gap: 16,
+  },
+  modalHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  modalTitle: {
+    fontSize: 20,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  starsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+    marginVertical: 10,
+  },
+  commentContainer: {
+    width: "100%",
+  },
+  commentInput: {
+    borderWidth: 1.5,
+    borderRadius: 16,
+    padding: 16,
+    height: 120,
+    textAlignVertical: "top",
+    fontSize: 15,
+  },
+  submitReviewBtn: {
+    height: 56,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8,
+  },
+  submitReviewBtnText: {
+    color: "#fff",
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+  },
 });

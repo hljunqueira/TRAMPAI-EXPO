@@ -20,8 +20,8 @@ import { router } from "expo-router";
 
 import { useColors } from "@/hooks/useColors";
 import { CREDIT_PACKAGES } from "@/constants/categories";
+import { useAuth, API_BASE_URL } from "@/context/AuthContext";
 
-const API_BASE_URL = "https://api.trampai.com.br";
 const TOKEN_KEY = "trampai_auth_token";
 
 interface Package {
@@ -41,10 +41,10 @@ export default function AdminPackages() {
   const [loading, setLoading] = useState(true);
   const [packages, setPackages] = useState<Package[]>(CREDIT_PACKAGES.map(p => ({
     ...p,
-    label: p.label || "", // Garantir compatibilidade se label for opcional em algum lugar
-    bonusCredits: (p as any).bonusCredits || 0,
+    label: p.name || "", 
+    bonusCredits: p.bonusCredits || 0,
     isActive: true,
-    highlight: !!p.highlight,
+    highlight: !!p.isHighlighted,
     sortOrder: 0
   })));
   const [modalVisible, setModalVisible] = useState(false);

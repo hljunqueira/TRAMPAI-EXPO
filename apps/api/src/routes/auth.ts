@@ -66,22 +66,15 @@ router.post("/auth/register", async (req: any, res: any) => {
       verificationToken,
       referralCode: myReferralCode,
       referredBy: referredBy as any,
-      creditBalance: referredBy ? parseInt(await getConfig(CONFIG_KEYS.WELCOME_CREDITS)) || 10 : 0, // Bônus para quem é indicado
+      creditBalance: 0, 
     }).returning() as Promise<any[]>);
 
-    // Se foi indicado, dar bônus para quem indicou também
+    // Se foi indicado, dar bônus apenas para quem indicou
     if (referredBy) {
-      const welcomeBonus = parseInt(await getConfig(CONFIG_KEYS.WELCOME_CREDITS)) || 10;
       const referralBonus = parseInt(await getConfig(CONFIG_KEYS.REFERRAL_BONUS)) || 5;
 
-      // Criar transações para auditoria
+      // Criar transação para auditoria do padrinho
       await db.insert(transactions).values([
-        {
-          userId: newUser.id,
-          type: "REFERRAL_BONUS",
-          credits: welcomeBonus,
-          description: "Bônus por ser indicado",
-        },
         {
           userId: referredBy,
           type: "REFERRAL_BONUS",

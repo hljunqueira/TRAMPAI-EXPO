@@ -78,7 +78,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export const API_BASE_URL = "https://api.trampai.com.br";
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "https://api.trampai.com.br";
 const TOKEN_KEY = "trampai_auth_token";
 const USER_KEY = "trampai_user_data";
 
@@ -181,7 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return handleApiError(res);
-      return { data: await res.json() };
+      return { data: await res.json(), ok: true };
     },
     post: async (url: string, data: any) => {
       const token = await SecureStore.getItemAsync(TOKEN_KEY);
@@ -194,7 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(data),
       });
       if (!res.ok) return handleApiError(res);
-      return { data: await res.json() };
+      return { data: await res.json(), ok: true };
     },
     patch: async (url: string, data: any) => {
       const token = await SecureStore.getItemAsync(TOKEN_KEY);
@@ -207,7 +207,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(data),
       });
       if (!res.ok) return handleApiError(res);
-      return { data: await res.json() };
+      return { data: await res.json(), ok: true };
     },
     delete: async (url: string) => {
       const token = await SecureStore.getItemAsync(TOKEN_KEY);
@@ -216,7 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return handleApiError(res);
-      return { data: await res.json() };
+      return { data: await res.json(), ok: true };
     },
   };
 

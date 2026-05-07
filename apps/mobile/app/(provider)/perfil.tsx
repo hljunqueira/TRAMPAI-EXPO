@@ -275,9 +275,6 @@ export default function ProviderPerfil() {
         Alert.alert("Sucesso", "Perfil impulsionado com sucesso!");
         setBoostModalVisible(false);
         fetchMyData();
-      } else {
-        const err = await res.json();
-        Alert.alert("Erro", err.error || "Falha ao impulsionar perfil.");
       }
     } catch (e) {
       Alert.alert("Erro", "Falha na conexão.");
@@ -297,9 +294,6 @@ export default function ProviderPerfil() {
         Alert.alert("Sucesso", "Assinatura Premium ativada!");
         setPremiumModalVisible(false);
         fetchMyData();
-      } else {
-        const err = await res.json();
-        Alert.alert("Erro", err.error || "Falha ao ativar premium.");
       }
     } catch (e) {
       Alert.alert("Erro", "Falha na conexão.");

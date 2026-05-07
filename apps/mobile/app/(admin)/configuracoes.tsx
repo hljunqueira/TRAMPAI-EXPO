@@ -11,8 +11,8 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Modal,
 } from "react-native";
+import { Modal } from "@/components/Common/Modal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 
@@ -43,7 +43,7 @@ export default function AdminConfig() {
   async function loadConfigs() {
     try {
       const res = await api.get("/admin/config");
-      setConfigs(res.data);
+      setConfigs(res?.data || {});
     } catch (e) {
       console.error(e);
       Alert.alert("Erro", "Falha ao carregar configurações");
@@ -92,7 +92,6 @@ export default function AdminConfig() {
       icon: "gift-outline",
       color: "#ec4899",
       keys: [
-        { key: "welcome_credits", label: "Bônus de Boas-vindas", icon: "auto-fix", suffix: "cr", keyboard: "number-pad" },
         { key: "referral_bonus", label: "Bônus por Indicação", icon: "account-multiple-plus-outline", suffix: "cr", keyboard: "number-pad" },
       ]
     },
@@ -171,54 +170,41 @@ export default function AdminConfig() {
       {/* Modal de Edição de Configurações */}
       <Modal
         visible={modalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
+        onClose={() => setModalVisible(false)}
+        title={selectedSection?.title || ""}
+        description={selectedSection?.description}
+        footer={
+          <TouchableOpacity 
+            style={[styles.doneBtn, { backgroundColor: colors.primary }]}
+            onPress={() => setModalVisible(false)}
+          >
+            <Text style={{ color: "#fff", fontFamily: "Inter_700Bold" }}>CONCLUÍDO</Text>
+          </TouchableOpacity>
+        }
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: "#fff" }]}>
-            <View style={styles.modalHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.modalTitle, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{selectedSection?.title}</Text>
-                <Text style={[styles.modalDesc, { color: colors.mutedForeground }]}>{selectedSection?.description}</Text>
+        <View style={{ gap: 20 }}>
+          {selectedSection?.keys.map((item: any) => (
+            <View key={item.key} style={styles.modalInputGroup}>
+              <View style={styles.inputLabelRow}>
+                <MaterialCommunityIcons name={item.icon as any} size={16} color={colors.primary + "60"} />
+                <Text style={[styles.label, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>{item.label}</Text>
               </View>
-              <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeBtn}>
-                <MaterialCommunityIcons name="close" size={24} color={colors.primary} />
-              </TouchableOpacity>
+              <View style={[styles.inputWrapper, { backgroundColor: colors.primary + "03", borderColor: colors.primary + "10" }]}>
+                <TextInput
+                  style={[styles.modalInput, { color: colors.primary, fontFamily: "Inter_700Bold" }]}
+                  value={configs[item.key] || ""}
+                  onChangeText={(text) => setConfigs(prev => ({ ...prev, [item.key]: text }))}
+                  onBlur={() => saveConfig(item.key, configs[item.key])}
+                  keyboardType={item.keyboard as any}
+                  placeholder="Não definido"
+                  placeholderTextColor={colors.mutedForeground + "40"}
+                />
+                {item.suffix && (
+                  <Text style={[styles.suffix, { color: colors.primary + "40", fontFamily: "Inter_700Bold" }]}>{item.suffix}</Text>
+                )}
+              </View>
             </View>
-
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 20 }}>
-              {selectedSection?.keys.map((item: any) => (
-                <View key={item.key} style={styles.modalInputGroup}>
-                  <View style={styles.inputLabelRow}>
-                    <MaterialCommunityIcons name={item.icon as any} size={16} color={colors.primary + "60"} />
-                    <Text style={[styles.label, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>{item.label}</Text>
-                  </View>
-                  <View style={[styles.inputWrapper, { backgroundColor: colors.primary + "03", borderColor: colors.primary + "10" }]}>
-                    <TextInput
-                      style={[styles.modalInput, { color: colors.primary, fontFamily: "Inter_700Bold" }]}
-                      value={configs[item.key] || ""}
-                      onChangeText={(text) => setConfigs(prev => ({ ...prev, [item.key]: text }))}
-                      onBlur={() => saveConfig(item.key, configs[item.key])}
-                      keyboardType={item.keyboard as any}
-                      placeholder="Não definido"
-                      placeholderTextColor={colors.mutedForeground + "40"}
-                    />
-                    {item.suffix && (
-                      <Text style={[styles.suffix, { color: colors.primary + "40", fontFamily: "Inter_700Bold" }]}>{item.suffix}</Text>
-                    )}
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
-            
-            <TouchableOpacity 
-              style={[styles.doneBtn, { backgroundColor: colors.primary }]}
-              onPress={() => setModalVisible(false)}
-            >
-              <Text style={{ color: "#fff", fontFamily: "Inter_700Bold" }}>CONCLUÍDO</Text>
-            </TouchableOpacity>
-          </View>
+          ))}
         </View>
       </Modal>
 

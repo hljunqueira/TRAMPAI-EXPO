@@ -38,6 +38,7 @@ interface Transaction {
   amountCents: number;
   description: string;
   createdAt: string;
+  jobTitle?: string;
 }
 
 export default function CarteiraScreen() {
@@ -240,7 +241,14 @@ export default function CarteiraScreen() {
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.transTitle, { color: colors.primary }]}>{item.description}</Text>
+                <Text style={[styles.transTitle, { color: colors.primary }]}>
+                  {item.jobTitle || item.description}
+                </Text>
+                {item.jobTitle && (
+                   <Text style={[styles.transDate, { color: colors.mutedForeground, marginBottom: 2 }]}>
+                     {item.description}
+                   </Text>
+                )}
                 <Text style={[styles.transDate, { color: colors.mutedForeground }]}>
                   {new Date(item.createdAt).toLocaleDateString("pt-BR")}
                 </Text>

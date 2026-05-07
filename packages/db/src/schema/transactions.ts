@@ -20,6 +20,7 @@ export const transactions = pgTable("transactions", {
   credits: integer("credits").notNull(),
   amountCents: integer("amount_cents").notNull().default(0),
   description: text("description"),
+  referenceId: uuid("reference_id"), // ID do lead, pacote, etc.
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

@@ -31,6 +31,8 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   
+  const [referralCode, setReferralCode] = useState("");
+  
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
@@ -54,7 +56,8 @@ export default function LoginScreen() {
           email: email.trim().toLowerCase(),
           password,
           role: "client",
-        });
+          referralCode: referralCode.trim() || undefined,
+        } as any);
         Alert.alert(
           "Cadastro Realizado! 📧",
           "Enviamos um e-mail de confirmação para você. Por favor, verifique sua caixa de entrada (e o spam) para ativar sua conta.",
@@ -157,6 +160,19 @@ export default function LoginScreen() {
               </TouchableOpacity>
             )}
           </View>
+
+          {isRegister && (
+            <View style={styles.inputGroup}>
+              <TextInput
+                style={styles.input}
+                placeholder="Código de indicação (opcional)"
+                placeholderTextColor="#666666"
+                value={referralCode}
+                onChangeText={setReferralCode}
+                autoCapitalize="characters"
+              />
+            </View>
+          )}
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 

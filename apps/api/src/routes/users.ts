@@ -200,8 +200,18 @@ router.get("/transactions/me", authenticate, async (req: AuthRequest, res: any) 
     if (!userId) return res.status(401).json({ error: "Não autorizado" });
 
     const myTransactions = await db
-      .select()
+      .select({
+        id: transactions.id,
+        type: transactions.type,
+        credits: transactions.credits,
+        amountCents: transactions.amountCents,
+        description: transactions.description,
+        createdAt: transactions.createdAt,
+        referenceId: transactions.referenceId,
+        jobTitle: jobs.title,
+      })
       .from(transactions)
+      .leftJoin(jobs, eq(transactions.referenceId, jobs.id))
       .where(eq(transactions.userId, userId))
       .orderBy(desc(transactions.createdAt));
 

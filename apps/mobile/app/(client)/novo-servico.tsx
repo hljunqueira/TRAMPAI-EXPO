@@ -26,7 +26,7 @@ import { useCreateJob, useListCategories, useListJobs } from "@workspace/api-cli
 
 export default function NovoServico() {
   const colors = useColors();
-  const { user } = useAuth();
+  const { user, api } = useAuth();
   const insets = useSafeAreaInsets();
 
   const { data: categoriesData, isLoading: loadingCats } = useListCategories();
@@ -51,6 +51,8 @@ export default function NovoServico() {
   const [city, setCity] = useState(user?.city || "");
   const [neighborhood, setNeighborhood] = useState(user?.neighborhood || "");
   const [state, setState] = useState("");
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
   const [images, setImages] = useState<{uri: string, base64?: string | null}[]>([]);
   
   const [loadingCep, setLoadingCep] = useState(false);
@@ -59,10 +61,12 @@ export default function NovoServico() {
 
   // Mescla categorias do banco com fallback de categorias fixas
   const allCategories = useMemo(() => {
-    const apiCats = categoriesData || [];
+    const apiCats = (categoriesData || []).filter(c => c.name !== "Outros");
     if (apiCats.length > 0) return apiCats;
-    // Fallback: montar lista a partir das categorias fixas
-    return SUGGESTED_CATEGORIES.map((name, i) => ({ id: `local-${i}`, name }));
+    // Fallback: montar lista a partir das categorias fixas (excluindo Outros)
+    return SUGGESTED_CATEGORIES
+      .filter(name => name !== "Outros")
+      .map((name, i) => ({ id: `local-${i}`, name }));
   }, [categoriesData]);
 
   const selectedCategoryName = useMemo(() => {
@@ -97,6 +101,27 @@ export default function NovoServico() {
       setLoadingCep(false);
     }
   }
+
+  async function geocodeAddress(street: string, city: string, state: string) {
+    try {
+      const query = encodeURIComponent(`${street}, ${city}, ${state}, Brasil`);
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`);
+      const data = await res.json();
+      if (data && data.length > 0) {
+        setLatitude(parseFloat(data[0].lat));
+        setLongitude(parseFloat(data[0].lon));
+      }
+    } catch (e) {
+      console.warn("Geocoding error:", e);
+    }
+  }
+
+  // Chamar geocoding quando o endereço estiver completo
+  React.useEffect(() => {
+    if (street && city && state) {
+      geocodeAddress(street, city, state);
+    }
+  }, [street, city, state]);
 
   async function pickImage(index?: number) {
     const maxImages = 4;
@@ -145,23 +170,14 @@ export default function NovoServico() {
     // Se o cliente digitou uma categoria personalizada, criar via API
     if (showCustomInput && customCategory.trim()) {
       try {
-        const token = await SecureStore.getItemAsync("trampai_auth_token");
-        const catRes = await fetch(`${API_BASE_URL}/api/categories`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({ name: customCategory.trim() }),
-        });
-        if (catRes.ok) {
-          const newCat = await catRes.json();
-          categoryIdToUse = newCat.id;
+        const response = await api.post("/categories", { name: customCategory.trim() });
+        if (response.ok) {
+          categoryIdToUse = response.data.id;
         } else {
           return setError("Não foi possível criar a categoria. Tente selecionar uma da lista.");
         }
-      } catch {
-        return setError("Erro ao criar categoria personalizada.");
+      } catch (e: any) {
+        return setError(e.message || "Erro ao criar categoria personalizada.");
       }
     }
 
@@ -175,17 +191,9 @@ export default function NovoServico() {
       for (const img of images) {
         if (img.base64) {
           try {
-            const uploadRes = await fetch(`${API_BASE_URL}/api/upload`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-              },
-              body: JSON.stringify({ imageBase64: img.base64 }),
-            });
-            if (uploadRes.ok) {
-              const data = await uploadRes.json();
-              uploadedUrls.push(data.url);
+            const response = await api.post("/upload", { imageBase64: img.base64 });
+            if (response.ok) {
+              uploadedUrls.push(response.data.url);
             }
           } catch (uploadErr) {
             console.error("Erro ao subir imagem:", uploadErr);
@@ -195,12 +203,16 @@ export default function NovoServico() {
 
       await createJob({
         data: {
-          title: title.trim(),
-          description: description.trim(),
-          categoryId: categoryIdToUse,
-          budget: 0, 
-          location: fullLocation,
-          images: uploadedUrls,
+          ...({
+            title: title.trim(),
+            description: description.trim(),
+            categoryId: categoryIdToUse,
+            budget: 0, 
+            location: fullLocation,
+            latitude,
+            longitude,
+            images: uploadedUrls,
+          } as any)
         }
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

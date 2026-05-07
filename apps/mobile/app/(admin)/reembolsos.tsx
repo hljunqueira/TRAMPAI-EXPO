@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { useState, useEffect } from "react";
 import {
   View,
@@ -42,7 +43,7 @@ export default function ReembolsosAdmin() {
       setLoading(true);
       // Endpoint para listar leads desbloqueados recentemente
       const response = await api.get("/admin/leads/recent");
-      setLeads(response.data);
+      setLeads(response?.data || []);
     } catch (error) {
       console.error(error);
     } finally {
@@ -83,8 +84,13 @@ export default function ReembolsosAdmin() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.foreground }]}>Reembolsos</Text>
-        <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Gerencie estornos de leads</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <MaterialCommunityIcons name="arrow-left" size={24} color={colors.foreground} />
+        </TouchableOpacity>
+        <View>
+          <Text style={[styles.title, { color: colors.foreground }]}>Reembolsos</Text>
+          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Gerencie estornos de leads</Text>
+        </View>
       </View>
 
       <FlatList
@@ -143,7 +149,8 @@ export default function ReembolsosAdmin() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-  header: { padding: 20 },
+  header: { padding: 20, flexDirection: "row", alignItems: "center", gap: 16 },
+  backBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   title: { fontSize: 28, fontFamily: "Inter_700Bold" },
   subtitle: { fontSize: 14, fontFamily: "Inter_400Regular", marginTop: 4 },
   list: { padding: 20, gap: 16 },

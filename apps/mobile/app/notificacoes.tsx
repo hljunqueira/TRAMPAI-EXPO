@@ -44,8 +44,8 @@ export default function NotificacoesScreen() {
 
   async function fetchNotifications() {
     try {
-      const data = await api.get("/notifications");
-      setNotifications(data);
+      const response = await api.get("/notifications");
+      setNotifications(response?.data || []);
     } catch (error) {
       console.error(error);
     } finally {

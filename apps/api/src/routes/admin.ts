@@ -30,15 +30,11 @@ router.get("/config", async (req, res) => {
       CONFIG_KEYS.LEAD_NORMAL_COST,
       CONFIG_KEYS.LEAD_PLUS_COST,
       CONFIG_KEYS.LEAD_EXCLUSIVE_COST,
-      CONFIG_KEYS.WELCOME_CREDITS,
       CONFIG_KEYS.REFERRAL_BONUS,
       CONFIG_KEYS.CREDIT_UNIT_PRICE_CENTS,
       CONFIG_KEYS.BOOST_COST,
       CONFIG_KEYS.PREMIUM_COST,
       CONFIG_KEYS.PORTFOLIO_COST,
-      CONFIG_KEYS.PIX_KEY,
-      CONFIG_KEYS.PIX_HOLDER_NAME,
-      CONFIG_KEYS.PIX_KEY_TYPE,
       CONFIG_KEYS.APP_MAINTENANCE_MODE
     ];
     
@@ -643,6 +639,7 @@ router.post("/admin/leads/:id/refund", authenticate, isAdmin, auditLog("REFUND_L
         credits: lead.cost,
         amountCents: 0,
         description: `Reembolso de lead #${id.slice(0, 8)}`,
+        referenceId: lead.jobId,
       } as any);
     });
 

@@ -56,7 +56,7 @@ export default function ModeracaoAdmin() {
     try {
       setLoading(true);
       const response = await api.get("/admin/jobs");
-      setJobs(response.data);
+      setJobs(response?.data || []);
     } catch (error) {
       console.error(error);
     } finally {

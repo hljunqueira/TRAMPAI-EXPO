@@ -44,7 +44,7 @@ export default function CategoriasAdmin() {
     try {
       setLoading(true);
       const response = await api.get("/categories");
-      setCategories(response.data);
+      setCategories(response?.data || []);
     } catch (error) {
       Alert.alert("Erro", "Não foi possível carregar as categorias.");
     } finally {

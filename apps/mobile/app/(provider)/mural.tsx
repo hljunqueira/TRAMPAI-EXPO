@@ -14,16 +14,16 @@ import {
   View,
   Image,
   Share,
+  ActivityIndicator,
+  ScrollView,
 } from "react-native";
+import * as Location from "expo-location";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ServiceCard } from "@/components/ServiceCard";
 import { SUGGESTED_CATEGORIES } from "@/constants/categories";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
-import { useListJobs } from "@workspace/api-client-react";
-import * as SecureStore from "expo-secure-store";
-import { API_BASE_URL } from "@/context/AuthContext";
 import type { UnlockType } from "@/types";
 import type { Job } from "@workspace/api-client-react";
 
@@ -32,8 +32,8 @@ export default function Mural() {
   const { user, unlockService, leads, activeMode, switchActiveMode, api, appConfig } = useAuth();
   const insets = useSafeAreaInsets();
 
-  const { data: jobs, isLoading, refetch } = useListJobs();
-
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedService, setSelectedService] = useState<Job | null>(null);
@@ -41,12 +41,70 @@ export default function Mural() {
   const [unlockResult, setUnlockResult] = useState<any | null>(null);
   const [unlockError, setUnlockError] = useState("");
   const [unreadCount, setUnreadCount] = useState(0);
+  const [distance, setDistance] = useState<number>(50);
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [loadingLocation, setLoadingLocation] = useState(false);
+
+  const fetchJobs = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      let url = "/jobs";
+      const queryParams = [];
+      
+      if (userLocation) {
+        queryParams.push(`lat=${userLocation.lat}`);
+        queryParams.push(`lng=${userLocation.lng}`);
+        queryParams.push(`radius=${distance}`);
+      }
+
+      if (queryParams.length > 0) {
+        url += `?${queryParams.join("&")}`;
+      }
+
+      const response = await api.get(url);
+      setJobs(response?.data || []);
+    } catch (e) {
+      console.error("Error fetching jobs:", e);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [api, userLocation, distance]);
 
   useFocusEffect(
     useCallback(() => {
       checkNotifications();
-    }, [])
+      requestLocation();
+      fetchJobs();
+    }, [fetchJobs])
   );
+
+  async function requestLocation() {
+    try {
+      setLoadingLocation(true);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLoadingLocation(false);
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({});
+      setUserLocation({
+        lat: location.coords.latitude,
+        lng: location.coords.longitude
+      });
+    } catch (e) {
+      console.warn("Error getting location:", e);
+    } finally {
+      setLoadingLocation(false);
+    }
+  }
+
+  // Recarregar quando a distância ou localização mudar
+  useEffect(() => {
+    if (userLocation) {
+      fetchJobs();
+    }
+  }, [distance, userLocation, fetchJobs]);
 
   async function shareReferral() {
     try {
@@ -69,15 +127,16 @@ export default function Mural() {
 
   async function checkNotifications() {
     try {
-      const data = await api.get("/notifications");
-      setUnreadCount(data.filter((n: any) => !n.read).length);
+      const response = await api.get("/notifications");
+      const notifications = response?.data || [];
+      setUnreadCount(notifications.filter((n: any) => !n.read).length);
     } catch (e) {}
   }
 
   const isVerified = user?.verificationStatus === "APPROVED" || user?.role === "admin";
 
   const visibleJobs = useMemo(() => {
-    if (!jobs) return [];
+    if (!jobs || !Array.isArray(jobs)) return [];
     return jobs.filter((job) => {
       if (job.clientId === user?.id) return false;
       if (selectedCategories.length > 0) {
@@ -87,8 +146,6 @@ export default function Mural() {
       return true;
     });
   }, [jobs, selectedCategories, user?.id]);
-
-  const myLeadServiceIds = leads.map((l) => l.jobId);
 
   function toggleCategory(cat: string) {
     Haptics.selectionAsync();
@@ -127,6 +184,7 @@ export default function Mural() {
       } else if (result) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setUnlockResult(result);
+        fetchJobs(); // Atualiza a lista após desbloqueio
       }
     } finally {
       setUnlocking(false);
@@ -234,7 +292,7 @@ export default function Mural() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={[styles.list, { paddingBottom: 40 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={colors.accent} />}
+        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={fetchJobs} tintColor={colors.accent} />}
         ListHeaderComponent={
           <View style={styles.pageHeader}>
             <View style={styles.titleSection}>
@@ -244,6 +302,36 @@ export default function Mural() {
 
             <View style={[styles.filterCard, { backgroundColor: colors.card, borderColor: colors.border + "30" }]}>
               <View style={styles.filterRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <Text style={[styles.filterLabel, { color: colors.primary, fontFamily: "Inter_700Bold", marginBottom: 0 }]}>Raio de Distância</Text>
+                  {loadingLocation && <ActivityIndicator size="small" color={colors.primary} />}
+                  {userLocation && !loadingLocation && <MaterialCommunityIcons name="map-marker-check" size={16} color={colors.secondary} />}
+                </View>
+                
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 12 }}>
+                  {[5, 10, 20, 50, 100, 500].map((d) => (
+                    <TouchableOpacity
+                      key={d}
+                      style={[
+                        styles.distanceChip,
+                        { 
+                          backgroundColor: distance === d ? colors.primary : colors.surface,
+                          borderColor: distance === d ? colors.primary : colors.border + "20"
+                        }
+                      ]}
+                      onPress={() => {
+                        setDistance(d);
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                    >
+                      <Text style={[
+                        styles.distanceChipText,
+                        { color: distance === d ? "#FFF" : colors.primary, fontFamily: "Inter_600SemiBold" }
+                      ]}>{d >= 500 ? 'Brasil' : `${d}km`}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
                 <Text style={[styles.filterLabel, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>O que você procura?</Text>
                 <TouchableOpacity 
                   style={[styles.categorySelect, { borderColor: colors.border + "40", backgroundColor: colors.surface }]}
@@ -289,7 +377,11 @@ export default function Mural() {
                 Tente ajustar os filtros ou aguarde novas publicações.
               </Text>
             </View>
-          ) : null
+          ) : (
+            <View style={{ padding: 40, alignItems: 'center' }}>
+               <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          )
         }
         renderItem={({ item }) => {
           const lead = leads.find((l) => l.jobId === item.id);
@@ -306,7 +398,7 @@ export default function Mural() {
         }}
       />
 
-      {/* Unlock Modal (Same logic, slightly updated style) */}
+      {/* Unlock Modal */}
       <Modal visible={!!selectedService} animationType="slide" transparent onRequestClose={() => setSelectedService(null)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => { if (!unlocking) setSelectedService(null); }} />
         {selectedService && (
@@ -344,7 +436,7 @@ export default function Mural() {
                     </Text>
                   </TouchableOpacity>
 
-                  {/* Nível 2: Plus (Anti-Furada) */}
+                  {/* Nível 2: Plus */}
                   <TouchableOpacity 
                     style={[styles.unlockOption, { backgroundColor: colors.surface, borderColor: colors.secondary, borderRadius: 16, borderWidth: 1 }]} 
                     onPress={() => handleUnlock("PLUS")} 
@@ -359,11 +451,11 @@ export default function Mural() {
                       </View>
                     </View>
                     <Text style={[styles.unlockOptionDesc, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-                      WhatsApp + <Text style={{fontFamily: "Inter_700Bold"}}>Histórico do Cliente</Text>. Saiba se ele é confiável e se costuma fechar serviços antes de investir.
+                      WhatsApp + <Text style={{fontFamily: "Inter_700Bold"}}>Histórico do Cliente</Text>. Saiba se ele é confiável antes de investir.
                     </Text>
                   </TouchableOpacity>
 
-                  {/* Nível 3: Exclusivo (Match) */}
+                  {/* Nível 3: Exclusivo */}
                   <TouchableOpacity 
                     style={[styles.unlockOption, { backgroundColor: colors.navy, borderColor: colors.accent, borderRadius: 16, borderWidth: 2 }]} 
                     onPress={() => handleUnlock("EXCLUSIVE")} 
@@ -378,7 +470,7 @@ export default function Mural() {
                       </View>
                     </View>
                     <Text style={[styles.unlockOptionDesc, { color: "#ffffff90", fontFamily: "Inter_400Regular" }]}>
-                      Peça exclusividade ao cliente. Se ele recusar ou não responder, seus <Text style={{fontFamily: "Inter_700Bold"}}>créditos são estornados na hora</Text>.
+                      Peça exclusividade ao cliente. Se ele não responder, seus créditos são estornados.
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -419,6 +511,7 @@ export default function Mural() {
                     <Text style={[styles.whatsappBtnText, { fontFamily: "Inter_700Bold" }]}>Enviar Mensagem</Text>
                   </TouchableOpacity>
                 )}
+                
                 {unlockResult?.job?.client && (
                   <View style={[styles.clientStats, { backgroundColor: colors.surface, borderRadius: 16 }]}>
                     <Text style={[styles.statsTitle, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Histórico do Cliente</Text>
@@ -433,22 +526,6 @@ export default function Mural() {
                         <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Fechados</Text>
                       </View>
                     </View>
-                    
-                    {unlockResult.job.clientReviews?.length > 0 && (
-                      <View style={styles.reviewsList}>
-                        <Text style={[styles.reviewsTitle, { color: colors.mutedForeground }]}>Últimas avaliações:</Text>
-                        {unlockResult.job.clientReviews.map((r: any) => (
-                          <View key={r.id} style={styles.reviewItem}>
-                            <View style={styles.stars}>
-                              {[1,2,3,4,5].map(s => (
-                                <MaterialCommunityIcons key={s} name="star" size={12} color={s <= r.rating ? colors.accent : colors.border} />
-                              ))}
-                            </View>
-                            <Text style={[styles.reviewComment, { color: colors.foreground }]} numberOfLines={2}>"{r.comment}"</Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
                   </View>
                 )}
 
@@ -580,6 +657,8 @@ const styles = StyleSheet.create({
   empty: { alignItems: "center", padding: 48, gap: 16, marginTop: 20 },
   emptyTitle: { fontSize: 20, textAlign: "center" },
   emptyDesc: { fontSize: 15, textAlign: "center", lineHeight: 22 },
+  distanceChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100, borderWidth: 1.5 },
+  distanceChipText: { fontSize: 13 },
   modalOverlay: { flex: 1 },
   modalSheet: { padding: 24, paddingBottom: 60 },
   modalHandle: { width: 40, height: 4, backgroundColor: "#E5E7EB", borderRadius: 10, alignSelf: "center", marginBottom: 24 },
@@ -611,9 +690,4 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 24, fontFamily: "Inter_700Bold" },
   statLabel: { fontSize: 12, marginTop: 2 },
   statDivider: { width: 1, height: 30, backgroundColor: "#00000010" },
-  reviewsList: { gap: 12, borderTopWidth: 1, borderTopColor: "#00000005", paddingTop: 16 },
-  reviewsTitle: { fontSize: 12, fontFamily: "Inter_600SemiBold", marginBottom: 4 },
-  reviewItem: { gap: 4 },
-  stars: { flexDirection: "row", gap: 2 },
-  reviewComment: { fontSize: 13, fontStyle: "italic", lineHeight: 18 },
 });
