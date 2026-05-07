@@ -226,10 +226,118 @@ router.get("/auth/verify", async (req: any, res: any) => {
       .set({ emailVerifiedAt: new Date(), verificationToken: null })
       .where(eq(users.id, user.id));
 
-    return res.json({ message: "E-mail verificado com sucesso! Agora você pode fazer login." });
+    return res.send(`
+      <!DOCTYPE html>
+      <html lang="pt-br">
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>E-mail Verificado - Trampaí</title>
+          <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+          <style>
+              body {
+                  margin: 0;
+                  padding: 0;
+                  font-family: 'Outfit', sans-serif;
+                  background-color: #f8fafc;
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  height: 100vh;
+                  color: #21284E;
+              }
+              .card {
+                  background: white;
+                  padding: 48px;
+                  border-radius: 32px;
+                  box-shadow: 0 20px 40px rgba(33, 40, 78, 0.08);
+                  text-align: center;
+                  max-width: 400px;
+                  width: 90%;
+              }
+              .icon-circle {
+                  width: 80px;
+                  height: 80px;
+                  background: linear-gradient(135deg, #F69926, #FFB14A);
+                  border-radius: 50%;
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  margin: 0 auto 24px;
+                  box-shadow: 0 8px 16px rgba(246, 153, 38, 0.3);
+              }
+              .icon-circle svg {
+                  width: 40px;
+                  height: 40px;
+                  color: white;
+              }
+              h1 {
+                  margin: 0 0 16px;
+                  font-size: 28px;
+                  font-weight: 700;
+              }
+              p {
+                  color: #64748b;
+                  font-size: 16px;
+                  line-height: 1.6;
+                  margin-bottom: 32px;
+              }
+              .btn {
+                  display: inline-block;
+                  background-color: #21284E;
+                  color: white;
+                  padding: 16px 32px;
+                  text-decoration: none;
+                  border-radius: 16px;
+                  font-weight: 600;
+                  font-size: 16px;
+                  transition: all 0.2s ease;
+                  box-shadow: 0 4px 12px rgba(33, 40, 78, 0.2);
+              }
+              .btn:hover {
+                  transform: translateY(-2px);
+                  box-shadow: 0 6px 16px rgba(33, 40, 78, 0.3);
+                  background-color: #2a3363;
+              }
+          </style>
+      </head>
+      <body>
+          <div class="card">
+              <div class="icon-circle">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+              </div>
+              <h1>E-mail Verificado!</h1>
+              <p>Sua conta está ativa e pronta para uso. Agora você já pode acessar todas as oportunidades do Trampaí.</p>
+              <a href="trampai://" class="btn">Abrir Aplicativo</a>
+          </div>
+      </body>
+      </html>
+    `);
   } catch (err) {
     console.error("ERRO VERIFICACAO:", err);
-    return res.status(500).json({ error: "Erro ao verificar e-mail" });
+    return res.status(500).send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <meta charset="UTF-8">
+          <title>Erro na Verificação - Trampaí</title>
+          <style>
+              body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f8fafc; }
+              .card { background: white; padding: 40px; border-radius: 20px; text-align: center; box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
+              h1 { color: #e11d48; }
+          </style>
+      </head>
+      <body>
+          <div class="card">
+              <h1>Ops! Algo deu errado</h1>
+              <p>Não conseguimos verificar seu e-mail. O link pode ter expirado ou já foi utilizado.</p>
+              <a href="/" style="color: #21284E; text-decoration: none; font-weight: bold;">Voltar ao início</a>
+          </div>
+      </body>
+      </html>
+    `);
   }
 });
 
