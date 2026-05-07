@@ -11,9 +11,13 @@ import {
   View,
   Linking,
   Alert,
+  ScrollView,
+  Modal,
+  TextInput,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
+import * as WebBrowser from "expo-web-browser";
 
 import { useAuth, API_BASE_URL } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
@@ -45,6 +49,8 @@ export default function CarteiraScreen() {
   const [transactionsData, setTransactionsData] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [buying, setBuying] = useState<string | null>(null);
+  const [customModalVisible, setCustomModalVisible] = useState(false);
+  const [customCredits, setCustomCredits] = useState("10");
 
   useEffect(() => {
     fetchData();
@@ -71,7 +77,7 @@ export default function CarteiraScreen() {
     }
   }
 
-  async function handleBuy(packageId: string) {
+  async function handleBuy(packageId: string, customAmount?: number) {
     try {
       setBuying(packageId);
       const token = await SecureStore.getItemAsync("trampai_auth_token");
@@ -82,14 +88,17 @@ export default function CarteiraScreen() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}` 
         },
-        body: JSON.stringify({ packageId }),
+        body: JSON.stringify({ 
+          packageId,
+          ...(customAmount ? { customCredits: customAmount } : {})
+        }),
       });
 
       const data = await res.json();
       
       if (res.ok && data.url) {
-        // Abrir o checkout do Stripe no navegador
-        Linking.openURL(data.url);
+        // Abrir o checkout do Stripe no in-app browser
+        WebBrowser.openBrowserAsync(data.url);
       } else {
         Alert.alert("Erro", data.error || "Não foi possível iniciar o pagamento.");
       }
@@ -125,7 +134,7 @@ export default function CarteiraScreen() {
         <Text style={[styles.sectionTitle, { color: colors.primary }]}>Comprar Créditos 💎</Text>
       </View>
 
-      {/* Lista de Pacotes (Horizontal) */}
+      {/* Lista de Pacotes (Grid 2x2) */}
       <View style={styles.packagesContainer}>
         {packages.map(pkg => (
           <TouchableOpacity 
@@ -158,6 +167,17 @@ export default function CarteiraScreen() {
             </View>
           </TouchableOpacity>
         ))}
+
+        {/* Pacote Personalizado */}
+        <TouchableOpacity 
+          style={[styles.packageCard, { borderColor: colors.border, justifyContent: 'center' }]}
+          onPress={() => setCustomModalVisible(true)}
+          disabled={!!buying}
+        >
+          <MaterialCommunityIcons name="plus-circle-outline" size={32} color={colors.primary} style={{ marginBottom: 8 }} />
+          <Text style={[styles.pkgCredits, { color: colors.primary, fontSize: 16 }]}>Personalizado</Text>
+          <Text style={[styles.pkgPrice, { color: colors.mutedForeground, textAlign: 'center', fontSize: 12, marginTop: 4 }]}>Min. 10 CR</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.sectionHeader}>
@@ -213,6 +233,77 @@ export default function CarteiraScreen() {
           }
         />
       )}
+
+      {/* Modal de Créditos Personalizados */}
+      <Modal
+        visible={customModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCustomModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.primary }]}>Créditos Personalizados</Text>
+            <Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>
+              Digite a quantidade desejada (mínimo de 10 créditos). O valor é de R$ 1,00 por crédito.
+            </Text>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24, width: '100%' }}>
+              <TouchableOpacity 
+                style={[styles.selectorBtn, { backgroundColor: colors.muted }]}
+                onPress={() => {
+                  const val = parseInt(customCredits || "0");
+                  setCustomCredits(String(Math.max(10, val - 5)));
+                }}
+              >
+                <MaterialCommunityIcons name="minus" size={24} color={colors.primary} />
+              </TouchableOpacity>
+
+              <TextInput
+                style={[styles.modalInput, { borderColor: colors.border, color: colors.primary, flex: 1, marginBottom: 0 }]}
+                keyboardType="number-pad"
+                value={customCredits}
+                onChangeText={setCustomCredits}
+                maxLength={4}
+              />
+
+              <TouchableOpacity 
+                style={[styles.selectorBtn, { backgroundColor: colors.muted }]}
+                onPress={() => {
+                  const val = parseInt(customCredits || "0");
+                  setCustomCredits(String(val < 10 ? 10 : val + 5));
+                }}
+              >
+                <MaterialCommunityIcons name="plus" size={24} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalBtn, { backgroundColor: colors.muted }]} 
+                onPress={() => setCustomModalVisible(false)}
+              >
+                <Text style={[styles.modalBtnText, { color: colors.primary }]}>Cancelar</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.modalBtn, { backgroundColor: colors.primary }]} 
+                onPress={() => {
+                  const amount = parseInt(customCredits, 10);
+                  if (amount >= 10) {
+                    setCustomModalVisible(false);
+                    handleBuy("custom", amount);
+                  } else {
+                    Alert.alert("Atenção", "O mínimo é de 10 créditos.");
+                  }
+                }}
+              >
+                <Text style={[styles.modalBtnText, { color: "#FFF" }]}>Confirmar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -232,7 +323,7 @@ const styles = StyleSheet.create({
   balanceSub: { color: "rgba(255,255,255,0.6)", fontSize: 13, lineHeight: 18 },
   sectionHeader: { marginBottom: 16 },
   sectionTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
-  packagesContainer: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 32 },
+  packagesContainer: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 12, marginBottom: 24 },
   packageCard: { width: "48%", backgroundColor: "#FFF", borderRadius: 16, padding: 16, alignItems: "center", borderWidth: 1, position: "relative", overflow: "hidden" },
   popularBadge: { position: "absolute", top: 0, left: 0, right: 0, paddingVertical: 2, alignItems: "center" },
   popularText: { color: "#FFF", fontSize: 9, fontFamily: "Inter_800ExtraBold" },
@@ -246,5 +337,14 @@ const styles = StyleSheet.create({
   transTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold", marginBottom: 2 },
   transDate: { fontSize: 12 },
   transAmount: { fontSize: 16, fontFamily: "Inter_700Bold" },
-  empty: { padding: 40, alignItems: "center" }
+  empty: { padding: 40, alignItems: "center" },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+  modalContent: { borderRadius: 16, padding: 24, alignItems: 'center' },
+  modalTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 8 },
+  modalSubtitle: { fontSize: 14, textAlign: 'center', marginBottom: 20, fontFamily: 'Inter_400Regular' },
+  modalInput: { width: '100%', borderWidth: 1, borderRadius: 8, padding: 16, fontSize: 24, textAlign: 'center', fontFamily: 'Inter_700Bold', marginBottom: 24 },
+  modalButtons: { flexDirection: 'row', gap: 12, width: '100%' },
+  modalBtn: { flex: 1, padding: 14, borderRadius: 8, alignItems: 'center' },
+  modalBtnText: { fontSize: 14, fontFamily: 'Inter_700Bold' },
+  selectorBtn: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' }
 });

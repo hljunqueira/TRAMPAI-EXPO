@@ -61,9 +61,14 @@ router.post("/payments/checkout", authenticate, async (req: AuthRequest, res: an
       pkgId = pkg.id;
     }
 
+    const paymentMethods = ["card"];
+    if (pkgPriceCents >= 9990) {
+      paymentMethods.push("boleto");
+    }
+
     console.log("💳 [Checkout] Criando sessao no Stripe para:", pkgName);
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card", "boleto"],
+      payment_method_types: paymentMethods as any,
       line_items: [
         {
           price_data: {
