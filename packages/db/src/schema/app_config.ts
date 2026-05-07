@@ -30,6 +30,7 @@ export const CONFIG_KEYS = {
   CREDIT_UNIT_PRICE_CENTS: "credit_unit_price_cents", // Price in cents for 1 credit (float as string)
   BOOST_COST: "boost_cost", // Cost in credits for 24h boost
   PREMIUM_COST: "premium_cost", // Cost in credits for 30d premium
+  PORTFOLIO_COST: "portfolio_cost", // Cost in credits for portfolio upgrade
 } as const;
 
 // Valores padrão
@@ -52,4 +53,5 @@ export const CONFIG_DEFAULTS: Record<string, string> = {
   [CONFIG_KEYS.CREDIT_UNIT_PRICE_CENTS]: "99.9",
   [CONFIG_KEYS.BOOST_COST]: "5",
   [CONFIG_KEYS.PREMIUM_COST]: "20",
+  [CONFIG_KEYS.PORTFOLIO_COST]: "5",
 };
