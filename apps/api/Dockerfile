@@ -13,7 +13,7 @@ COPY apps/api/package.json ./apps/api/
 
 # Instalar dependências
 RUN pnpm config set ignore-scripts false
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile || (pnpm approve-builds && pnpm install --frozen-lockfile)
 
 # Copiar código fonte
 COPY packages/db ./packages/db
