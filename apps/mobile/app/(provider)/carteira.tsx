@@ -175,7 +175,7 @@ export default function CarteiraScreen() {
           disabled={!!buying}
         >
           <MaterialCommunityIcons name="plus-circle-outline" size={32} color={colors.primary} style={{ marginBottom: 8 }} />
-          <Text style={[styles.pkgCredits, { color: colors.primary, fontSize: 16 }]}>Personalizado</Text>
+          <Text style={[styles.pkgCredits, { color: colors.primary, fontSize: 16 }]}>Avulso</Text>
           <Text style={[styles.pkgPrice, { color: colors.mutedForeground, textAlign: 'center', fontSize: 12, marginTop: 4 }]}>Min. 10 CR</Text>
         </TouchableOpacity>
       </View>
@@ -243,9 +243,9 @@ export default function CarteiraScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.primary }]}>Créditos Personalizados</Text>
+            <Text style={[styles.modalTitle, { color: colors.primary }]}>Créditos Avulsos</Text>
             <Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>
-              Digite a quantidade desejada (mínimo de 10 créditos). O valor é de R$ 1,00 por crédito.
+              Digite a quantidade desejada (mínimo de 10 créditos). O valor é calculado a partir de R$ 9,99 a cada 10 créditos.
             </Text>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24, width: '100%' }}>

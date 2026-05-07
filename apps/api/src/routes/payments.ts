@@ -41,10 +41,10 @@ router.post("/payments/checkout", authenticate, async (req: AuthRequest, res: an
       if (!customCredits || isNaN(customCredits) || customCredits < 10) {
         return res.status(400).json({ error: "Minimo de 10 creditos" });
       }
-      pkgName = `Personalizado (${customCredits} CR)`;
+      pkgName = `Avulso (${customCredits} CR)`;
       pkgCredits = customCredits;
-      // R$ 1,00 por credito
-      pkgPriceCents = customCredits * 100;
+      // 10 CR = R$ 9.99 -> 99.9 cents per credit
+      pkgPriceCents = Math.round(customCredits * 99.9);
       pkgId = "custom";
     } else {
       console.log("🔍 [Checkout] Buscando pacote no banco...");
