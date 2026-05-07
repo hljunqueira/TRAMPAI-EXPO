@@ -87,10 +87,12 @@ export default function ProviderPerfil() {
   async function shareReferral() {
     try {
       const code = user?.referralCode || "TRAMPAI26";
-      const message = `Ei! Use meu código ${code} no Trampaí para ganhar ${appConfig?.REFERRAL_BONUS || 10} créditos de bônus e oferecer seus serviços para milhares de clientes! 🚀\n\nBaixe agora: https://trampai.com.br`;
+      const referralLink = `https://trampai.com.br?ref=${code}`;
+      const message = `Ei! Use meu código *${code}* no Trampaí para ganhar ${appConfig?.REFERRAL_BONUS || 10} créditos de bônus e oferecer seus serviços para milhares de clientes! 🚀\n\nBaixe agora: ${referralLink}`;
       
       const result = await Share.share({
         message,
+        url: referralLink, // iOS usa url separado
         title: "Convite Trampaí",
       });
 
