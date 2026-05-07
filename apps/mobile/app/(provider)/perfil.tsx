@@ -363,19 +363,28 @@ export default function ProviderPerfil() {
           </TouchableOpacity>
 
           <View style={styles.headerInfo}>
-            <View style={[styles.nameRow, { flexWrap: 'wrap', justifyContent: 'center' }]}>
+            <View style={{ alignItems: 'center' }}>
               <Text style={[styles.userName, { color: colors.primary, fontFamily: "Inter_800ExtraBold", textAlign: 'center' }]}>{user?.name}</Text>
-              {user?.isPremium && (
-                <View style={[styles.premiumBadge, { backgroundColor: colors.accent }]}>
-                  <MaterialCommunityIcons name="crown" size={12} color={colors.navy} />
-                  <Text style={[styles.premiumBadgeText, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>PREMIUM</Text>
-                </View>
-              )}
-              <View style={[styles.ratingChip, { backgroundColor: colors.secondary + "15" }]}>
-                <MaterialCommunityIcons name="star" size={12} color={colors.secondary} />
-                <Text style={[styles.ratingText, { color: colors.secondary, fontFamily: "Inter_700Bold" }]}>
-                  {user?.reviewCount && user.reviewCount > 0 ? user.rating : "Novo"}
-                </Text>
+              
+              <View style={[styles.badgesRowBelow, { marginTop: 4 }]}>
+                {(!user?.reviewCount || user.reviewCount === 0) && (
+                  <View style={[styles.ratingChip, { backgroundColor: colors.secondary + "15" }]}>
+                    <MaterialCommunityIcons name="leaf" size={12} color={colors.secondary} />
+                    <Text style={[styles.ratingText, { color: colors.secondary, fontFamily: "Inter_700Bold" }]}>Novo</Text>
+                  </View>
+                )}
+                {user?.isPremium && (
+                  <View style={[styles.premiumBadge, { backgroundColor: colors.accent }]}>
+                    <MaterialCommunityIcons name="crown" size={12} color={colors.navy} />
+                    <Text style={[styles.premiumBadgeText, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>PREMIUM</Text>
+                  </View>
+                )}
+                {user?.reviewCount && user.reviewCount > 0 && (
+                  <View style={[styles.ratingChip, { backgroundColor: colors.secondary + "15" }]}>
+                    <MaterialCommunityIcons name="star" size={12} color={colors.secondary} />
+                    <Text style={[styles.ratingText, { color: colors.secondary, fontFamily: "Inter_700Bold" }]}>{user.rating}</Text>
+                  </View>
+                )}
               </View>
             </View>
             
@@ -707,8 +716,9 @@ const styles = StyleSheet.create({
   verifiedBadge: { position: "absolute", bottom: 0, left: 0, width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "#FFF" },
   headerInfo: { alignItems: "center", width: "100%" },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6, paddingHorizontal: 10 },
+  badgesRowBelow: { flexDirection: "row", alignItems: "center", gap: 8 },
   userName: { fontSize: 22 },
-  ratingChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 100 },
+  ratingChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 100 },
   ratingText: { fontSize: 13 },
   userRole: { fontSize: 14, textAlign: "center", marginBottom: 16, paddingHorizontal: 20 },
   chipsRow: { flexDirection: "row", gap: 10 },
