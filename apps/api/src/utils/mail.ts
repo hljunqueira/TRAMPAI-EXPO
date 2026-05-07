@@ -4,15 +4,30 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function sendVerificationEmail(email: string, token: string) {
   try {
+    const verifyUrl = `${process.env.APP_URL}/api/auth/verify?token=${token}`;
     const { data, error } = await resend.emails.send({
-      from: "Trampaí <onboarding@resend.dev>", // Usar o domínio padrão do Resend para testes
+      from: "Trampaí <onboarding@resend.dev>",
       to: [email],
-      subject: "Verifique sua conta no Trampaí",
+      subject: "Ative sua conta no Trampaí",
       html: `
-        <h1>Bem-vindo ao Trampaí!</h1>
-        <p>Clique no link abaixo para verificar sua conta:</p>
-        <a href="${process.env.APP_URL}/api/auth/verify?token=${token}">Verificar Conta</a>
-        <p>Se você não solicitou este e-mail, pode ignorá-lo.</p>
+        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; color: #333; background-color: #f9f9f9;">
+          <div style="background-color: #fff; padding: 40px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); text-align: center;">
+            <h1 style="color: #21284E; margin-bottom: 24px; font-size: 28px;">Bem-vindo ao Trampaí!</h1>
+            <p style="font-size: 16px; line-height: 1.6; color: #555; margin-bottom: 32px;">
+              Estamos muito felizes em ter você conosco! Para começar a usar a plataforma e encontrar as melhores oportunidades, confirme seu e-mail clicando no botão abaixo:
+            </p>
+            <a href="${verifyUrl}" style="background-color: #F69926; color: #fff; padding: 16px 32px; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 16px; display: inline-block; box-shadow: 0 4px 14px rgba(246, 153, 38, 0.4);">
+              Ativar Minha Conta
+            </a>
+            <p style="font-size: 14px; color: #999; margin-top: 40px;">
+              Se o botão não funcionar, copie e cole este link no seu navegador:<br>
+              <span style="color: #5EB4B8;">${verifyUrl}</span>
+            </p>
+          </div>
+          <p style="text-align: center; font-size: 12px; color: #aaa; margin-top: 24px;">
+            © ${new Date().getFullYear()} Trampaí. Todos os direitos reservados.
+          </p>
+        </div>
       `,
     });
 
@@ -60,22 +75,23 @@ export async function sendForgotPasswordEmail(email: string, token: string) {
     const resetUrl = `${process.env.APP_URL}/api/auth/reset-password?token=${token}`;
 
     const { data, error } = await resend.emails.send({
-      from: "Trampaí <seguranca@resend.dev>",
+      from: "Trampaí <onboarding@resend.dev>",
       to: [email],
       subject: "Recuperação de Senha - Trampaí",
       html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-          <h2 style="color: #0b1339; text-align: center;">Recuperação de Senha</h2>
-          <p>Olá,</p>
-          <p>Recebemos uma solicitação para redefinir a senha da sua conta no <strong>Trampaí</strong>.</p>
-          <p>Clique no botão abaixo para escolher uma nova senha:</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${resetUrl}" style="background-color: #e8c08a; color: #0b1339; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Redefinir Minha Senha</a>
+        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; color: #333; background-color: #f9f9f9;">
+          <div style="background-color: #fff; padding: 40px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); text-align: center;">
+            <h2 style="color: #21284E; margin-bottom: 24px; font-size: 24px;">Recuperação de Senha</h2>
+            <p style="font-size: 16px; line-height: 1.6; color: #555; margin-bottom: 32px;">
+              Recebemos uma solicitação para redefinir a senha da sua conta no <strong>Trampaí</strong>. Se foi você, clique no botão abaixo:
+            </p>
+            <a href="${resetUrl}" style="background-color: #F69926; color: #fff; padding: 16px 32px; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 16px; display: inline-block; box-shadow: 0 4px 14px rgba(246, 153, 38, 0.4);">
+              Redefinir Senha
+            </a>
+            <p style="font-size: 14px; color: #999; margin-top: 40px;">
+              Se você não solicitou isso, pode ignorar este e-mail com segurança. Sua senha não será alterada até que você clique no botão acima.
+            </p>
           </div>
-          <p style="font-size: 12px; color: #666;">Se o botão não funcionar, copie e cole o link abaixo no seu navegador:</p>
-          <p style="font-size: 12px; color: #666;">${resetUrl}</p>
-          <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-          <p style="font-size: 12px; color: #999;">Se você não solicitou a alteração de senha, pode ignorar este e-mail com segurança. Sua senha atual permanecerá a mesma.</p>
         </div>
       `,
     });
