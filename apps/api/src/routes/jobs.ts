@@ -1,12 +1,12 @@
 import { Router } from "express";
-import { db, jobs, categories, users, leads, transactions, reviews } from "@workspace/db";
+import { db, jobs, categories, users, leads, transactions, reviews, notifications } from "@workspace/db";
 import { eq, desc, sql } from "drizzle-orm";
 import { authenticate, AuthRequest } from "../middlewares/auth";
 import { getConfig } from "./admin";
 import { CONFIG_KEYS } from "@workspace/db/schema";
 import { sanitizeDescription } from "../utils/anti-fraud";
-import { createNotification } from "../utils/notifications";
-import { and } from "drizzle-orm";
+import { createNotification, sendPushNotifications } from "../utils/notifications";
+import { and, ilike } from "drizzle-orm";
 
 
 
@@ -78,18 +78,44 @@ router.post("/jobs", authenticate, async (req: AuthRequest, res: any) => {
         const [cat] = await db.select().from(categories).where(eq(categories.id, categoryId));
         const categoryName = cat?.name || "Nova Oportunidade";
 
-        // Buscar prestadores que possam estar interessados (simplificado: todos que são providers)
-        // No futuro podemos filtrar por categorias de interesse
-        const providers = await db.select({ id: users.id }).from(users).where(eq(users.role, "provider"));
+        // Buscar prestadores que trabalham com esta categoria
+        const providers = await db.select({ 
+          id: users.id, 
+          pushToken: users.pushToken 
+        })
+        .from(users)
+        .where(
+          and(
+            eq(users.role, "provider"),
+            sql`${categoryId}::text = ANY(${users.providerCategories})`,
+            location ? ilike(users.city, `%${location}%`) : sql`true`
+          )
+        );
         
-        for (const p of providers) {
-          await createNotification(
-            p.id,
-            `Novo Trampo: ${categoryName}`,
-            `${title} disponível agora no mural!`,
-            "new_job",
-            { jobId: newJob.id }
-          );
+        if (providers.length > 0) {
+          // 1. Criar notificações no banco em lote (Batch Insert)
+          const notificationValues = providers.map(p => ({
+            userId: p.id,
+            title: `Novo Trampo: ${categoryName}`,
+            body: `${title} disponível agora no mural!`,
+            type: "new_job",
+          }));
+          
+          await db.insert(notifications).values(notificationValues);
+
+          // 2. Enviar Push em lote (se houver tokens)
+          const pushTokens = providers
+            .map(p => p.pushToken)
+            .filter((token): token is string => !!token);
+
+          if (pushTokens.length > 0) {
+            await sendPushNotifications(
+              pushTokens,
+              `Novo Trampo: ${categoryName}`,
+              `${title} disponível agora no mural!`,
+              { jobId: newJob.id }
+            );
+          }
         }
       } catch (e) {
         console.error("Erro ao notificar prestadores:", e);
@@ -134,9 +160,13 @@ router.post("/jobs/:id/unlock", authenticate, async (req: AuthRequest, res: any)
     if (job.status !== "open") return res.status(400).json({ error: "Este lead já não está mais disponível" });
 
     // 2. Definir custo
-    let cost = 1;
-    if (type === "PLUS") cost = 3;
-    if (type === "EXCLUSIVE") cost = 5;
+    const normalCost = parseInt(await getConfig(CONFIG_KEYS.LEAD_NORMAL_COST)) || 1;
+    const plusCost = parseInt(await getConfig(CONFIG_KEYS.LEAD_PLUS_COST)) || 3;
+    const exclusiveCost = parseInt(await getConfig(CONFIG_KEYS.LEAD_EXCLUSIVE_COST)) || 5;
+
+    let cost = normalCost;
+    if (type === "PLUS") cost = plusCost;
+    if (type === "EXCLUSIVE") cost = exclusiveCost;
 
     // 3. Buscar o prestador (para créditos)
     const [provider] = await db.select().from(users).where(eq(users.id, providerId));
@@ -197,12 +227,35 @@ router.post("/jobs/:id/unlock", authenticate, async (req: AuthRequest, res: any)
     let clientReviews: any[] = [];
     if (type === "PLUS" || type === "EXCLUSIVE") {
       clientReviews = await db
-        .select()
+        .select({
+          id: reviews.id,
+          rating: reviews.rating,
+          comment: reviews.comment,
+          createdAt: reviews.createdAt,
+          fromUserName: users.name,
+          fromUserAvatarUrl: users.avatarUrl,
+        })
         .from(reviews)
+        .innerJoin(users, eq(reviews.fromUserId, users.id))
         .where(eq(reviews.toUserId, job.clientId))
         .orderBy(desc(reviews.createdAt))
         .limit(5);
     }
+
+    // 6. Notificar o cliente que alguém se interessou (Async)
+    (async () => {
+      try {
+        await createNotification(
+          job.clientId,
+          "Novo Interessado! 👋",
+          `O prestador ${provider.name} liberou seu contato para o serviço "${job.title}".`,
+          "lead_unlocked",
+          { jobId, providerId }
+        );
+      } catch (e) {
+        console.error("Erro ao notificar cliente sobre novo lead:", e);
+      }
+    })();
 
     return res.json({ 
       whatsappLink, 
@@ -246,6 +299,19 @@ router.post("/jobs/:id/respond-exclusive", authenticate, async (req: AuthRequest
         .set({ status: "in_progress", updatedAt: new Date() })
         .where(eq(jobs.id, jobId as string));
       
+      // Notificar prestador
+      (async () => {
+        try {
+          await createNotification(
+            lead.providerId,
+            "Proposta Aceita! 💎",
+            `O cliente aceitou sua proposta exclusiva para "${job.title}". Fale com ele agora!`,
+            "exclusive_accepted",
+            { jobId }
+          );
+        } catch (e) {}
+      })();
+
       return res.json({ success: true, message: "Lead aceito com sucesso!" });
     } else {
       // RECUSOU: Reembolsar prestador e reabrir job
@@ -275,6 +341,19 @@ router.post("/jobs/:id/respond-exclusive", authenticate, async (req: AuthRequest
         // Deletar o lead para o job voltar ao mural para outros
         await tx.delete(leads).where(eq(leads.id, lead.id));
       });
+
+      // Notificar prestador (Recusa)
+      (async () => {
+        try {
+          await createNotification(
+            lead.providerId,
+            "Proposta Recusada",
+            `Sua proposta exclusiva para "${job.title}" foi recusada. Seus créditos foram estornados.`,
+            "exclusive_declined",
+            { jobId }
+          );
+        } catch (e) {}
+      })();
 
       return res.json({ success: true, message: "Lead recusado e prestador reembolsado." });
     }
@@ -374,7 +453,23 @@ router.get("/jobs/:id", authenticate, async (req: AuthRequest, res: any) => {
       .innerJoin(users, eq(leads.providerId, users.id))
       .where(eq(leads.jobId, jobId as string));
 
-    return res.json({ ...job, leads: jobLeads });
+    // Fetch client reviews
+    const clientReviews = await db
+      .select({
+        id: reviews.id,
+        rating: reviews.rating,
+        comment: reviews.comment,
+        createdAt: reviews.createdAt,
+        fromUserName: users.name,
+        fromUserAvatarUrl: users.avatarUrl,
+      })
+      .from(reviews)
+      .innerJoin(users, eq(reviews.fromUserId, users.id))
+      .where(eq(reviews.toUserId, job.clientId))
+      .orderBy(desc(reviews.createdAt))
+      .limit(5);
+
+    return res.json({ ...job, leads: jobLeads, clientReviews });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Erro ao buscar detalhes do serviço" });
@@ -399,6 +494,40 @@ router.patch("/jobs/:id/status", authenticate, async (req: AuthRequest, res: any
       .set({ status, updatedAt: new Date() })
       .where(eq(jobs.id, jobId as string))
       .returning();
+
+    // Notificar interessados (Async)
+    (async () => {
+      try {
+        if (status === "completed" || status === "cancelled") {
+          const statusText = status === "completed" ? "Concluído" : "Cancelado";
+          
+          // 1. Notificar interessados
+          const interestedLeads = await db.select().from(leads).where(eq(leads.jobId, jobId as string));
+          for (const lead of interestedLeads) {
+            await createNotification(
+              lead.providerId,
+              `Serviço ${statusText}`,
+              `O serviço "${job.title}" foi marcado como ${statusText.toLowerCase()}.`,
+              "job_status_change",
+              { jobId, status }
+            );
+          }
+
+          // 2. Notificar dono se a mudança foi por admin
+          if (req.user?.role === "admin" && job.clientId !== userId) {
+             await createNotification(
+               job.clientId,
+               `Serviço ${statusText} por Admin`,
+               `Seu serviço "${job.title}" foi ${statusText.toLowerCase()} pela moderação.`,
+               "job_status_change",
+               { jobId, status }
+             );
+          }
+        }
+      } catch (e) {
+        console.error("Erro ao notificar sobre status do job:", e);
+      }
+    })();
 
     return res.json(updatedJob);
   } catch (err) {
@@ -437,6 +566,45 @@ router.put("/jobs/:id", authenticate, async (req: AuthRequest, res: any) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Erro ao atualizar serviço" });
+  }
+});
+
+router.delete("/jobs/:id", authenticate, async (req: AuthRequest, res: any) => {
+  try {
+    const jobId = req.params.id;
+    const userId = req.user?.userId;
+
+    const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId as string));
+    if (!job) return res.status(404).json({ error: "Serviço não encontrado" });
+
+    if (job.clientId !== userId && req.user?.role !== "admin") {
+      return res.status(403).json({ error: "Não autorizado a excluir este serviço" });
+    }
+
+    // Opcional: Notificar interessados que o serviço foi removido
+    (async () => {
+      try {
+        const interestedLeads = await db.select().from(leads).where(eq(leads.jobId, jobId as string));
+        for (const lead of interestedLeads) {
+          await createNotification(
+            lead.providerId,
+            "Serviço Removido",
+            `O serviço "${job.title}" foi removido pelo autor.`,
+            "job_removed",
+            { jobId }
+          );
+        }
+      } catch (e) {}
+    })();
+
+    // Deletar leads primeiro por causa da FK
+    await db.delete(leads).where(eq(leads.jobId, jobId as string));
+    await db.delete(jobs).where(eq(jobs.id, jobId as string));
+
+    return res.json({ success: true, message: "Serviço excluído com sucesso" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erro ao excluir serviço" });
   }
 });
 

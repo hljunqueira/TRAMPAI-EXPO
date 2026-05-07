@@ -35,13 +35,4 @@ export const CREDIT_PACKAGES: CreditPackage[] = [
   { id: "prime", name: "Prime", credits: 100, priceCents: 9999 },
 ];
 
-export const UNLOCK_COSTS = {
-  NORMAL: 1,
-  PLUS: 3,
-  EXCLUSIVE: 5,
-} as const;
-
-export const WELCOME_BONUS_CREDITS = 5;
-export const SERVICE_EXPIRATION_DAYS = 7;
 export const MIN_CUSTOM_CREDITS = 10;
-export const PRICE_PER_CREDIT_CENTS = 100;

@@ -15,22 +15,28 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Share,
+  KeyboardAvoidingView,
 } from "react-native";
+import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
-import { 
-  Image 
-} from "expo-image";
 import * as ImagePicker from "expo-image-picker";
-import { KeyboardAvoidingView } from "react-native";
 
 import { useAuth, API_BASE_URL } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useImageUpload } from "@/hooks/useImageUpload";
+
+// Componentes do Perfil
+import { PortfolioSection } from "@/components/profile/PortfolioSection";
+import { VerificationSection } from "@/components/profile/VerificationSection";
+import { ReferralSection } from "@/components/profile/ReferralSection";
+import { ReviewsSection } from "@/components/profile/ReviewsSection";
 
 export default function ProviderPerfil() {
   const colors = useColors();
-  const { user, logout, leads, reviews, activeMode, switchActiveMode, fetchMyData } = useAuth();
+  const { user, logout, leads, reviews, activeMode, switchActiveMode, fetchMyData, api, appConfig } = useAuth();
   const insets = useSafeAreaInsets();
+  const { uploading: isUploading, pickImage, takePhoto } = useImageUpload();
 
   const [bioModalVisible, setBioModalVisible] = React.useState(false);
   const [tempBio, setTempBio] = React.useState(user?.providerBio || "");
@@ -39,10 +45,15 @@ export default function ProviderPerfil() {
   const [portfolioModalVisible, setPortfolioModalVisible] = React.useState(false);
   const [boostModalVisible, setBoostModalVisible] = React.useState(false);
   const [premiumModalVisible, setPremiumModalVisible] = React.useState(false);
+  const [verificationModalVisible, setVerificationModalVisible] = React.useState(false);
   const [descModalVisible, setDescModalVisible] = React.useState(false);
   const [tempPortfolioDesc, setTempPortfolioDesc] = React.useState("");
   const [pendingImageUrl, setPendingImageUrl] = React.useState("");
   const [isPaidUpload, setIsPaidUpload] = React.useState(false);
+
+  const [localDoc, setLocalDoc] = React.useState<{uri: string, base64: string} | null>(null);
+  const [localSelfie, setLocalSelfie] = React.useState<{uri: string, base64: string} | null>(null);
+  const [isSubmittingVerification, setIsSubmittingVerification] = React.useState(false);
 
   const myLeads = leads.filter((l) => l.providerId === user?.id);
   const isVerified = user?.verificationStatus === "APPROVED" || user?.role === "admin";
@@ -76,7 +87,7 @@ export default function ProviderPerfil() {
   async function shareReferral() {
     try {
       const code = user?.referralCode || "TRAMPAI26";
-      const message = `Ei! Use meu código ${code} no Trampaí para ganhar 10 créditos de bônus e oferecer seus serviços para milhares de clientes! 🚀\n\nBaixe agora: https://trampai.com.br`;
+      const message = `Ei! Use meu código ${code} no Trampaí para ganhar ${appConfig?.REFERRAL_BONUS || 10} créditos de bônus e oferecer seus serviços para milhares de clientes! 🚀\n\nBaixe agora: https://trampai.com.br`;
       
       const result = await Share.share({
         message,
@@ -96,78 +107,27 @@ export default function ProviderPerfil() {
     setBoostModalVisible(true);
   }
 
-  async function confirmBoost() {
-    setBoostModalVisible(false);
-    try {
-      const token = await SecureStore.getItemAsync("trampai_auth_token");
-      const response = await fetch(`${API_BASE_URL}/api/users/me/boost`, {
-        method: 'PATCH',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        Alert.alert("Sucesso!", "Seu perfil agora está em destaque.");
-        fetchMyData();
-      } else {
-        Alert.alert("Erro", "Saldo insuficiente ou erro na requisição.");
-      }
-    } catch (e) {
-      Alert.alert("Erro", "Não foi possível completar a ação.");
-    }
-  }
+
 
   async function handlePremium() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setPremiumModalVisible(true);
   }
 
-  async function confirmPremium() {
-    setPremiumModalVisible(false);
-    try {
-      const token = await SecureStore.getItemAsync("trampai_auth_token");
-      const response = await fetch(`${API_BASE_URL}/api/users/me/premium`, {
-        method: 'PATCH',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        Alert.alert("Parabéns!", "Você agora é um profissional Premium.");
-        fetchMyData();
-      } else {
-        Alert.alert("Erro", "Saldo insuficiente ou erro na requisição.");
-      }
-    } catch (e) {
-      Alert.alert("Erro", "Não foi possível completar a ação.");
-    }
-  }
+
 
   async function saveBio() {
     setSavingBio(true);
     try {
-      const token = await SecureStore.getItemAsync("trampai_auth_token");
-      const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ providerBio: tempBio }),
-      });
+      const res = await api.patch("/auth/me", { providerBio: tempBio });
       if (res.ok) {
         setBioModalVisible(false);
         Alert.alert("Sucesso", "Biografia profissional atualizada com sucesso!");
         await fetchMyData();
       } else {
-        const text = await res.text();
-        let errorMsg = "Erro ao salvar biografia.";
-        try {
-          if (text) {
-            const errJson = JSON.parse(text);
-            errorMsg = errJson.error || errorMsg;
-          }
-        } catch (e) {}
-        Alert.alert("Erro", errorMsg);
+        Alert.alert("Erro", "Erro ao salvar biografia.");
       }
     } catch (e) {
-      console.error(e);
       Alert.alert("Erro", "Falha ao salvar biografia.");
     } finally {
       setSavingBio(false);
@@ -179,19 +139,58 @@ export default function ProviderPerfil() {
       "Selecionar Foto",
       "Escolha a origem da sua foto de perfil",
       [
-        { text: "Câmera", onPress: () => openPicker("camera") },
-        { text: "Galeria", onPress: () => openPicker("gallery") },
+        { text: "Câmera", onPress: async () => {
+          const url = await takePhoto();
+          if (url) updateAvatar(url);
+        }},
+        { text: "Galeria", onPress: async () => {
+          const url = await pickImage();
+          if (url) updateAvatar(url);
+        }},
         { text: "Cancelar", style: "cancel" },
       ]
     );
   }
 
-  async function openPicker(type: "camera" | "gallery") {
+  async function updateAvatar(url: string) {
+    try {
+      await api.patch("/auth/me", { avatarUrl: url });
+      fetchMyData();
+    } catch (e) {
+      Alert.alert("Erro", "Falha ao atualizar foto de perfil.");
+    }
+  }
+
+  async function pickPortfolioImage(isPaid = false) {
+    const currentImages = user?.portfolioImages || [];
+    const cost = parseInt(appConfig?.PORTFOLIO_COST || "5");
+    if (isPaid) {
+      if ((user?.creditBalance || 0) < cost) {
+        Alert.alert("Créditos Insuficientes", `Você precisa de ${cost} créditos para desbloquear o pacote de 6 fotos.`);
+        return;
+      }
+    }
+
+    if (!isPaid && currentImages.length >= 1 && !user?.hasUnlockedPortfolio) {
+      Alert.alert("Limite Atingido", `Você já usou sua foto gratuita. Desbloqueie o pacote de 6 fotos por ${cost} créditos.`);
+      return;
+    }
+
+    const url = await pickImage({ aspect: [4, 3], quality: 0.6 });
+    if (url) {
+      setPendingImageUrl(url);
+      setIsPaidUpload(isPaid);
+      setPortfolioModalVisible(false);
+      setDescModalVisible(true);
+    }
+  }
+
+  async function pickVerificationImage(field: 'documentUrl' | 'selfieUrl', type: "camera" | "gallery") {
     let result;
     const options: ImagePicker.ImagePickerOptions = {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      aspect: [1, 1],
+      aspect: field === 'selfieUrl' ? [1, 1] : [4, 3],
       quality: 0.5,
       base64: true,
     };
@@ -208,116 +207,102 @@ export default function ProviderPerfil() {
     }
 
     if (!result.canceled && result.assets[0].base64) {
-      setSavingBio(true);
-      try {
-        const token = await SecureStore.getItemAsync("trampai_auth_token");
-        const uploadRes = await fetch(`${API_BASE_URL}/api/upload`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ imageBase64: result.assets[0].base64, ext: "jpg" }),
-        });
-        if (!uploadRes.ok) throw new Error();
-        const { url } = await uploadRes.json();
-        const updateRes = await fetch(`${API_BASE_URL}/api/auth/me`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ avatarUrl: url }),
-        });
-        if (updateRes.ok) fetchMyData();
-      } catch (e) {
-        Alert.alert("Erro", "Falha ao atualizar foto.");
-      } finally {
-        setSavingBio(false);
-      }
+      const imageData = { uri: result.assets[0].uri, base64: result.assets[0].base64 };
+      if (field === 'documentUrl') setLocalDoc(imageData);
+      else setLocalSelfie(imageData);
     }
   }
 
-  async function pickPortfolioImage(isPaid = false) {
-    const currentImages = user?.portfolioImages || [];
-    if (isPaid) {
-      if ((user?.creditBalance || 0) < 5) {
-        Alert.alert("Créditos Insuficientes", "Você precisa de 5 créditos para desbloquear o pacote de 6 fotos.");
-        return;
-      }
-    }
-
-    if (!isPaid && currentImages.length >= 1 && !user?.hasUnlockedPortfolio) {
-      Alert.alert("Limite Atingido", "Você já usou sua foto gratuita. Desbloqueie o pacote de 6 fotos por 5 créditos.");
+  async function submitVerification() {
+    if (!localDoc || !localSelfie) {
+      Alert.alert("Atenção", "Você precisa selecionar as duas fotos para continuar.");
       return;
     }
 
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.6,
-      base64: true,
-    });
-
-    if (!result.canceled && result.assets[0].base64) {
-      setSavingBio(true);
-      try {
-        const token = await SecureStore.getItemAsync("trampai_auth_token");
-        const uploadRes = await fetch(`${API_BASE_URL}/api/upload`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ imageBase64: result.assets[0].base64, ext: "jpg" }),
-        });
-        
-        const uploadText = await uploadRes.text();
-        if (!uploadRes.ok || !uploadText) {
-          throw new Error("Falha no upload da imagem");
-        }
-        const { url } = JSON.parse(uploadText);
-        
-        setPendingImageUrl(url);
-        setIsPaidUpload(isPaid);
-        setPortfolioModalVisible(false);
-        setDescModalVisible(true);
-      } catch (e) {
-        Alert.alert("Erro", "Falha ao fazer upload.");
-        setSavingBio(false);
+    setIsSubmittingVerification(true);
+    try {
+      const updateRes = await api.patch("/auth/me", { 
+        documentUrl: localDoc.uri, 
+        selfieUrl: localSelfie.uri, 
+        verificationStatus: 'PENDING' 
+      });
+      
+      if (updateRes.ok) {
+        Alert.alert("Sucesso", "Documentos enviados para análise!");
+        setVerificationModalVisible(false);
+        setLocalDoc(null);
+        setLocalSelfie(null);
+        fetchMyData();
       }
+    } catch (e) {
+      Alert.alert("Erro", "Falha ao enviar documentos.");
+    } finally {
+      setIsSubmittingVerification(false);
     }
   }
 
   async function savePortfolioItem() {
     setSavingBio(true);
     try {
-      const token = await SecureStore.getItemAsync("trampai_auth_token");
       const currentImages = user?.portfolioImages || [];
       const newItem = { url: pendingImageUrl, description: tempPortfolioDesc };
-      
-      // Normalizar imagens antigas se necessário
       const normalizedImages = currentImages.map(img => typeof img === 'string' ? { url: img, description: "" } : img);
       const newImages = [...normalizedImages, newItem];
 
-      const updateRes = await fetch(`${API_BASE_URL}/api/auth/me`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ portfolioImages: newImages }),
-      });
+      await api.patch("/auth/me", { portfolioImages: newImages });
 
-      if (updateRes.ok) {
-        setDescModalVisible(false);
-        setTempPortfolioDesc("");
-        setPendingImageUrl("");
-        fetchMyData();
-      } else {
-        const text = await updateRes.text();
-        let errorMsg = "Erro ao salvar portfólio.";
-        try {
-          if (text) {
-            const errJson = JSON.parse(text);
-            errorMsg = errJson.error || errorMsg;
-          }
-        } catch (e) {}
-        Alert.alert("Erro", errorMsg);
-      }
-    } catch (e) {
+      setDescModalVisible(false);
+      setTempPortfolioDesc("");
+      setPendingImageUrl("");
+      fetchMyData();
+    } catch (e: any) {
       Alert.alert("Erro", "Falha ao salvar portfólio.");
     } finally {
       setSavingBio(false);
+    }
+  }
+
+  async function confirmBoost() {
+    const cost = parseInt(appConfig?.BOOST_COST || "5");
+    if ((user?.creditBalance || 0) < cost) {
+      Alert.alert("Créditos Insuficientes", `Você precisa de ${cost} créditos para impulsionar seu perfil.`);
+      return;
+    }
+
+    try {
+      const res = await api.post("/admin/boost", { userId: user?.id });
+      if (res.ok) {
+        Alert.alert("Sucesso", "Perfil impulsionado com sucesso!");
+        setBoostModalVisible(false);
+        fetchMyData();
+      } else {
+        const err = await res.json();
+        Alert.alert("Erro", err.error || "Falha ao impulsionar perfil.");
+      }
+    } catch (e) {
+      Alert.alert("Erro", "Falha na conexão.");
+    }
+  }
+
+  async function confirmPremium() {
+    const cost = parseInt(appConfig?.PREMIUM_COST || "20");
+    if ((user?.creditBalance || 0) < cost) {
+      Alert.alert("Créditos Insuficientes", `Você precisa de ${cost} créditos para assinar o plano premium.`);
+      return;
+    }
+
+    try {
+      const res = await api.post("/admin/premium", { userId: user?.id });
+      if (res.ok) {
+        Alert.alert("Sucesso", "Assinatura Premium ativada!");
+        setPremiumModalVisible(false);
+        fetchMyData();
+      } else {
+        const err = await res.json();
+        Alert.alert("Erro", err.error || "Falha ao ativar premium.");
+      }
+    } catch (e) {
+      Alert.alert("Erro", "Falha na conexão.");
     }
   }
 
@@ -330,7 +315,7 @@ export default function ProviderPerfil() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 20 : 10), borderBottomWidth: 1, borderBottomColor: colors.border + "30", backgroundColor: "#fff" }]}>
+      <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 20 : 10), borderBottomWidth: 1, borderBottomColor: colors.border + "30", backgroundColor: colors.background }]}>
         <View style={styles.headerLeft}>
           <Text style={[styles.headerLogo, { fontFamily: "Inter_800ExtraBold", color: colors.primary }]}>Perfil</Text>
         </View>
@@ -358,13 +343,13 @@ export default function ProviderPerfil() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 40 + insets.bottom }} showsVerticalScrollIndicator={false}>
-        <View style={[styles.profileHero, { backgroundColor: "#FFF" }]}>
+        <View style={[styles.profileHero, { backgroundColor: colors.card }]}>
           <TouchableOpacity style={styles.avatarWrapper} onPress={pickAvatarImage}>
             <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
               {user?.avatarUrl ? (
                 <Image source={{ uri: user.avatarUrl }} style={{ width: 90, height: 90, borderRadius: 45 }} contentFit="cover" />
               ) : (
-                <Text style={[styles.avatarText, { color: "#FFF", fontFamily: "Inter_700Bold" }]}>{getInitials(user?.name)}</Text>
+                <Text style={[styles.avatarText, { color: colors.card, fontFamily: "Inter_700Bold" }]}>{getInitials(user?.name)}</Text>
               )}
             </View>
             <View style={[styles.editBadge, { backgroundColor: colors.secondary }]}>
@@ -411,7 +396,7 @@ export default function ProviderPerfil() {
           </View>
         </View>
 
-        <View style={[styles.statsGrid, { backgroundColor: "#FFF" }]}>
+        <View style={[styles.statsGrid, { backgroundColor: colors.card }]}>
           <View style={styles.statBox}>
             <Text style={[styles.statValue, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{myLeads.length}</Text>
             <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Serviços</Text>
@@ -427,6 +412,11 @@ export default function ProviderPerfil() {
             <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Avaliações</Text>
           </View>
         </View>
+
+        <VerificationSection 
+          status={user?.verificationStatus as any}
+          onPress={() => setVerificationModalVisible(true)}
+        />
 
         <View style={styles.quickActionsVertical}>
           <TouchableOpacity style={[styles.primaryActionFull, { backgroundColor: "#e8c08a" }]} onPress={() => router.push("/editar-perfil")}>
@@ -459,33 +449,7 @@ export default function ProviderPerfil() {
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.sectionCard, { backgroundColor: colors.navy, borderColor: colors.accent, borderWidth: 1 }]}>
-          <Text style={[styles.sectionTitle, { color: "#FFF", fontFamily: "Inter_700Bold" }]}>Crescimento e Destaque 🚀</Text>
-          <Text style={[styles.sectionDesc, { color: "#ffffff90", fontFamily: "Inter_400Regular", marginBottom: 16 }]}>
-            Aumente suas chances de fechar serviços aparecendo no topo.
-          </Text>
-          <View style={styles.growthActions}>
-            <TouchableOpacity style={[styles.growthBtn, { backgroundColor: colors.accent }]} onPress={handleBoost}>
-              <MaterialCommunityIcons name="rocket-launch" size={18} color={colors.navy} />
-              <View>
-                <Text style={[styles.growthBtnTitle, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Impulsionar (24h)</Text>
-                <Text style={[styles.growthBtnSub, { color: colors.navy + "80" }]}>5 créditos</Text>
-              </View>
-            </TouchableOpacity>
-
-            {!user?.isPremium && (
-              <TouchableOpacity style={[styles.growthBtn, { backgroundColor: "transparent", borderWidth: 1, borderColor: colors.accent }]} onPress={handlePremium}>
-                <MaterialCommunityIcons name="shield-crown" size={18} color={colors.accent} />
-                <View>
-                  <Text style={[styles.growthBtnTitle, { color: colors.accent, fontFamily: "Inter_700Bold" }]}>Selo Premium</Text>
-                  <Text style={[styles.growthBtnSub, { color: colors.accent + "80" }]}>20 créditos / mês</Text>
-                </View>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        <View style={[styles.sectionCard, { backgroundColor: "#FFF" }]}>
+        <View style={[styles.sectionCard, { backgroundColor: colors.card }]}>
           <View style={styles.sectionHeaderRow}>
             <Text style={[styles.sectionTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Sobre o Profissional</Text>
             <TouchableOpacity onPress={() => { setTempBio(user?.providerBio || ""); setBioModalVisible(true); }}>
@@ -497,79 +461,27 @@ export default function ProviderPerfil() {
           </Text>
         </View>
 
-        <View style={[styles.sectionCard, { backgroundColor: "#FFF" }]}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Portfólio</Text>
-            <TouchableOpacity onPress={() => setPortfolioModalVisible(true)}>
-               <Text style={[styles.seeAll, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>Adicionar</Text>
-            </TouchableOpacity>
-          </View>
-          
-          {user?.portfolioImages && user.portfolioImages.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
-              {user.portfolioImages.map((item: any, idx: number) => {
-                const url = typeof item === 'string' ? item : item.url;
-                const desc = typeof item === 'string' ? '' : item.description;
-                return (
-                  <View key={idx} style={{ width: 140 }}>
-                    <Image source={{ uri: url }} style={[styles.portfolioImg, { width: 140, height: 140 }]} contentFit="cover" />
-                    {desc ? <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 4, textAlign: 'center' }} numberOfLines={2}>{desc}</Text> : null}
-                  </View>
-                );
-              })}
-            </ScrollView>
-          ) : (
-            <View style={styles.emptyPortfolio}>
-              <MaterialCommunityIcons name="image-outline" size={32} color={colors.mutedForeground + "40"} />
-              <Text style={[styles.emptyText, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Nenhuma foto adicionada</Text>
-            </View>
-          )}
-        </View>
+        <PortfolioSection 
+          portfolioImages={user?.portfolioImages || []}
+          hasUnlockedPortfolio={user?.hasUnlockedPortfolio}
+          onAddPress={() => setPortfolioModalVisible(true)}
+          stylesOverride={{
+            emptyPortfolio: { borderColor: colors.border + "40", backgroundColor: colors.card + "50" },
+            emptyText: { color: colors.mutedForeground }
+          }}
+        />
 
-        <View style={[styles.sectionCard, { backgroundColor: "#FFF", marginBottom: 12 }]}>
-          <Text style={[styles.sectionTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Avaliações Recentes</Text>
-          {user?.reviewCount && reviews.length > 0 ? (
-            <View style={styles.reviewCard}>
-              {reviews.map((rev: any) => (
-                <View key={rev.id} style={styles.reviewItem}>
-                  <View style={styles.reviewHeader}>
-                    {rev.fromUserAvatar ? (
-                      <Image source={{ uri: rev.fromUserAvatar }} style={styles.reviewerAvatar} />
-                    ) : (
-                      <View style={[styles.reviewerAvatar, { backgroundColor: colors.primary + "10", alignItems: 'center', justifyContent: 'center' }]}>
-                        <Text style={{ fontSize: 10, color: colors.primary, fontFamily: 'Inter_700Bold' }}>{rev.fromUserName?.[0]}</Text>
-                      </View>
-                    )}
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.reviewerName, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>{rev.fromUserName}</Text>
-                      <View style={styles.starsRow}>
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <MaterialCommunityIcons 
-                            key={star} 
-                            name="star" 
-                            size={12} 
-                            color={star <= rev.rating ? colors.secondary : colors.border} 
-                          />
-                        ))}
-                      </View>
-                    </View>
-                    <Text style={[styles.reviewDate, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-                      {new Date(rev.createdAt).toLocaleDateString()}
-                    </Text>
-                  </View>
-                  {rev.comment ? (
-                    <Text style={[styles.reviewComment, { color: colors.primary, fontFamily: "Inter_400Regular" }]}>{rev.comment}</Text>
-                  ) : null}
-                </View>
-              ))}
-            </View>
-          ) : (
-            <View style={styles.emptyPortfolio}>
-              <MaterialCommunityIcons name="star-outline" size={32} color={colors.mutedForeground + "40"} />
-              <Text style={[styles.emptyText, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Nenhuma avaliação recebida</Text>
-            </View>
-          )}
-        </View>
+
+        <ReferralSection 
+          referralCode={user?.referralCode || ""}
+          bonus={appConfig?.REFERRAL_BONUS || "10"}
+          onShare={shareReferral}
+        />
+
+        <ReviewsSection 
+          reviews={reviews}
+          reviewCount={user?.reviewCount}
+        />
 
         <TouchableOpacity 
           style={[styles.logoutBtnFull, { backgroundColor: "#fee2e2", borderColor: "#fecaca", borderWidth: 1 }]} 
@@ -583,7 +495,7 @@ export default function ProviderPerfil() {
       <Modal visible={bioModalVisible} transparent animationType="slide">
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: "#FFF" }]}>
+            <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
               <Text style={[styles.modalTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Sobre o Profissional</Text>
               <Text style={[styles.modalSub, { color: colors.mutedForeground }]}>Conte aos clientes sobre sua experiência e diferenciais.</Text>
               <TextInput style={[styles.bioInput, { borderColor: colors.border, color: colors.primary }]} multiline value={tempBio} onChangeText={setTempBio} placeholder="Digite aqui sua biografia profissional..." />
@@ -592,7 +504,7 @@ export default function ProviderPerfil() {
                   <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }}>Cancelar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.modalConfirm, { backgroundColor: colors.secondary }]} onPress={saveBio} disabled={savingBio}>
-                  {savingBio ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: "#FFF", fontFamily: "Inter_700Bold" }}>Salvar</Text>}
+                  {savingBio ? <ActivityIndicator color={colors.card} /> : <Text style={{ color: colors.card, fontFamily: "Inter_700Bold" }}>Salvar</Text>}
                 </TouchableOpacity>
               </View>
             </View>
@@ -602,7 +514,7 @@ export default function ProviderPerfil() {
 
       <Modal visible={portfolioModalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: "#FFF" }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
             <Text style={[styles.modalTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Adicionar ao Portfólio</Text>
             <Text style={[styles.modalSub, { color: colors.mutedForeground }]}>Mostre seus melhores trabalhos para atrair mais clientes.</Text>
             <View style={styles.portfolioOptions}>
@@ -631,7 +543,7 @@ export default function ProviderPerfil() {
       <Modal visible={descModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ width: "100%" }}>
-            <View style={[styles.modalContent, { backgroundColor: "#FFF" }]}>
+            <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
               <Text style={[styles.modalTitle, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>Legenda da Foto</Text>
               <Text style={[styles.modalSub, { color: colors.mutedForeground }]}>Adicione uma breve descrição para este trabalho em seu portfólio.</Text>
               
@@ -648,7 +560,7 @@ export default function ProviderPerfil() {
                   <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }}>Cancelar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.modalConfirm, { backgroundColor: colors.navy }]} onPress={savePortfolioItem} disabled={savingBio}>
-                  {savingBio ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: "#FFF", fontFamily: "Inter_700Bold" }}>Salvar no Portfólio</Text>}
+                  {savingBio ? <ActivityIndicator color={colors.card} /> : <Text style={{ color: colors.card, fontFamily: "Inter_700Bold" }}>Salvar no Portfólio</Text>}
                 </TouchableOpacity>
               </View>
             </View>
@@ -658,14 +570,14 @@ export default function ProviderPerfil() {
 
       <Modal visible={boostModalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: "#FFF", alignItems: "center" }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card, alignItems: "center" }]}>
             <View style={[styles.modalIconBox, { backgroundColor: colors.accent + "20" }]}>
               <MaterialCommunityIcons name="rocket-launch" size={32} color={colors.accent} />
             </View>
             <Text style={[styles.modalTitleCenter, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>Impulsionar Perfil</Text>
             <Text style={[styles.modalSubCenter, { color: colors.mutedForeground }]}>Você aparecerá no topo do mural para todos os clientes por 24 horas.</Text>
             <View style={[styles.priceTag, { backgroundColor: colors.navy + "10" }]}>
-              <Text style={[styles.priceTagText, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Custo: 5 créditos</Text>
+              <Text style={[styles.priceTagText, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Custo: {appConfig?.BOOST_COST || "5"} créditos</Text>
             </View>
             <View style={styles.modalActionsFull}>
               <TouchableOpacity style={[styles.modalBtnFull, { backgroundColor: colors.accent }]} onPress={confirmBoost}>
@@ -681,14 +593,14 @@ export default function ProviderPerfil() {
 
       <Modal visible={premiumModalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: "#FFF", alignItems: "center" }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card, alignItems: "center" }]}>
             <View style={[styles.modalIconBox, { backgroundColor: colors.accent + "20" }]}>
               <MaterialCommunityIcons name="shield-crown" size={32} color={colors.accent} />
             </View>
             <Text style={[styles.modalTitleCenter, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>Selo Premium</Text>
             <Text style={[styles.modalSubCenter, { color: colors.mutedForeground }]}>Acesso antecipado aos serviços e selo de confiança dourado no seu perfil.</Text>
             <View style={[styles.priceTag, { backgroundColor: colors.navy + "10" }]}>
-              <Text style={[styles.priceTagText, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Custo: 20 créditos / mês</Text>
+              <Text style={[styles.priceTagText, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Custo: {appConfig?.PREMIUM_COST || "20"} créditos / mês</Text>
             </View>
             <View style={styles.modalActionsFull}>
               <TouchableOpacity style={[styles.modalBtnFull, { backgroundColor: colors.navy }]} onPress={confirmPremium}>
@@ -698,6 +610,80 @@ export default function ProviderPerfil() {
                 <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }}>Cancelar</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={verificationModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>Verificar Identidade</Text>
+            <Text style={[styles.modalSub, { color: colors.mutedForeground }]}>Precisamos de uma foto do seu documento (RG ou CNH) e uma selfie segurando o documento para sua segurança.</Text>
+            
+            <View style={styles.uploadRow}>
+              <TouchableOpacity 
+                style={[styles.uploadBox, { backgroundColor: colors.card, borderColor: colors.border }, localDoc ? { borderColor: colors.secondary, borderStyle: 'solid' } : {}]} 
+                onPress={() => pickVerificationImage('documentUrl', 'gallery')}
+              >
+                {localDoc ? (
+                  <Image source={{ uri: localDoc.uri }} style={{ width: '100%', height: '100%', borderRadius: 18 }} contentFit="cover" />
+                ) : (
+                  <>
+                    <MaterialCommunityIcons name="card-account-details-outline" size={32} color={colors.mutedForeground} />
+                    <Text style={[styles.uploadLabel, { color: colors.primary }]}>Foto do RG</Text>
+                  </>
+                )}
+                {localDoc && (
+                   <View style={[styles.checkBadge, { backgroundColor: colors.secondary }]}>
+                     <MaterialCommunityIcons name="check" size={12} color="#FFF" />
+                   </View>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.uploadBox, { backgroundColor: colors.card, borderColor: colors.border }, localSelfie ? { borderColor: colors.secondary, borderStyle: 'solid' } : {}]} 
+                onPress={() => pickVerificationImage('selfieUrl', 'camera')}
+              >
+                {localSelfie ? (
+                  <Image source={{ uri: localSelfie.uri }} style={{ width: '100%', height: '100%', borderRadius: 18 }} contentFit="cover" />
+                ) : (
+                  <>
+                    <MaterialCommunityIcons name="camera-account" size={32} color={colors.mutedForeground} />
+                    <Text style={[styles.uploadLabel, { color: colors.primary }]}>Sua Selfie</Text>
+                  </>
+                )}
+                {localSelfie && (
+                   <View style={[styles.checkBadge, { backgroundColor: colors.secondary }]}>
+                     <MaterialCommunityIcons name="check" size={12} color="#FFF" />
+                   </View>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity 
+              style={[
+                styles.modalBtnFull, 
+                { backgroundColor: (localDoc && localSelfie) ? colors.navy : colors.border, marginTop: 24 }
+              ]} 
+              onPress={submitVerification}
+              disabled={!localDoc || !localSelfie || isSubmittingVerification}
+            >
+              {isSubmittingVerification ? (
+                <ActivityIndicator color={colors.card} />
+              ) : (
+                <Text style={{ color: colors.card, fontFamily: "Inter_700Bold", fontSize: 16 }}>
+                  Enviar Documentos
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              onPress={() => setVerificationModalVisible(false)} 
+              style={styles.modalCancelFull}
+              disabled={isSubmittingVerification}
+            >
+              <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }}>Cancelar</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -744,7 +730,14 @@ const styles = StyleSheet.create({
   sectionHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
   seeAll: { fontSize: 12 },
   portfolioImg: { width: 100, height: 100, borderRadius: 12 },
-  emptyPortfolio: { alignItems: "center", justifyContent: "center", paddingVertical: 24, borderWidth: 1, borderColor: "#00000008", borderRadius: 16, backgroundColor: "#FDFBF7", gap: 8 },
+  emptyPortfolio: { 
+    alignItems: "center", 
+    justifyContent: "center", 
+    paddingVertical: 24, 
+    borderWidth: 1, 
+    borderRadius: 16, 
+    gap: 8 
+  },
   emptyText: { fontSize: 13 },
   reviewCard: { gap: 16 },
   reviewItem: { borderBottomWidth: 1, borderBottomColor: "#00000008", paddingBottom: 16 },
@@ -791,4 +784,34 @@ const styles = StyleSheet.create({
     marginBottom: 40 
   },
   logoutBtnText: { fontSize: 16 },
+  uploadRow: { flexDirection: "row", gap: 16 },
+  uploadBox: { 
+    flex: 1, 
+    height: 140, 
+    borderRadius: 20, 
+    alignItems: "center", 
+    justifyContent: "center", 
+    gap: 12, 
+    borderStyle: "dashed", 
+    borderWidth: 2, 
+    overflow: 'hidden'
+  },
+  uploadLabel: { fontSize: 11, textAlign: "center", paddingHorizontal: 8 },
+  checkBadge: { 
+    position: 'absolute', 
+    top: 10, 
+    right: 10, 
+    width: 24, 
+    height: 24, 
+    borderRadius: 12, 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    borderWidth: 2, 
+    borderColor: '#FFF',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3
+  },
 });

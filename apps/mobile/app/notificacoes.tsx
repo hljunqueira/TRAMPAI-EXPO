@@ -16,9 +16,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useAuth, API_BASE_URL } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
-import * as SecureStore from "expo-secure-store";
 
 interface Notification {
   id: string;
@@ -34,7 +33,7 @@ interface Notification {
 export default function NotificacoesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, api } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -45,14 +44,8 @@ export default function NotificacoesScreen() {
 
   async function fetchNotifications() {
     try {
-      const token = await SecureStore.getItemAsync("trampai_auth_token");
-      const res = await fetch(`${API_BASE_URL}/api/notifications`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setNotifications(data);
-      }
+      const data = await api.get("/notifications");
+      setNotifications(data);
     } catch (error) {
       console.error(error);
     } finally {
@@ -63,11 +56,7 @@ export default function NotificacoesScreen() {
 
   async function markAsRead(id: string) {
     try {
-      const token = await SecureStore.getItemAsync("trampai_auth_token");
-      await fetch(`${API_BASE_URL}/api/notifications/${id}/read`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await api.patch(`/notifications/${id}/read`, {});
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
     } catch (error) {
       console.error(error);
@@ -76,11 +65,7 @@ export default function NotificacoesScreen() {
 
   async function markAllAsRead() {
     try {
-      const token = await SecureStore.getItemAsync("trampai_auth_token");
-      await fetch(`${API_BASE_URL}/api/notifications/read-all`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await api.post("/notifications/read-all", {});
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     } catch (error) {
       console.error(error);
@@ -158,7 +143,7 @@ export default function NotificacoesScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 10, borderBottomWidth: 1, borderBottomColor: colors.border + "30", backgroundColor: "#fff" }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 10, borderBottomWidth: 1, borderBottomColor: colors.border + "30", backgroundColor: colors.background }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primary} />
         </TouchableOpacity>

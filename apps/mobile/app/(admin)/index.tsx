@@ -111,12 +111,20 @@ export default function AdminDashboard() {
             )}
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.initialsAvatar, { backgroundColor: colors.primary }]}
+            style={[styles.initialsAvatar, { backgroundColor: colors.primary, overflow: 'hidden' }]}
             onPress={() => router.push("/(admin)/perfil")}
           >
-            <Text style={[styles.initialsText, { color: "#FFF", fontFamily: "Inter_700Bold" }]}>
-              {getInitials(user?.name)}
-            </Text>
+            {user?.avatarUrl ? (
+              <Image 
+                source={{ uri: user.avatarUrl }} 
+                style={{ width: '100%', height: '100%' }} 
+                resizeMode="cover"
+              />
+            ) : (
+              <Text style={[styles.initialsText, { color: "#FFF", fontFamily: "Inter_700Bold" }]}>
+                {getInitials(user?.name)}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>

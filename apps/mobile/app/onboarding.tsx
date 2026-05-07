@@ -29,7 +29,7 @@ type ProfileGoal = "CLIENT" | "PROVIDER" | "BOTH";
 
 export default function OnboardingScreen() {
   const colors = useColors();
-  const { user, completeOnboarding } = useAuth();
+  const { user, completeOnboarding, logout } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [step, setStep] = useState(1);
@@ -210,6 +210,7 @@ export default function OnboardingScreen() {
         style={{ flex: 1 }}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
+      <View style={styles.header}>
         <View style={styles.progressBarWrapper}>
           <View style={[styles.progressTrack, { backgroundColor: "#FFFFFF20" }]}>
             <View
@@ -226,6 +227,19 @@ export default function OnboardingScreen() {
             Progresso: {Math.round(progress * 100)}%
           </Text>
         </View>
+        
+        <TouchableOpacity 
+          style={styles.logoutBtn} 
+          onPress={() => {
+            Alert.alert("Sair", "Deseja voltar para a tela de login?", [
+              { text: "Cancelar", style: "cancel" },
+              { text: "Sair", style: "destructive", onPress: logout }
+            ]);
+          }}
+        >
+          <MaterialCommunityIcons name="logout" size={24} color="#FFF9" />
+        </TouchableOpacity>
+      </View>
 
         <ScrollView
           contentContainerStyle={styles.content}
@@ -448,7 +462,25 @@ export default function OnboardingScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  progressBarWrapper: { flexDirection: "row", alignItems: "center", paddingHorizontal: 24, gap: 12, marginBottom: 20 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    gap: 15,
+  },
+  progressBarWrapper: {
+    flex: 1,
+    flexDirection: "row", 
+    alignItems: "center", 
+    gap: 12, 
+    marginBottom: 20 
+  },
+  logoutBtn: {
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF10',
+  },
   progressTrack: { flex: 1, height: 6, borderRadius: 3, overflow: "hidden" },
   progressFill: { height: 6, borderRadius: 3 },
   stepCounter: { fontSize: 12 },

@@ -41,7 +41,7 @@ export const users = pgTable("users", {
   referredBy: uuid("referred_by").references(() => users.id),
   
   // Status e Auditoria
-  verificationStatus: text("verification_status", { enum: ["PENDING", "APPROVED", "REJECTED"] }).notNull().default("PENDING"),
+  verificationStatus: text("verification_status", { enum: ["UNVERIFIED", "PENDING", "APPROVED", "REJECTED"] }).notNull().default("UNVERIFIED"),
   bannedAt: timestamp("banned_at"),
   banReason: text("ban_reason"),
   pushToken: text("push_token"),

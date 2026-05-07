@@ -13,11 +13,12 @@ import {
   TouchableOpacity,
   View,
   Image,
+  Share,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ServiceCard } from "@/components/ServiceCard";
-import { SUGGESTED_CATEGORIES, UNLOCK_COSTS } from "@/constants/categories";
+import { SUGGESTED_CATEGORIES } from "@/constants/categories";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { useListJobs } from "@workspace/api-client-react";
@@ -28,7 +29,7 @@ import type { Job } from "@workspace/api-client-react";
 
 export default function Mural() {
   const colors = useColors();
-  const { user, unlockService, leads, activeMode, switchActiveMode } = useAuth();
+  const { user, unlockService, leads, activeMode, switchActiveMode, api, appConfig } = useAuth();
   const insets = useSafeAreaInsets();
 
   const { data: jobs, isLoading, refetch } = useListJobs();
@@ -47,16 +48,29 @@ export default function Mural() {
     }, [])
   );
 
+  async function shareReferral() {
+    try {
+      const code = user?.referralCode || "TRAMPAI26";
+      const bonus = appConfig?.REFERRAL_BONUS || "10";
+      const message = `Ei! Use meu código ${code} no Trampaí para ganhar ${bonus} créditos de bônus e encontrar os melhores profissionais ou serviços! 🚀\n\nBaixe agora: https://trampai.com.br`;
+      
+      const result = await Share.share({
+        message,
+        title: "Convite Trampaí",
+      });
+
+      if (result.action === Share.sharedAction) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
   async function checkNotifications() {
     try {
-      const token = await SecureStore.getItemAsync("trampai_auth_token");
-      const res = await fetch(`${API_BASE_URL}/api/notifications`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setUnreadCount(data.filter((n: any) => !n.read).length);
-      }
+      const data = await api.get("/notifications");
+      setUnreadCount(data.filter((n: any) => !n.read).length);
     } catch (e) {}
   }
 
@@ -129,7 +143,12 @@ export default function Mural() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Custom Header */}
-      <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 20 : 10), borderBottomWidth: 1, borderBottomColor: colors.border + "30", backgroundColor: "#fff" }]}>
+      <View style={[styles.header, { 
+        paddingTop: insets.top + (Platform.OS === "web" ? 20 : 10), 
+        borderBottomWidth: 1, 
+        borderBottomColor: colors.border + "30", 
+        backgroundColor: colors.background 
+      }]}>
         <View style={styles.headerLeft}>
           <Text style={[styles.headerLogo, { fontFamily: "Inter_800ExtraBold", color: colors.primary }]}>Trampaí</Text>
         </View>
@@ -152,19 +171,63 @@ export default function Mural() {
           >
             <MaterialCommunityIcons name="bell-outline" size={24} color={colors.primary} />
             {unreadCount > 0 && (
-              <View style={[styles.badge, { backgroundColor: colors.accent }]} />
+              <View style={[styles.badge, { backgroundColor: colors.accent, borderColor: colors.card }]} />
             )}
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.initialsAvatar, { backgroundColor: colors.primary }]}
+            style={[styles.initialsAvatar, { backgroundColor: colors.primary, overflow: 'hidden' }]}
             onPress={() => router.push("/(provider)/perfil")}
           >
-            <Text style={[styles.initialsText, { color: "#FFF", fontFamily: "Inter_700Bold" }]}>
-              {getInitials(user?.name)}
-            </Text>
+            {user?.avatarUrl ? (
+              <Image 
+                source={{ uri: user.avatarUrl }} 
+                style={{ width: '100%', height: '100%' }} 
+                resizeMode="cover"
+              />
+            ) : (
+              <Text style={[styles.initialsText, { color: colors.card, fontFamily: "Inter_700Bold" }]}>
+                {getInitials(user?.name)}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>
+
+      {!isVerified && (
+        <TouchableOpacity 
+          style={[styles.verificationBanner, { backgroundColor: colors.secondary }]}
+          onPress={() => router.push("/(provider)/perfil")}
+        >
+          <MaterialCommunityIcons name="shield-alert-outline" size={20} color={colors.card} />
+          <Text style={[styles.verificationBannerText, { fontFamily: "Inter_600SemiBold", color: colors.card }]}>
+            {user?.verificationStatus === 'PENDING' 
+              ? "Documentos em análise. Aguarde a liberação." 
+              : "Conta não verificada. Clique aqui para verificar."}
+          </Text>
+          <MaterialCommunityIcons name="chevron-right" size={20} color={colors.card} />
+        </TouchableOpacity>
+      )}
+
+      {isVerified && (
+        <TouchableOpacity 
+          style={[styles.referralBanner, { backgroundColor: colors.navy }]}
+          onPress={shareReferral}
+          activeOpacity={0.9}
+        >
+          <View style={styles.referralContent}>
+            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.accent + '20', alignItems: 'center', justifyContent: 'center' }}>
+              <MaterialCommunityIcons name="ticket-percent" size={24} color={colors.accent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.referralTitle, { color: "#FFF", fontFamily: "Inter_700Bold" }]}>Indique e Ganhe! 🚀</Text>
+              <Text style={[styles.referralSub, { color: "#ffffffCC", fontFamily: "Inter_500Medium" }]}>
+                Ganhe {appConfig?.REFERRAL_BONUS || "10"} créditos por cada amigo que se cadastrar.
+              </Text>
+            </View>
+            <MaterialCommunityIcons name="share-variant" size={20} color="#FFF" />
+          </View>
+        </TouchableOpacity>
+      )}
 
       <FlatList
         data={visibleJobs}
@@ -179,37 +242,41 @@ export default function Mural() {
               <Text style={[styles.pageSub, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>Encontre oportunidades perto de você.</Text>
             </View>
 
-            <View style={[styles.filterCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={[styles.filterCard, { backgroundColor: colors.card, borderColor: colors.border + "30" }]}>
               <View style={styles.filterRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.filterLabel, { color: colors.navy, fontFamily: "Inter_600SemiBold" }]}>Categorias</Text>
-                  <TouchableOpacity 
-                    style={[styles.categorySelect, { borderColor: colors.border }]}
-                    onPress={() => setShowFilters(!showFilters)}
-                  >
-                    <Text style={[styles.categoryValue, { color: colors.foreground }]}>
-                      {selectedCategories.length === 0 ? "Todas as Categorias" : `${selectedCategories.length} selecionadas`}
-                    </Text>
-                    <MaterialCommunityIcons name="chevron-down" size={20} color={colors.mutedForeground} />
-                  </TouchableOpacity>
-                </View>
-              </View>
+                <Text style={[styles.filterLabel, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>O que você procura?</Text>
+                <TouchableOpacity 
+                  style={[styles.categorySelect, { borderColor: colors.border + "40", backgroundColor: colors.surface }]}
+                  onPress={() => setShowFilters(!showFilters)}
+                >
+                  <Text style={[styles.categoryValue, { color: colors.primary }]}>
+                    {selectedCategories.length === 0 
+                      ? "Todas as Categorias" 
+                      : `${selectedCategories.length} selecionada(s)`}
+                  </Text>
+                  <MaterialCommunityIcons name={showFilters ? "chevron-up" : "chevron-down"} size={20} color={colors.primary} />
+                </TouchableOpacity>
 
-              {showFilters && (
-                <View style={styles.categoriesGrid}>
-                  {SUGGESTED_CATEGORIES.map((cat) => (
-                    <TouchableOpacity
-                      key={cat}
-                      style={[styles.categoryChip, { backgroundColor: selectedCategories.includes(cat) ? colors.accent : colors.navy + "08" }]}
-                      onPress={() => toggleCategory(cat)}
-                    >
-                      <Text style={[styles.categoryChipText, { color: selectedCategories.includes(cat) ? "#fff" : colors.navy }]}>
-                        {cat}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
+                {showFilters && (
+                  <View style={styles.categoriesGrid}>
+                    {SUGGESTED_CATEGORIES.map((cat) => (
+                      <TouchableOpacity
+                        key={cat}
+                        style={[
+                          styles.categoryChip,
+                          { backgroundColor: selectedCategories.includes(cat) ? colors.primary : colors.surface }
+                        ]}
+                        onPress={() => toggleCategory(cat)}
+                      >
+                        <Text style={[
+                          styles.categoryChipText,
+                          { color: selectedCategories.includes(cat) ? colors.card : colors.primary, fontFamily: "Inter_600SemiBold" }
+                        ]}>{cat}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
             </View>
           </View>
         }
@@ -243,7 +310,7 @@ export default function Mural() {
       <Modal visible={!!selectedService} animationType="slide" transparent onRequestClose={() => setSelectedService(null)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => { if (!unlocking) setSelectedService(null); }} />
         {selectedService && (
-          <View style={[styles.modalSheet, { backgroundColor: colors.card, borderTopLeftRadius: 30, borderTopRightRadius: 30 }]}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.card, borderTopLeftRadius: 32, borderTopRightRadius: 32 }]}>
             <View style={styles.modalHandle} />
             {!unlockResult ? (
               <View style={styles.modalScroll}>
@@ -269,7 +336,7 @@ export default function Mural() {
                       <MaterialCommunityIcons name="lock-open-outline" size={24} color={colors.navy} />
                       <View>
                         <Text style={[styles.unlockOptionTitle, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>Básico</Text>
-                        <Text style={[styles.unlockOptionCredits, { color: colors.accent, fontFamily: "Inter_700Bold" }]}>{UNLOCK_COSTS.NORMAL} crédito</Text>
+                        <Text style={[styles.unlockOptionCredits, { color: colors.accent, fontFamily: "Inter_700Bold" }]}>{appConfig?.lead_normal_cost || 1} crédito</Text>
                       </View>
                     </View>
                     <Text style={[styles.unlockOptionDesc, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
@@ -288,7 +355,7 @@ export default function Mural() {
                       <MaterialCommunityIcons name="shield-check-outline" size={24} color={colors.secondary} />
                       <View>
                         <Text style={[styles.unlockOptionTitle, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>Plus (Anti-Furada)</Text>
-                        <Text style={[styles.unlockOptionCredits, { color: colors.secondary, fontFamily: "Inter_700Bold" }]}>{UNLOCK_COSTS.PLUS} créditos</Text>
+                        <Text style={[styles.unlockOptionCredits, { color: colors.secondary, fontFamily: "Inter_700Bold" }]}>{appConfig?.lead_plus_cost || 3} créditos</Text>
                       </View>
                     </View>
                     <Text style={[styles.unlockOptionDesc, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
@@ -307,7 +374,7 @@ export default function Mural() {
                       <MaterialCommunityIcons name="crown-outline" size={24} color={colors.accent} />
                       <View>
                         <Text style={[styles.unlockOptionTitle, { color: "#fff", fontFamily: "Inter_600SemiBold" }]}>Exclusivo (Garantido)</Text>
-                        <Text style={[styles.unlockOptionCredits, { color: colors.accent, fontFamily: "Inter_700Bold" }]}>{UNLOCK_COSTS.EXCLUSIVE} créditos</Text>
+                        <Text style={[styles.unlockOptionCredits, { color: colors.accent, fontFamily: "Inter_700Bold" }]}>{appConfig?.lead_exclusive_cost || 5} créditos</Text>
                       </View>
                     </View>
                     <Text style={[styles.unlockOptionDesc, { color: "#ffffff90", fontFamily: "Inter_400Regular" }]}>
@@ -406,6 +473,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 12,
   },
+  verificationBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    paddingHorizontal: 20,
+    gap: 10,
+  },
+  verificationBannerText: {
+    color: '#FFF',
+    fontSize: 13,
+    flex: 1,
+  },
+  referralBanner: {
+    margin: 16,
+    marginBottom: 0,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  referralContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
+  },
+  referralTitle: {
+    fontSize: 15,
+    marginBottom: 2,
+  },
+  referralSub: {
+    fontSize: 11,
+    lineHeight: 16,
+  },
   headerLeft: {
     flex: 1,
   },
@@ -444,7 +548,6 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     borderWidth: 2,
-    borderColor: "#fff",
   },
   pageHeader: { marginBottom: 24 },
   titleSection: { marginBottom: 20 },
@@ -477,7 +580,7 @@ const styles = StyleSheet.create({
   empty: { alignItems: "center", padding: 48, gap: 16, marginTop: 20 },
   emptyTitle: { fontSize: 20, textAlign: "center" },
   emptyDesc: { fontSize: 15, textAlign: "center", lineHeight: 22 },
-  modalOverlay: { flex: 1, backgroundColor: "#0b133980" },
+  modalOverlay: { flex: 1 },
   modalSheet: { padding: 24, paddingBottom: 60 },
   modalHandle: { width: 40, height: 4, backgroundColor: "#E5E7EB", borderRadius: 10, alignSelf: "center", marginBottom: 24 },
   modalScroll: { gap: 20 },
@@ -486,7 +589,7 @@ const styles = StyleSheet.create({
   errorBox: { flexDirection: "row", padding: 16, gap: 12, alignItems: "center" },
   errorText: { color: "#ef4444", fontSize: 14, flex: 1 },
   unlockOptions: { gap: 16 },
-  unlockOption: { padding: 24, borderWidth: 1.5, gap: 14 },
+  unlockOption: { padding: 24, borderWidth: 1.5, gap: 14, borderRadius: 16 },
   unlockOptionHeader: { flexDirection: "row", alignItems: "center", gap: 16 },
   unlockOptionTitle: { fontSize: 18 },
   unlockOptionCredits: { fontSize: 22 },

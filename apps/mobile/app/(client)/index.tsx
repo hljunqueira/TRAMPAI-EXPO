@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
   Share,
+  Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -21,6 +22,13 @@ export default function ClientDashboard() {
   const { user, services, activeMode, switchActiveMode, fetchMyData } = useAuth();
   const insets = useSafeAreaInsets();
   const [unreadCount, setUnreadCount] = React.useState(0);
+
+  const getInitials = (name?: string) => {
+    if (!name) return "??";
+    const parts = name.trim().split(" ");
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return parts[0][0].toUpperCase();
+  };
 
   useFocusEffect(
     React.useCallback(() => {
@@ -97,6 +105,22 @@ export default function ClientDashboard() {
               <View style={[styles.badge, { backgroundColor: colors.accent }]} />
             )}
           </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.initialsAvatar, { backgroundColor: colors.primary, overflow: 'hidden' }]}
+            onPress={() => router.push("/(client)/perfil")}
+          >
+            {user?.avatarUrl ? (
+              <Image 
+                source={{ uri: user.avatarUrl }} 
+                style={{ width: '100%', height: '100%' }} 
+                resizeMode="cover"
+              />
+            ) : (
+              <Text style={[styles.initialsText, { color: "#FFF", fontFamily: "Inter_700Bold" }]}>
+                {getInitials(user?.name)}
+              </Text>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -151,27 +175,7 @@ export default function ClientDashboard() {
           </ScrollView>
         </View>
 
-        {/* Referral Banner */}
-        <TouchableOpacity 
-          style={[styles.referralBanner, { backgroundColor: colors.navy }]}
-          onPress={() => {
-            Share.share({
-              message: `Precisa de um profissional? Baixe o Trampaí e use meu código ${user?.referralCode} para ganhar créditos bônus! https://trampai.com.br`,
-            });
-          }}
-          activeOpacity={0.9}
-        >
-          <View style={styles.referralContent}>
-            <MaterialCommunityIcons name="ticket-percent" size={32} color={colors.accent} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.referralTitle, { color: "#FFF", fontFamily: "Inter_700Bold" }]}>Indique e Ganhe! 🚀</Text>
-              <Text style={[styles.referralSub, { color: "#ffffffCC", fontFamily: "Inter_500Medium" }]}>
-                Compartilhe seu código <Text style={{ color: colors.accent }}>{user?.referralCode}</Text> e ganhe bônus.
-              </Text>
-            </View>
-          </View>
-          <MaterialCommunityIcons name="share-variant" size={20} color="#FFF" />
-        </TouchableOpacity>
+
 
         <TouchableOpacity
           style={[styles.ctaCard, { backgroundColor: "#e8c08a", borderRadius: 20 }]}
@@ -479,6 +483,17 @@ const styles = StyleSheet.create({
     borderColor: "#fff",
   },
   badgeText: { fontSize: 10 },
+  initialsAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
+  },
+  initialsText: {
+    fontSize: 16,
+  },
   exclusiveActions: {
     flexDirection: "row",
     gap: 10,

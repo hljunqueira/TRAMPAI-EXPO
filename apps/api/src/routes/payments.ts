@@ -4,6 +4,8 @@ import { eq, sql } from "drizzle-orm";
 import { authenticate, AuthRequest } from "../middlewares/auth";
 import { stripe } from "../lib/stripe";
 import { createNotification } from "../utils/notifications";
+import { getConfig } from "./admin";
+import { CONFIG_KEYS } from "@workspace/db/schema";
 
 const router = Router();
 
@@ -41,10 +43,14 @@ router.post("/payments/checkout", authenticate, async (req: AuthRequest, res: an
       if (!customCredits || isNaN(customCredits) || customCredits < 10) {
         return res.status(400).json({ error: "Minimo de 10 creditos" });
       }
+      
+      // Buscar preço unitário da config
+      const unitPriceStr = await getConfig(CONFIG_KEYS.CREDIT_UNIT_PRICE_CENTS);
+      const unitPrice = parseFloat(unitPriceStr || "99.9");
+
       pkgName = `Avulso (${customCredits} CR)`;
       pkgCredits = customCredits;
-      // 10 CR = R$ 9.99 -> 99.9 cents per credit
-      pkgPriceCents = Math.round(customCredits * 99.9);
+      pkgPriceCents = Math.round(customCredits * unitPrice);
       pkgId = "custom";
     } else {
       console.log("🔍 [Checkout] Buscando pacote no banco...");
@@ -54,17 +60,14 @@ router.post("/payments/checkout", authenticate, async (req: AuthRequest, res: an
         console.log("❌ [Checkout] Pacote nao encontrado:", packageId);
         return res.status(404).json({ error: "Pacote nao encontrado" });
       }
-      
+
       pkgName = pkg.name;
       pkgCredits = pkg.credits + pkg.bonusCredits;
       pkgPriceCents = pkg.priceCents;
       pkgId = pkg.id;
     }
 
-    const paymentMethods = ["card"];
-    if (pkgPriceCents >= 9990) {
-      paymentMethods.push("boleto");
-    }
+    const paymentMethods = ["card", "boleto"];
 
     console.log("💳 [Checkout] Criando sessao no Stripe para:", pkgName);
     const session = await stripe.checkout.sessions.create({
@@ -134,7 +137,7 @@ router.post("/payments/webhook", async (req: any, res: any) => {
         if (user) {
           await tx
             .update(users)
-            .set({ 
+            .set({
               creditBalance: user.creditBalance + parseInt(credits),
               updatedAt: new Date()
             })
@@ -171,18 +174,20 @@ router.post("/payments/webhook", async (req: any, res: any) => {
 
 // --- CAKTO PIX INTEGRATION ---
 
-const CAKTO_LINKS: Record<string, string> = {
-  "36559e79-e48f-49aa-9e00-ae9649aa2d55": "https://pay.cakto.com.br/gc8cotk_876296", // 10 CR
-  "eca03f34-6159-42cf-8227-8d1519d1db35": "https://pay.cakto.com.br/358tydq_876298", // 30+5 CR
-  "f1bb360b-cbae-4bea-b016-d9ce8c357549": "https://pay.cakto.com.br/dvn7jft_876300", // 100+20 CR
-  "custom": "https://pay.cakto.com.br/jsb3zkt_876302" // Avulso
-};
-
 // Checkout Cakto
 router.post("/payments/cakto/checkout", authenticate, async (req: AuthRequest, res: any) => {
   try {
     const { packageId } = req.body;
     let pkgCredits, baseUrl;
+
+    // Buscar links de pagamento da config
+    const linksJson = await getConfig(CONFIG_KEYS.CAKTO_PAYMENT_LINKS);
+    let caktoLinks: Record<string, string> = {};
+    try {
+      caktoLinks = JSON.parse(linksJson);
+    } catch (e) {
+      console.error("Erro ao parsear CAKTO_PAYMENT_LINKS:", e);
+    }
 
     if (packageId === "custom") {
       const customCredits = parseInt(req.body.customCredits, 10);
@@ -190,13 +195,13 @@ router.post("/payments/cakto/checkout", authenticate, async (req: AuthRequest, r
         return res.status(400).json({ error: "Minimo de 10 creditos" });
       }
       pkgCredits = customCredits;
-      baseUrl = CAKTO_LINKS["custom"];
+      baseUrl = caktoLinks["custom"];
     } else {
       const [pkg] = await db.select().from(creditPackages).where(eq(creditPackages.id, packageId)).limit(1);
       if (!pkg) return res.status(404).json({ error: "Pacote nao encontrado" });
-      
+
       pkgCredits = pkg.credits + pkg.bonusCredits;
-      baseUrl = CAKTO_LINKS[pkg.id];
+      baseUrl = caktoLinks[pkg.id];
     }
 
     if (!baseUrl) {
@@ -222,7 +227,7 @@ router.post("/payments/cakto/webhook", async (req: any, res: any) => {
     // Validacao de seguranca (Webhook Secret)
     const webhookSecret = process.env.CAKTO_WEBHOOK_SECRET;
     const receivedSecret = payload.fields?.secret || payload.secret;
-    
+
     if (webhookSecret && receivedSecret !== webhookSecret) {
       console.warn("🔒 [Cakto Webhook] Secret invalido! Recebido:", receivedSecret);
       return res.status(401).json({ error: "Unauthorized" });
@@ -230,8 +235,8 @@ router.post("/payments/cakto/webhook", async (req: any, res: any) => {
 
     // O evento de compra aprovada na Cakto e 'purchase_approved'
     // Alguns webhooks da Cakto podem vir dentro de um array ou objeto 'event'
-    const eventType = payload.event?.custom_id || payload.event_type; 
-    
+    const eventType = payload.event?.custom_id || payload.event_type;
+
     // Na Cakto, o payload costuma vir com os dados da venda em 'data' ou na raiz
     const sale = payload.data || payload;
 
@@ -250,7 +255,7 @@ router.post("/payments/cakto/webhook", async (req: any, res: any) => {
       await db.transaction(async (tx) => {
         const [user] = await tx.select().from(users).where(eq(users.id, userId));
         if (user) {
-          await tx.update(users).set({ 
+          await tx.update(users).set({
             creditBalance: user.creditBalance + credits,
             updatedAt: new Date()
           }).where(eq(users.id, userId));

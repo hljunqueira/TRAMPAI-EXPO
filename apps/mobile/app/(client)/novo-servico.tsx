@@ -33,6 +33,13 @@ export default function NovoServico() {
   const { mutateAsync: createJob, isPending: loading } = useCreateJob();
   const { data: jobs, refetch: refetchJobs } = useListJobs();
 
+  const getInitials = (name?: string) => {
+    if (!name) return "??";
+    const parts = name.trim().split(" ");
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return parts[0][0].toUpperCase();
+  };
+
   const [title, setTitle] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [customCategory, setCustomCategory] = useState("");
@@ -245,9 +252,27 @@ export default function NovoServico() {
           <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primary} />
         </TouchableOpacity>
         <Text style={[styles.headerLogo, { fontFamily: "Inter_800ExtraBold", color: colors.primary }]}>Trampaí</Text>
-        <TouchableOpacity style={styles.iconBtn}>
-          <MaterialCommunityIcons name="bell-outline" size={24} color={colors.primary} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity onPress={() => router.push("/notificacoes")} style={styles.iconBtn}>
+            <MaterialCommunityIcons name="bell-outline" size={24} color={colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.initialsAvatar, { backgroundColor: colors.primary, overflow: 'hidden' }]}
+            onPress={() => router.push("/(client)/perfil")}
+          >
+            {user?.avatarUrl ? (
+              <Image 
+                source={{ uri: user.avatarUrl }} 
+                style={{ width: '100%', height: '100%' }} 
+                resizeMode="cover"
+              />
+            ) : (
+              <Text style={[styles.initialsText, { color: "#FFF", fontFamily: "Inter_700Bold" }]}>
+                {getInitials(user?.name)}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
@@ -276,48 +301,61 @@ export default function NovoServico() {
             <View style={styles.inputGroup}>
               <Text style={[styles.label, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Categoria</Text>
               <View style={styles.visualCategories}>
-                {[
-                  { id: '48ae9829-6c1b-4c67-90b9-6be01248b96b', name: 'Limpeza', icon: 'broom' },
-                  { id: 'b1532dcc-37c9-491e-8a9a-1d71eac5f3b4', name: 'Elétrica', icon: 'flash' },
-                  { id: '28474ab0-370a-4c13-8d6c-081b145153ef', name: 'Reforma', icon: 'hammer-wrench' },
-                  { id: '7b3d1a97-b2b1-4691-bead-c5a4db13f884', name: 'Pintura', icon: 'format-paint' },
-                  { id: 'feee29b6-e531-445a-bc05-314753dcfba7', name: 'Mudança', icon: 'truck-delivery' },
-                  { id: '60e81207-78b2-4ab7-95ea-eaa14fa6b883', name: 'Encanador', icon: 'water-pump' },
-                  { id: 'other', name: 'Outros', icon: 'dots-horizontal' },
-                ].map((cat) => (
+                {allCategories.map((cat: any) => (
                   <TouchableOpacity 
                     key={cat.id}
                     style={[
                       styles.catOption, 
                       { 
-                        backgroundColor: (selectedCategoryId === cat.id || (cat.id === 'other' && showCustomInput)) ? colors.primary : colors.primary + "05",
-                        borderColor: (selectedCategoryId === cat.id || (cat.id === 'other' && showCustomInput)) ? colors.primary : "transparent"
+                        backgroundColor: selectedCategoryId === cat.id ? colors.primary : colors.primary + "05",
+                        borderColor: selectedCategoryId === cat.id ? colors.primary : "transparent"
                       }
                     ]}
                     onPress={() => {
-                      if (cat.id === 'other') {
-                        setShowCustomInput(true);
-                        setSelectedCategoryId("");
-                      } else {
-                        setShowCustomInput(false);
-                        setSelectedCategoryId(cat.id);
-                        setCustomCategory("");
-                      }
+                      setShowCustomInput(false);
+                      setSelectedCategoryId(cat.id);
+                      setCustomCategory("");
                     }}
                   >
                     <MaterialCommunityIcons 
-                      name={cat.icon as any} 
+                      name={(cat.icon || 'tag-outline') as any} 
                       size={20} 
-                      color={(selectedCategoryId === cat.id || (cat.id === 'other' && showCustomInput)) ? "#FFF" : colors.primary} 
+                      color={selectedCategoryId === cat.id ? "#FFF" : colors.primary} 
                     />
                     <Text style={[
                       styles.catOptionText, 
-                      { color: (selectedCategoryId === cat.id || (cat.id === 'other' && showCustomInput)) ? "#FFF" : colors.primary, fontFamily: "Inter_600SemiBold" }
+                      { color: selectedCategoryId === cat.id ? "#FFF" : colors.primary, fontFamily: "Inter_600SemiBold" }
                     ]}>
                       {cat.name}
                     </Text>
                   </TouchableOpacity>
                 ))}
+                
+                <TouchableOpacity 
+                  style={[
+                    styles.catOption, 
+                    { 
+                      backgroundColor: showCustomInput ? colors.primary : colors.primary + "05",
+                      borderColor: showCustomInput ? colors.primary : "transparent"
+                    }
+                  ]}
+                  onPress={() => {
+                    setShowCustomInput(true);
+                    setSelectedCategoryId("");
+                  }}
+                >
+                  <MaterialCommunityIcons 
+                    name="dots-horizontal" 
+                    size={20} 
+                    color={showCustomInput ? "#FFF" : colors.primary} 
+                  />
+                  <Text style={[
+                    styles.catOptionText, 
+                    { color: showCustomInput ? "#FFF" : colors.primary, fontFamily: "Inter_600SemiBold" }
+                  ]}>
+                    Outros
+                  </Text>
+                </TouchableOpacity>
               </View>
               {showCustomInput && (
                 <TextInput
@@ -494,6 +532,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  initialsAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
+  },
+  initialsText: {
+    fontSize: 16,
+  },
   headerLogo: {
     fontSize: 22,
     letterSpacing: -1,
@@ -551,7 +600,7 @@ const styles = StyleSheet.create({
   mainUpload: { flex: 1.5, borderWidth: 2, borderStyle: 'dashed', borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fafafa' },
   secondaryUploads: { flex: 1, gap: 8 },
   subUpload: { flex: 1, borderWidth: 2, borderStyle: 'dashed', borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fafafa' },
-  uploadedImg: { width: '100%', height: '100%', borderRadius: 10 },
+
   removeBadge: { position: 'absolute', top: 5, right: 5, backgroundColor: '#fff', borderRadius: 12 },
   submitBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 16, borderRadius: 100, gap: 10 },
   submitBtnText: { fontSize: 18 },

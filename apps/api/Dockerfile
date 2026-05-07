@@ -12,6 +12,7 @@ COPY packages/api-zod/package.json ./packages/api-zod/
 COPY apps/api/package.json ./apps/api/
 
 # Instalar dependências
+RUN pnpm config set ignore-scripts false
 RUN pnpm install --frozen-lockfile
 
 # Copiar código fonte

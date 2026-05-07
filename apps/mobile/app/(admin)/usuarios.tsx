@@ -309,10 +309,14 @@ export default function AdminUsuarios() {
               ]}
             >
               <View style={styles.userHeader}>
-                <View style={[styles.userAvatar, { backgroundColor: isProvider ? colors.primary + "10" : colors.primary + "05" }]}>
-                  <Text style={[styles.userInitials, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>
-                    {getInitials(u.name)}
-                  </Text>
+                <View style={[styles.userAvatar, { backgroundColor: isProvider ? colors.primary + "10" : colors.primary + "05", overflow: 'hidden' }]}>
+                  {u.avatarUrl ? (
+                    <Image source={{ uri: u.avatarUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                  ) : (
+                    <Text style={[styles.userInitials, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>
+                      {getInitials(u.name)}
+                    </Text>
+                  )}
                 </View>
                 
                 <View style={{ flex: 1 }}>
@@ -426,10 +430,14 @@ export default function AdminUsuarios() {
             {selectedUser && (
               <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalBody}>
                 <View style={styles.profileSection}>
-                  <View style={[styles.largeAvatar, { backgroundColor: colors.primary + "05" }]}>
-                    <Text style={[styles.largeInitials, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>
-                      {getInitials(selectedUser.name)}
-                    </Text>
+                  <View style={[styles.largeAvatar, { backgroundColor: colors.primary + "05", overflow: 'hidden' }]}>
+                    {selectedUser.avatarUrl ? (
+                      <Image source={{ uri: selectedUser.avatarUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                    ) : (
+                      <Text style={[styles.largeInitials, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>
+                        {getInitials(selectedUser.name)}
+                      </Text>
+                    )}
                   </View>
                   <Text style={[styles.profileName, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{selectedUser.name}</Text>
                   <View style={[styles.modalRoleBadge, { backgroundColor: (selectedUser.role === "provider" || selectedUser.isProvider) ? colors.secondary + "20" : colors.primary + "10" }]}>

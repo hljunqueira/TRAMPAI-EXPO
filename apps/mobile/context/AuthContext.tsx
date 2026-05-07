@@ -18,12 +18,7 @@ import {
   useUpdateMe,
 } from "@workspace/api-client-react";
 
-import {
-  CREDIT_PACKAGES,
-  SERVICE_EXPIRATION_DAYS,
-  UNLOCK_COSTS,
-  WELCOME_BONUS_CREDITS,
-} from "@/constants/categories";
+
 import {
   User,
   Service,
@@ -43,6 +38,7 @@ try {
 }
 
 interface AuthContextType {
+  appConfig: Record<string, string> | null;
   user: User | null;
   isLoading: boolean;
   activeMode: "CLIENT" | "PROVIDER" | "ADMIN";
@@ -102,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [adminStats, setAdminStats] = useState<any | null>(null);
   const [adminRecentJobs, setAdminRecentJobs] = useState<any[]>([]);
+  const [appConfig, setAppConfig] = useState<Record<string, string> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const loginMutation = useLogin();
@@ -109,12 +106,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const unlockMutation = useUnlockJob();
   const updateMeMutation = useUpdateMe();
 
+  async function loadAppConfig() {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/config`);
+      if (res.ok) {
+        setAppConfig(await res.json());
+      }
+    } catch (e) {
+      console.error("Erro ao carregar appConfig:", e);
+    }
+  }
+
   useEffect(() => {
     setBaseUrl(API_BASE_URL);
     setAuthTokenGetter(async () => {
       return await SecureStore.getItemAsync(TOKEN_KEY);
     });
     loadSession();
+    loadAppConfig();
   }, []);
 
   async function loadSession() {
@@ -136,13 +145,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const handleApiError = async (res: Response) => {
+    let errorMessage = "Ocorreu um erro inesperado. Tente novamente.";
+    
+    if (res.status === 502 || res.status === 503) {
+      errorMessage = "O servidor está em manutenção rápida. Voltamos em instantes! 🛠️";
+    } else if (res.status === 401) {
+      errorMessage = "Sua sessão expirou. Por favor, faça login novamente.";
+      logout();
+    } else if (res.status === 404) {
+      errorMessage = "O recurso solicitado não foi encontrado.";
+    } else if (res.status === 500) {
+      errorMessage = "Erro interno no servidor. Nossa equipe já foi notificada.";
+    } else {
+      try {
+        const data = await res.json();
+        errorMessage = data.error || data.message || errorMessage;
+      } catch (e) {
+        // Se não for JSON, tenta pegar o texto
+        try {
+          const text = await res.text();
+          if (text) errorMessage = text;
+        } catch (e2) {}
+      }
+    }
+
+    Alert.alert("Ops!", errorMessage);
+    throw new Error(errorMessage);
+  };
+
   const api = {
     get: async (url: string) => {
       const token = await SecureStore.getItemAsync(TOKEN_KEY);
       const res = await fetch(`${API_BASE_URL}/api${url}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) return handleApiError(res);
       return { data: await res.json() };
     },
     post: async (url: string, data: any) => {
@@ -155,7 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) return handleApiError(res);
       return { data: await res.json() };
     },
     patch: async (url: string, data: any) => {
@@ -168,7 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) return handleApiError(res);
       return { data: await res.json() };
     },
     delete: async (url: string) => {
@@ -177,7 +215,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) return handleApiError(res);
       return { data: await res.json() };
     },
   };
@@ -196,6 +234,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (statsRes.ok) setAdminStats(await statsRes.json());
       if (usersRes.ok) setAllUsers(await usersRes.json());
       if (jobsRes.ok) setAdminRecentJobs(await jobsRes.json());
+      
+      if (!statsRes.ok) return handleApiError(statsRes);
     } catch (e) {
       console.error("Erro ao buscar dados de admin:", e);
     }
@@ -222,6 +262,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userData = await userRes.json();
         setUser(userData);
         await SecureStore.setItemAsync(USER_KEY, JSON.stringify(userData));
+      }
+
+      if (!userRes.ok && userRes.status !== 401) {
+        return handleApiError(userRes);
       }
     } catch (e) {
       console.error("Erro ao buscar dados do usuário:", e);
@@ -380,6 +424,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider
       value={{
+        appConfig,
         user,
         isLoading,
         activeMode,

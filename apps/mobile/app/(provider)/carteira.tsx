@@ -43,7 +43,7 @@ interface Transaction {
 export default function CarteiraScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, fetchMyData } = useAuth();
+  const { user, fetchMyData, appConfig } = useAuth();
 
   const [packages, setPackages] = useState<CreditPackage[]>([]);
   const [transactionsData, setTransactionsData] = useState<Transaction[]>([]);
@@ -89,30 +89,32 @@ export default function CarteiraScreen() {
 
     const { id: packageId, amount: customAmount } = pendingPackage;
     setShowPaymentModal(false);
-    
+
     // Pequeno delay para garantir que o modal fechou antes de abrir o browser
     await new Promise(resolve => setTimeout(resolve, 300));
 
     try {
       setBuying(packageId);
       const token = await SecureStore.getItemAsync("trampai_auth_token");
-      
-      const endpoint = method === "stripe" ? "/api/payments/checkout" : "/api/payments/cakto/checkout";
+
+      // Se for valor personalizado, forçamos Stripe pois o Cakto não aceita valor dinâmico
+      const methodToUse = packageId === "custom" ? "stripe" : method;
+      const endpoint = methodToUse === "stripe" ? "/api/payments/checkout" : "/api/payments/cakto/checkout";
 
       const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}` 
+          Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           packageId,
           ...(customAmount ? { customCredits: customAmount } : {})
         }),
       });
 
       const data = await res.json();
-      
+
       if (res.ok && data.url) {
         // Abrir o checkout no navegador interno
         await WebBrowser.openBrowserAsync(data.url);
@@ -134,6 +136,9 @@ export default function CarteiraScreen() {
       currency: "BRL",
     });
   };
+
+  const unitPriceCents = appConfig?.credit_unit_price_cents ? parseInt(appConfig.credit_unit_price_cents) : 99.9;
+  const priceString = formatCurrency(Math.round(unitPriceCents * 10));
 
   const renderHeader = () => (
     <View style={styles.headerContent}>
@@ -264,7 +269,7 @@ export default function CarteiraScreen() {
           <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
             <Text style={[styles.modalTitle, { color: colors.primary }]}>Créditos Avulsos</Text>
             <Text style={[styles.modalSubtitle, { color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }]}>
-              Digite a quantidade desejada (mínimo de 10 créditos). O valor é calculado a partir de R$ 9,99 a cada 10 créditos.
+              Digite a quantidade desejada (mínimo de 10 créditos). O valor é calculado a partir de {priceString} a cada 10 créditos.
             </Text>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24, width: '100%' }}>
@@ -329,18 +334,20 @@ export default function CarteiraScreen() {
               Escolha como deseja concluir sua compra
             </Text>
 
-            <TouchableOpacity
-              style={[styles.paymentOption, { borderColor: colors.border }]}
-              onPress={() => processPayment("cakto")}
-            >
-              <View style={[styles.paymentIconContainer, { backgroundColor: '#E7F9F3' }]}>
-                <MaterialCommunityIcons name="qrcode" size={24} color="#00BFA5" />
-              </View>
-              <View>
-                <Text style={[styles.paymentOptionTitle, { color: colors.foreground }]}>Pix</Text>
-                <Text style={[styles.paymentOptionSub, { color: colors.mutedForeground }]}>Aprovação imediata</Text>
-              </View>
-            </TouchableOpacity>
+            {pendingPackage?.id !== "custom" && (
+              <TouchableOpacity
+                style={[styles.paymentOption, { borderColor: colors.border }]}
+                onPress={() => processPayment("cakto")}
+              >
+                <View style={[styles.paymentIconContainer, { backgroundColor: '#E7F9F3' }]}>
+                  <MaterialCommunityIcons name="qrcode" size={24} color="#00BFA5" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.paymentOptionTitle, { color: colors.foreground }]}>Pix</Text>
+                  <Text style={[styles.paymentOptionSub, { color: colors.mutedForeground }]}>Aprovação imediata</Text>
+                </View>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={[styles.paymentOption, { borderColor: colors.border, marginTop: 12 }]}
@@ -349,9 +356,9 @@ export default function CarteiraScreen() {
               <View style={[styles.paymentIconContainer, { backgroundColor: '#F0F2FF' }]}>
                 <MaterialCommunityIcons name="credit-card-outline" size={24} color="#635BFF" />
               </View>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={[styles.paymentOptionTitle, { color: colors.foreground }]}>Cartão / Boleto</Text>
-                <Text style={[styles.paymentOptionSub, { color: colors.mutedForeground }]}>Boleto a partir de R$99,99</Text>
+                <Text style={[styles.paymentOptionSub, { color: colors.mutedForeground }]}>Checkout seguro</Text>
               </View>
             </TouchableOpacity>
 

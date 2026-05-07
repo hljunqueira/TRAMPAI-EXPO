@@ -4,6 +4,8 @@ import { eq, sql, desc } from "drizzle-orm";
 import { authenticate, AuthRequest } from "../middlewares/auth";
 import { supabase } from "../lib/supabase";
 import { createNotification } from "../utils/notifications";
+import { getConfig } from "./admin";
+import { CONFIG_KEYS } from "@workspace/db/schema";
 
 const router = Router();
 
@@ -215,7 +217,8 @@ router.patch("/users/me/boost", authenticate, async (req: AuthRequest, res: any)
     if (!userId) return res.status(401).json({ error: "Não autorizado" });
 
     const [user] = await db.select().from(users).where(eq(users.id, userId as string));
-    const cost = 5; // 5 créditos por 24h de boost
+    const boostCostStr = await getConfig(CONFIG_KEYS.BOOST_COST);
+    const cost = parseInt(boostCostStr || "5"); // 5 créditos por 24h de boost
 
     if (user.creditBalance < cost) {
       return res.status(400).json({ error: "Créditos insuficientes" });
@@ -255,7 +258,8 @@ router.patch("/users/me/premium", authenticate, async (req: AuthRequest, res: an
     if (!userId) return res.status(401).json({ error: "Não autorizado" });
 
     const [user] = await db.select().from(users).where(eq(users.id, userId as string));
-    const cost = 20; // 20 créditos por 30 dias de Premium
+    const premiumCostStr = await getConfig(CONFIG_KEYS.PREMIUM_COST);
+    const cost = parseInt(premiumCostStr || "20"); // 20 créditos por 30 dias de Premium
 
     if (user.creditBalance < cost) {
       return res.status(400).json({ error: "Créditos insuficientes" });

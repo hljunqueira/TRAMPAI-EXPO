@@ -16,90 +16,40 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
-import * as ImagePicker from "expo-image-picker";
-import * as SecureStore from "expo-secure-store";
-
-import { useAuth, API_BASE_URL } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useImageUpload } from "@/hooks/useImageUpload";
 
 export default function ClientPerfil() {
   const colors = useColors();
-  const { user, logout, transactions, reviews, activeMode, switchActiveMode, fetchMyData } = useAuth();
+  const { user, logout, transactions, reviews, activeMode, switchActiveMode, fetchMyData, api } = useAuth();
   const insets = useSafeAreaInsets();
-  const [uploading, setUploading] = React.useState(false);
+  const { uploading, pickImage, takePhoto } = useImageUpload();
 
   async function pickAvatarImage() {
     Alert.alert(
       "Selecionar Foto",
       "Escolha a origem da sua foto de perfil",
       [
-        { text: "Câmera", onPress: () => openPicker("camera") },
-        { text: "Galeria", onPress: () => openPicker("gallery") },
+        { text: "Câmera", onPress: async () => {
+          const url = await takePhoto();
+          if (url) updateAvatar(url);
+        }},
+        { text: "Galeria", onPress: async () => {
+          const url = await pickImage();
+          if (url) updateAvatar(url);
+        }},
         { text: "Cancelar", style: "cancel" },
       ]
     );
   }
 
-  async function openPicker(type: "camera" | "gallery") {
-    let result;
-    const options: ImagePicker.ImagePickerOptions = {
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
-      base64: true,
-    };
-
-    if (type === "camera") {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert("Permissão necessária", "Precisamos de acesso à câmera.");
-        return;
-      }
-      result = await ImagePicker.launchCameraAsync(options);
-    } else {
-      result = await ImagePicker.launchImageLibraryAsync(options);
-    }
-
-    if (!result.canceled && result.assets[0].base64) {
-      setUploading(true);
-      try {
-        const token = await SecureStore.getItemAsync("trampai_auth_token");
-        
-        // Fazer upload da imagem
-        const uploadRes = await fetch(`${API_BASE_URL}/api/upload`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            imageBase64: result.assets[0].base64,
-            ext: "jpg",
-          }),
-        });
-
-        if (!uploadRes.ok) throw new Error("Erro no upload");
-        const { url } = await uploadRes.json();
-
-        // Salvar no perfil do usuário
-        const updateRes = await fetch(`${API_BASE_URL}/api/auth/me`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ avatarUrl: url }),
-        });
-
-        if (updateRes.ok) {
-          fetchMyData(); // recarregar usuário
-        }
-      } catch (e) {
-        Alert.alert("Erro", "Não foi possível atualizar a foto de perfil.");
-      } finally {
-        setUploading(false);
-      }
+  async function updateAvatar(url: string) {
+    try {
+      await api.patch("/auth/me", { avatarUrl: url });
+      fetchMyData();
+    } catch (e) {
+      Alert.alert("Erro", "Não foi possível atualizar a foto de perfil.");
     }
   }
 
@@ -134,24 +84,6 @@ export default function ClientPerfil() {
     }
   }
 
-  async function shareReferral() {
-    try {
-      const code = user?.referralCode || "TRAMPAI26";
-      const message = `Ei! Use meu código ${code} no Trampaí para ganhar 10 créditos de bônus e encontrar os melhores profissionais ou serviços! 🚀\n\nBaixe agora: https://trampai.com.br`;
-      
-      const result = await Share.share({
-        message,
-        title: "Convite Trampaí",
-      });
-
-      if (result.action === Share.sharedAction) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
   const initials = user?.name
     ? user.name
         .trim()
@@ -165,7 +97,7 @@ export default function ClientPerfil() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Custom Header */}
-      <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 20 : 10), borderBottomWidth: 1, borderBottomColor: colors.border + "30", backgroundColor: "#fff" }]}>
+      <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 20 : 10), borderBottomWidth: 1, borderBottomColor: colors.border + "30", backgroundColor: colors.background }]}>
         <View style={styles.headerLeft}>
           <Text style={[styles.headerLogo, { fontFamily: "Inter_800ExtraBold", color: colors.primary }]}>Perfil</Text>
         </View>
@@ -194,20 +126,20 @@ export default function ClientPerfil() {
 
       <ScrollView contentContainerStyle={{ paddingBottom: 40 + insets.bottom }} showsVerticalScrollIndicator={false}>
         {/* Profile Section */}
-        <View style={[styles.profileHero, { backgroundColor: "#FFF" }]}>
+        <View style={[styles.profileHero, { backgroundColor: colors.card }]}>
           <TouchableOpacity style={styles.avatarWrapper} onPress={pickAvatarImage} disabled={uploading}>
             <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
               {user?.avatarUrl ? (
                 <Image source={{ uri: user.avatarUrl }} style={{ width: 90, height: 90, borderRadius: 45 }} contentFit="cover" />
               ) : (
-                <Text style={[styles.avatarText, { color: "#FFF", fontFamily: "Inter_700Bold" }]}>{initials}</Text>
+                <Text style={[styles.avatarText, { color: colors.card, fontFamily: "Inter_700Bold" }]}>{initials}</Text>
               )}
             </View>
             <View style={[styles.editBadge, { backgroundColor: colors.secondary }]}>
               {uploading ? (
-                <ActivityIndicator size="small" color="#FFF" />
+                <ActivityIndicator size="small" color={colors.card} />
               ) : (
-                <MaterialCommunityIcons name="camera" size={16} color="#FFF" />
+                <MaterialCommunityIcons name="camera" size={16} color={colors.card} />
               )}
             </View>
           </TouchableOpacity>
@@ -240,15 +172,10 @@ export default function ClientPerfil() {
           </View>
         </View>
 
-        <View style={[styles.statsGrid, { backgroundColor: "#FFF" }]}>
+        <View style={[styles.statsGrid, { backgroundColor: colors.card }]}>
           <View style={styles.statBox}>
             <Text style={[styles.statValue, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{user?.jobsPostedCount ?? 0}</Text>
             <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Trampos</Text>
-          </View>
-          <View style={[styles.statDivider, { backgroundColor: colors.border + "40" }]} />
-          <View style={styles.statBox}>
-            <Text style={[styles.statValue, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{user?.referralCode || "---"}</Text>
-            <Text style={[styles.statLabel, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Meu Código</Text>
           </View>
           <View style={[styles.statDivider, { backgroundColor: colors.border + "40" }]} />
           <View style={styles.statBox}>
@@ -259,7 +186,7 @@ export default function ClientPerfil() {
 
         <View style={styles.quickActionsVertical}>
           <TouchableOpacity 
-            style={[styles.primaryActionFull, { backgroundColor: "#e8c08a" }]}
+            style={[styles.primaryActionFull, { backgroundColor: colors.secondary + "20" }]}
             onPress={() => router.push("/editar-perfil")}
           >
             <MaterialCommunityIcons name="account-edit" size={22} color={colors.primary} />
@@ -271,7 +198,7 @@ export default function ClientPerfil() {
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={[styles.secondaryActionFull, { borderColor: colors.primary + "15", backgroundColor: "#fff" }]}
+            style={[styles.secondaryActionFull, { borderColor: colors.primary + "15", backgroundColor: colors.card }]}
             onPress={handleSwitchMode}
           >
             <MaterialCommunityIcons name="swap-horizontal" size={22} color={colors.primary} />
@@ -285,34 +212,7 @@ export default function ClientPerfil() {
           </TouchableOpacity>
         </View>
 
-        {/* Indique e Ganhe Section */}
-        <View style={[styles.sectionCard, { backgroundColor: colors.navy, borderColor: colors.accent, borderWidth: 1 }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-            <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: colors.accent + '20', alignItems: 'center', justifyContent: 'center' }}>
-              <MaterialCommunityIcons name="gift" size={24} color={colors.accent} />
-            </View>
-            <View>
-              <Text style={[styles.sectionTitle, { color: "#FFF", fontFamily: "Inter_700Bold", marginBottom: 0 }]}>Indique e Ganhe! 🎁</Text>
-              <Text style={{ color: "#ffffff90", fontSize: 12, fontFamily: "Inter_400Regular" }}>Compartilhe e ganhe benefícios</Text>
-            </View>
-          </View>
-          
-          <View style={{ backgroundColor: "#ffffff10", padding: 16, borderRadius: 16, alignItems: 'center', marginBottom: 16 }}>
-             <Text style={{ color: "#ffffff80", fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Seu código exclusivo</Text>
-             <Text style={{ color: colors.accent, fontSize: 24, fontFamily: "Inter_900Black" }}>{user?.referralCode || "TRAMPAI2024"}</Text>
-          </View>
-
-          <TouchableOpacity 
-            style={[styles.growthBtn, { backgroundColor: colors.accent }]} 
-            onPress={shareReferral}
-          >
-            <MaterialCommunityIcons name="share-variant" size={20} color={colors.primary} />
-            <Text style={[styles.growthBtnTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Convidar Amigos</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Suporte e Ajuda */}
-        <View style={[styles.sectionCard, { backgroundColor: "#FFF" }]}>
+        <View style={[styles.sectionCard, { backgroundColor: colors.card }]}>
           <Text style={[styles.sectionTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Suporte e Ajuda</Text>
           <TouchableOpacity style={styles.supportRow} onPress={() => Alert.alert("Suporte", "Abrindo WhatsApp do suporte...")}>
             <View style={[styles.infoIcon, { backgroundColor: "#25d36620" }]}>

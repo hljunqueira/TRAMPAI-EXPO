@@ -87,6 +87,23 @@ export function ServiceCard({
             )}
           </View>
 
+          <View style={styles.clientInfo}>
+            <View style={[styles.clientAvatar, { backgroundColor: colors.primary + "10", overflow: "hidden" }]}>
+              {(service as any).client?.avatarUrl ? (
+                <Image 
+                  source={{ uri: (service as any).client.avatarUrl }} 
+                  style={{ width: "100%", height: "100%" }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <MaterialCommunityIcons name="account" size={14} color={colors.primary} />
+              )}
+            </View>
+            <Text style={[styles.clientName, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>
+              {(service as any).client?.name || "Cliente"}
+            </Text>
+          </View>
+
           <Text
             style={[styles.title, { color: colors.navy, fontFamily: "Inter_700Bold" }]}
             numberOfLines={2}
@@ -208,6 +225,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 22,
     marginBottom: 6,
+  },
+  clientInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
+  },
+  clientAvatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  clientName: {
+    fontSize: 12,
   },
   locationRow: {
     flexDirection: "row",

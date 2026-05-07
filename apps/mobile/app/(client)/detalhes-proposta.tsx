@@ -217,8 +217,12 @@ export default function DetalhesProposta() {
             {job.clientReviews.map((review: any, i: number) => (
               <View key={i} style={styles.reviewItem}>
                 <View style={styles.reviewHeader}>
-                  <View style={[styles.reviewAvatar, { backgroundColor: "#f1f5f9" }]}>
-                    <Text style={styles.reviewAvatarText}>{review.fromUserName?.[0] || "U"}</Text>
+                  <View style={[styles.reviewAvatar, { backgroundColor: "#f1f5f9", overflow: 'hidden' }]}>
+                    {review.fromUserAvatarUrl ? (
+                      <Image source={{ uri: review.fromUserAvatarUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                    ) : (
+                      <Text style={styles.reviewAvatarText}>{review.fromUserName?.[0] || "U"}</Text>
+                    )}
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.reviewName, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>{review.fromUserName || "Usuário"}</Text>

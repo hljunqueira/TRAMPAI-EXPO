@@ -10,6 +10,8 @@ import { authenticate, AuthRequest } from "../middlewares/auth";
 import { OAuth2Client } from "google-auth-library";
 import { generateReferralCode } from "../utils/referral";
 import { transactions } from "@workspace/db";
+import { getConfig } from "./admin";
+import { CONFIG_KEYS } from "@workspace/db/schema";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -64,33 +66,32 @@ router.post("/auth/register", async (req: any, res: any) => {
       verificationToken,
       referralCode: myReferralCode,
       referredBy: referredBy as any,
-      creditBalance: referredBy ? 10 : 0, // Bônus para quem é indicado
+      creditBalance: referredBy ? parseInt(await getConfig(CONFIG_KEYS.WELCOME_CREDITS)) || 10 : 0, // Bônus para quem é indicado
     }).returning() as Promise<any[]>);
 
     // Se foi indicado, dar bônus para quem indicou também
     if (referredBy) {
-      await db.update(users)
-        .set({ creditBalance: db.select({ bal: users.creditBalance }).from(users).where(eq(users.id, referredBy)) as any }) // Incremento simples
-        .where(eq(users.id, referredBy));
-      
+      const welcomeBonus = parseInt(await getConfig(CONFIG_KEYS.WELCOME_CREDITS)) || 10;
+      const referralBonus = parseInt(await getConfig(CONFIG_KEYS.REFERRAL_BONUS)) || 5;
+
       // Criar transações para auditoria
       await db.insert(transactions).values([
         {
           userId: newUser.id,
           type: "REFERRAL_BONUS",
-          credits: 10,
+          credits: welcomeBonus,
           description: "Bônus por ser indicado",
         },
         {
           userId: referredBy,
           type: "REFERRAL_BONUS",
-          credits: 5,
+          credits: referralBonus,
           description: `Bônus por indicar ${newUser.name}`,
         }
       ]);
       
       // Atualizar saldo do padrinho (incremento manual por segurança no SQLite/PG)
-      await db.execute(sql`UPDATE users SET credit_balance = credit_balance + 5 WHERE id = ${referredBy}`);
+      await db.execute(sql`UPDATE users SET credit_balance = credit_balance + ${referralBonus} WHERE id = ${referredBy}`);
     }
 
     // Enviar e-mail de verificação (sem travar a resposta)
@@ -392,6 +393,9 @@ router.patch("/auth/me", authenticate, async (req: AuthRequest, res: any) => {
     if (body.onboardingCompletedAt !== undefined) {
       updateData.onboardingCompletedAt = new Date(body.onboardingCompletedAt);
     }
+    if (body.documentUrl !== undefined) updateData.documentUrl = body.documentUrl;
+    if (body.selfieUrl !== undefined) updateData.selfieUrl = body.selfieUrl;
+    if (body.verificationStatus !== undefined) updateData.verificationStatus = body.verificationStatus;
 
     logger.info({ updateData }, "DADOS PARA UPDATE NO BANCO");
 
@@ -451,16 +455,115 @@ router.post("/auth/forgot-password", async (req: any, res: any) => {
   }
 });
 
-// Redefinir senha com o token
+// Tela de Redefinição de Senha (GET)
+router.get("/auth/reset-password", async (req: any, res: any) => {
+  const { token } = req.query;
+  
+  if (!token) {
+    return res.status(400).send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <meta charset="UTF-8">
+          <title>Erro - Trampaí</title>
+          <style>
+              body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f8fafc; margin: 0; }
+              .card { background: white; padding: 40px; border-radius: 24px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.05); max-width: 400px; width: 90%; }
+              h1 { color: #e11d48; margin-bottom: 16px; }
+              p { color: #64748b; line-height: 1.6; }
+          </style>
+      </head>
+      <body>
+          <div class="card">
+              <h1>Link Inválido</h1>
+              <p>O link de redefinição de senha está incompleto ou expirou. Por favor, solicite um novo link no aplicativo.</p>
+          </div>
+      </body>
+      </html>
+    `);
+  }
+
+  return res.send(`
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Redefinir Senha - Trampaí</title>
+        <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+            .card { background: white; padding: 40px; border-radius: 28px; width: 100%; max-width: 440px; box-shadow: 0 20px 40px rgba(0,0,0,0.08); text-align: center; }
+            .logo { font-weight: 800; font-size: 32px; color: #21284E; margin-bottom: 8px; letter-spacing: -1px; }
+            h1 { font-size: 24px; color: #1e293b; margin-bottom: 12px; }
+            p { color: #64748b; margin-bottom: 32px; font-size: 15px; line-height: 1.5; }
+            .form-group { text-align: left; margin-bottom: 20px; }
+            label { display: block; font-size: 14px; font-weight: 600; color: #334155; margin-bottom: 8px; }
+            input { width: 100%; padding: 16px; border: 2px solid #e2e8f0; border-radius: 16px; font-size: 16px; transition: all 0.2s; outline: none; }
+            input:focus { border-color: #F69926; box-shadow: 0 0 0 4px rgba(246, 153, 38, 0.1); }
+            button { width: 100%; background: #21284E; color: white; border: none; padding: 18px; border-radius: 18px; font-size: 16px; font-weight: 700; cursor: pointer; transition: transform 0.2s, background 0.2s; margin-top: 10px; }
+            button:hover { background: #2a3363; transform: translateY(-2px); }
+            button:active { transform: translateY(0); }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <div class="logo">Trampaí</div>
+            <h1>Nova Senha</h1>
+            <p>Digite sua nova senha abaixo para recuperar o acesso à sua conta.</p>
+            
+            <form action="/api/auth/reset-password" method="POST">
+                <input type="hidden" name="token" value="${token}">
+                <div class="form-group">
+                    <label>Nova Senha</label>
+                    <input type="password" name="password" placeholder="Mínimo 6 caracteres" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label>Confirmar Nova Senha</label>
+                    <input type="password" placeholder="Repita a nova senha" required minlength="6" oninput="if(this.value != document.getElementsByName('password')[0].value) this.setCustomValidity('As senhas não coincidem'); else this.setCustomValidity('');">
+                </div>
+                <button type="submit">Redefinir Senha</button>
+            </form>
+        </div>
+    </body>
+    </html>
+  `);
+});
+
+// Redefinir senha com o token (POST)
 router.post("/auth/reset-password", async (req: any, res: any) => {
   try {
     const { token, password } = req.body;
+    const isBrowser = req.headers["content-type"]?.includes("application/x-www-form-urlencoded");
 
     const [user] = await db.select()
       .from(users)
       .where(eq(users.resetPasswordToken, token));
 
     if (!user || !user.resetPasswordExpires || user.resetPasswordExpires < new Date()) {
+      if (isBrowser) {
+        return res.status(400).send(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <meta charset="UTF-8">
+              <title>Erro - Trampaí</title>
+              <style>
+                  body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f8fafc; margin: 0; }
+                  .card { background: white; padding: 40px; border-radius: 24px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+                  h1 { color: #e11d48; }
+              </style>
+          </head>
+          <body>
+              <div class="card">
+                  <h1>Erro!</h1>
+                  <p>O token é inválido ou já expirou.</p>
+                  <a href="/" style="color: #21284E; text-decoration: none; font-weight: bold;">Voltar ao início</a>
+              </div>
+          </body>
+          </html>
+        `);
+      }
       return res.status(400).json({ error: "Token inválido ou expirado" });
     }
 
@@ -468,15 +571,45 @@ router.post("/auth/reset-password", async (req: any, res: any) => {
 
     await db.update(users)
       .set({ 
-        password: hashedPassword, 
-        resetPasswordToken: null, 
-        resetPasswordExpires: null 
+        password: hashedPassword,
+        resetPasswordToken: null,
+        resetPasswordExpires: null
       })
       .where(eq(users.id, user.id));
+
+    if (isBrowser) {
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Sucesso - Trampaí</title>
+            <style>
+                body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f8fafc; margin: 0; }
+                .card { background: white; padding: 40px; border-radius: 24px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+                .success-icon { font-size: 48px; margin-bottom: 20px; }
+                h1 { color: #10b981; margin-bottom: 16px; }
+                .btn { display: inline-block; background: #21284E; color: white; padding: 14px 28px; border-radius: 12px; text-decoration: none; font-weight: bold; margin-top: 20px; }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <div class="success-icon">✅</div>
+                <h1>Senha Alterada!</h1>
+                <p>Sua nova senha foi salva com sucesso. Agora você já pode entrar no aplicativo.</p>
+                <a href="trampai://" class="btn">Abrir Aplicativo</a>
+            </div>
+        </body>
+        </html>
+      `);
+    }
 
     return res.json({ message: "Senha redefinida com sucesso!" });
   } catch (err) {
     console.error(err);
+    if (req.headers["content-type"]?.includes("application/x-www-form-urlencoded")) {
+      return res.status(500).send("<h1>Erro interno no servidor</h1>");
+    }
     return res.status(500).json({ error: "Erro ao redefinir senha" });
   }
 });

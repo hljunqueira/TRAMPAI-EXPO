@@ -11,17 +11,47 @@ import {
   Text,
   TouchableOpacity,
   View,
-  Image,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Image } from "expo-image";
 
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useImageUpload } from "@/hooks/useImageUpload";
 
 export default function AdminPerfil() {
   const colors = useColors();
-  const { user, logout, activeMode, switchActiveMode, getUserLocation } = useAuth();
+  const { user, logout, activeMode, switchActiveMode, getUserLocation, api, fetchMyData } = useAuth();
   const insets = useSafeAreaInsets();
+  const { uploading, pickImage, takePhoto } = useImageUpload();
+
+  async function pickAvatarImage() {
+    Alert.alert(
+      "Selecionar Foto",
+      "Escolha a origem da sua foto de perfil",
+      [
+        { text: "Câmera", onPress: async () => {
+          const url = await takePhoto();
+          if (url) updateAvatar(url);
+        }},
+        { text: "Galeria", onPress: async () => {
+          const url = await pickImage();
+          if (url) updateAvatar(url);
+        }},
+        { text: "Cancelar", style: "cancel" },
+      ]
+    );
+  }
+
+  async function updateAvatar(url: string) {
+    try {
+      await api.patch("/auth/me", { avatarUrl: url });
+      fetchMyData();
+    } catch (e) {
+      Alert.alert("Erro", "Não foi possível atualizar a foto de perfil.");
+    }
+  }
 
   function handleLogout() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -59,14 +89,25 @@ export default function AdminPerfil() {
       >
         {/* Profile Header */}
         <View style={[styles.profileHeader, { paddingTop: insets.top + 32 }]}>
-          <View style={styles.avatarWrapper}>
+          <TouchableOpacity style={styles.avatarWrapper} onPress={pickAvatarImage} disabled={uploading}>
             <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
-              <Text style={[styles.avatarText, { color: "#fff", fontFamily: "Inter_700Bold" }]}>
-                {getInitials(user?.name)}
-              </Text>
+              {user?.avatarUrl ? (
+                <Image source={{ uri: user.avatarUrl }} style={{ width: 90, height: 90, borderRadius: 45 }} contentFit="cover" />
+              ) : (
+                <Text style={[styles.avatarText, { color: "#fff", fontFamily: "Inter_700Bold" }]}>
+                  {getInitials(user?.name)}
+                </Text>
+              )}
+            </View>
+            <View style={[styles.editBadge, { backgroundColor: colors.secondary }]}>
+              {uploading ? (
+                <ActivityIndicator size="small" color="#FFF" />
+              ) : (
+                <MaterialCommunityIcons name="camera" size={16} color="#FFF" />
+              )}
             </View>
             <View style={[styles.onlineIndicator, { backgroundColor: colors.secondary, borderColor: "#fff" }]} />
-          </View>
+          </TouchableOpacity>
           
           <Text style={[styles.userName, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>{user?.name}</Text>
           <Text style={[styles.userEmail, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>{user?.email}</Text>
@@ -215,9 +256,10 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   profileHeader: { alignItems: "center", paddingHorizontal: 20, paddingBottom: 24 },
   avatarWrapper: { position: "relative", marginBottom: 20 },
-  avatarCircle: { width: 90, height: 90, borderRadius: 45, alignItems: "center", justifyContent: "center", shadowColor: "#0b1339", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 4 },
+  avatarCircle: { width: 90, height: 90, borderRadius: 45, alignItems: "center", justifyContent: "center", shadowColor: "#0b1339", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 4, overflow: 'hidden' },
   avatarText: { fontSize: 32 },
-  onlineIndicator: { position: "absolute", bottom: 4, right: 4, width: 18, height: 18, borderRadius: 9, borderWidth: 3 },
+  editBadge: { position: "absolute", bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#FFF", zIndex: 10 },
+  onlineIndicator: { position: "absolute", top: 4, right: 4, width: 14, height: 14, borderRadius: 7, borderWidth: 2, zIndex: 5 },
   userName: { fontSize: 24, marginBottom: 4 },
   userEmail: { fontSize: 14, marginBottom: 16 },
   adminBadge: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 100 },

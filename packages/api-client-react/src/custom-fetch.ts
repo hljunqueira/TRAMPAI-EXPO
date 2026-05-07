@@ -149,7 +149,21 @@ function truncate(text: string, maxLength = 300): string {
 }
 
 function buildErrorMessage(response: Response, data: unknown): string {
-  const prefix = `HTTP ${response.status} ${response.statusText}`;
+  // Tradução amigável para erros de servidor
+  if (response.status === 502 || response.status === 503) {
+    return "O servidor está em manutenção rápida. Voltamos em instantes! 🛠️";
+  }
+  if (response.status === 401) {
+    return "Sua sessão expirou. Por favor, faça login novamente.";
+  }
+  if (response.status === 403) {
+    return "Você não tem permissão para realizar esta ação.";
+  }
+  if (response.status === 404) {
+    return "O recurso solicitado não foi encontrado.";
+  }
+
+  const prefix = `Erro ${response.status}`;
 
   if (typeof data === "string") {
     const text = data.trim();
@@ -163,10 +177,13 @@ function buildErrorMessage(response: Response, data: unknown): string {
     getStringField(data, "error_description") ??
     getStringField(data, "error");
 
-  if (title && detail) return `${prefix}: ${title} — ${detail}`;
-  if (detail) return `${prefix}: ${detail}`;
-  if (message) return `${prefix}: ${message}`;
-  if (title) return `${prefix}: ${title}`;
+  // Tradução de mensagens comuns que vêm do backend em inglês
+  let finalMessage = message || detail || title || "";
+  if (finalMessage === "Invalid credentials") finalMessage = "E-mail ou senha incorretos.";
+  if (finalMessage === "User already exists") finalMessage = "Este e-mail já está cadastrado.";
+  if (finalMessage === "Email not verified") finalMessage = "Por favor, confirme seu e-mail antes de entrar.";
+
+  if (finalMessage) return `${prefix}: ${finalMessage}`;
 
   return prefix;
 }
