@@ -228,6 +228,7 @@ router.get("/auth/verify", async (req: any, res: any) => {
 
     return res.json({ message: "E-mail verificado com sucesso! Agora você pode fazer login." });
   } catch (err) {
+    console.error("ERRO VERIFICACAO:", err);
     return res.status(500).json({ error: "Erro ao verificar e-mail" });
   }
 });
