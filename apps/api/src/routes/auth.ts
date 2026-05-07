@@ -21,9 +21,24 @@ router.post("/auth/register", async (req: any, res: any) => {
     const { email, name, password, role } = req.body;
     
     // Verificar se já existe
-    const existing = await db.select().from(users).where(eq(users.email, email));
-    if (existing.length > 0) {
-      return res.status(400).json({ error: "E-mail já cadastrado" });
+    const [existing] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    
+    if (existing) {
+      if (existing.emailVerifiedAt) {
+        return res.status(400).json({ error: "E-mail já cadastrado" });
+      } else {
+        // Se existe mas não está verificado, gera novo token e reenvia e-mail
+        const newToken = crypto.randomUUID();
+        await db.update(users)
+          .set({ verificationToken: newToken, name, password: await bcrypt.hash(password, 10) })
+          .where(eq(users.id, existing.id));
+          
+        sendVerificationEmail(email, newToken).catch(console.error);
+        return res.status(200).json({ 
+          message: "E-mail de confirmação reenviado. Verifique sua caixa de entrada.",
+          user: existing
+        });
+      }
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
