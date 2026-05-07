@@ -11,7 +11,7 @@ export async function sendVerificationEmail(email: string, token: string) {
       html: `
         <h1>Bem-vindo ao Trampaí!</h1>
         <p>Clique no link abaixo para verificar sua conta:</p>
-        <a href="${process.env.APP_URL}/verify?token=${token}">Verificar Conta</a>
+        <a href="${process.env.APP_URL}/api/auth/verify?token=${token}">Verificar Conta</a>
         <p>Se você não solicitou este e-mail, pode ignorá-lo.</p>
       `,
     });
@@ -57,7 +57,7 @@ export async function sendPasswordResetEmail(email: string, newPassword: string)
 
 export async function sendForgotPasswordEmail(email: string, token: string) {
   try {
-    const resetUrl = `${process.env.APP_URL}/reset-password?token=${token}`;
+    const resetUrl = `${process.env.APP_URL}/api/auth/reset-password?token=${token}`;
 
     const { data, error } = await resend.emails.send({
       from: "Trampaí <seguranca@resend.dev>",

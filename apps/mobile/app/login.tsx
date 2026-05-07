@@ -52,10 +52,13 @@ export default function LoginScreen() {
           name: name.trim(),
           email: email.trim().toLowerCase(),
           password,
-          role: "client", // Default role during quick register
+          role: "client",
         });
-        setError("Cadastro realizado! Agora faça login.");
-        setIsRegister(false);
+        Alert.alert(
+          "Cadastro Realizado! 📧",
+          "Enviamos um e-mail de confirmação para você. Por favor, verifique sua caixa de entrada (e o spam) para ativar sua conta.",
+          [{ text: "OK", onPress: () => setIsRegister(false) }]
+        );
       } else {
         await login({
           email: email.trim().toLowerCase(),
