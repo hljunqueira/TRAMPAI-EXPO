@@ -64,12 +64,18 @@ export default function MeusLeads() {
 
         <View style={styles.headerRight}>
           <TouchableOpacity 
-            style={[styles.initialsAvatar, { backgroundColor: colors.primary }]}
+            style={[styles.headerAvatar, { borderColor: colors.primary + "20" }]}
             onPress={() => router.push("/(provider)/perfil")}
           >
-            <Text style={[styles.initialsText, { color: "#FFF", fontFamily: "Inter_700Bold" }]}>
-              {getInitials(user?.name)}
-            </Text>
+            {user?.avatarUrl ? (
+              <Image source={{ uri: user.avatarUrl }} style={styles.avatarImg} />
+            ) : (
+              <View style={[styles.initialsAvatar, { backgroundColor: colors.primary }]}>
+                <Text style={[styles.initialsText, { color: "#FFF", fontFamily: "Inter_700Bold" }]}>
+                  {getInitials(user?.name)}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -157,8 +163,14 @@ export default function MeusLeads() {
               </View>
 
               <View style={styles.clientInfo}>
-                <View style={styles.clientAvatar}>
-                  <MaterialCommunityIcons name="account" size={24} color={colors.mutedForeground} />
+                <View style={[styles.clientAvatar, { backgroundColor: colors.primary + "10" }]}>
+                  {(item as any).clientAvatarUrl ? (
+                    <Image source={{ uri: (item as any).clientAvatarUrl }} style={styles.avatarImgMini} />
+                  ) : (
+                    <Text style={[styles.miniInitials, { color: colors.primary }]}>
+                      {getInitials(item.clientName)}
+                    </Text>
+                  )}
                 </View>
                 <View style={styles.clientDetails}>
                   <Text style={[styles.clientName, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>{item.clientName}</Text>
@@ -207,15 +219,36 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
+  headerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarImg: {
+    width: "100%",
+    height: "100%",
+  },
+  avatarImgMini: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 12,
+  },
   initialsAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: "100%",
+    height: "100%",
     alignItems: "center",
     justifyContent: "center",
   },
   initialsText: {
     fontSize: 14,
+  },
+  miniInitials: {
+    fontSize: 14,
+    fontFamily: "Inter_700Bold",
   },
   heroSection: {
     marginBottom: 8,

@@ -174,6 +174,7 @@ router.get("/leads/me", authenticate, async (req: AuthRequest, res: any) => {
         jobTitle: jobs.title,
         jobCategory: categories.name,
         clientName: users.name,
+        clientAvatarUrl: users.avatarUrl,
         clientPhone: users.phone,
         city: users.city,
         neighborhood: users.neighborhood,

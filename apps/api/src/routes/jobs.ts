@@ -393,7 +393,22 @@ router.get("/jobs/me", authenticate, async (req: AuthRequest, res: any) => {
 
     // For each job, check how many leads it has
     const jobsWithLeads = await Promise.all(myJobs.map(async (j) => {
-      const jobLeads = await db.select().from(leads).where(eq(leads.jobId, j.id));
+      const jobLeads = await db
+        .select({
+          id: leads.id,
+          providerId: leads.providerId,
+          type: leads.type,
+          createdAt: leads.createdAt,
+          provider: {
+            id: users.id,
+            name: users.name,
+            avatarUrl: users.avatarUrl,
+          }
+        })
+        .from(leads)
+        .innerJoin(users, eq(leads.providerId, users.id))
+        .where(eq(leads.jobId, j.id));
+        
       return { ...j, unlockedByProviders: jobLeads };
     }));
 

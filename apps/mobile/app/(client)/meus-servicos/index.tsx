@@ -93,12 +93,18 @@ export default function MeusServicos() {
 
         <View style={styles.headerRight}>
           <TouchableOpacity 
-            style={[styles.initialsAvatar, { backgroundColor: colors.primary }]}
+            style={[styles.headerAvatar, { borderColor: colors.primary + "20" }]}
             onPress={() => router.push("/(client)/perfil")}
           >
-            <Text style={[styles.initialsText, { color: "#FFF", fontFamily: "Inter_700Bold" }]}>
-              {getInitials(user?.name)}
-            </Text>
+            {user?.avatarUrl ? (
+              <Image source={{ uri: user.avatarUrl }} style={styles.avatarImg} />
+            ) : (
+              <View style={[styles.initialsAvatar, { backgroundColor: colors.primary }]}>
+                <Text style={[styles.initialsText, { color: "#FFF", fontFamily: "Inter_700Bold" }]}>
+                  {getInitials(user?.name)}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -177,6 +183,15 @@ export default function MeusServicos() {
               <View style={styles.cardMain}>
                 <View style={styles.cardHeader}>
                   <View style={styles.cardHeaderLeft}>
+                <View style={styles.avatarTitleRow}>
+                  <View style={[styles.clientAvatarMini, { backgroundColor: colors.primary + "10" }]}>
+                    {user?.avatarUrl ? (
+                      <Image source={{ uri: user.avatarUrl }} style={styles.avatarImgMini} />
+                    ) : (
+                      <Text style={[styles.miniInitials, { color: colors.primary }]}>{getInitials(user?.name)}</Text>
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
                     <View style={[
                       styles.statusBadge, 
                       { 
@@ -196,6 +211,8 @@ export default function MeusServicos() {
                       </Text>
                     </View>
                     <Text style={[styles.title, { color: colors.navy, fontFamily: "Inter_800ExtraBold" }]}>{item.title}</Text>
+                  </View>
+                </View>
                     <View style={styles.locationRow}>
                       <MaterialCommunityIcons name="map-marker" size={14} color={colors.mutedForeground} />
                       <Text style={[styles.location, { color: colors.mutedForeground }]}>{item.location || "Local não informado"}</Text>
@@ -230,11 +247,19 @@ export default function MeusServicos() {
                 {inProgress && item.unlockedByProviders?.[0] && (
                   <View style={styles.providerCard}>
                     <View style={styles.providerInfo}>
-                      <View style={styles.providerAvatar}>
-                        <MaterialCommunityIcons name="account" size={24} color={colors.mutedForeground} />
+                      <View style={[styles.providerAvatar, { backgroundColor: colors.primary + "10" }]}>
+                        {(item.unlockedByProviders[0] as any).provider?.avatarUrl ? (
+                          <Image source={{ uri: (item.unlockedByProviders[0] as any).provider.avatarUrl }} style={styles.avatarImgMini} />
+                        ) : (
+                          <Text style={[styles.miniInitials, { color: colors.primary }]}>
+                            {getInitials((item.unlockedByProviders[0] as any).provider?.name)}
+                          </Text>
+                        )}
                       </View>
                       <View>
-                        <Text style={[styles.providerName, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>Prestador Selecionado</Text>
+                        <Text style={[styles.providerName, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>
+                          {(item.unlockedByProviders[0] as any).provider?.name || "Prestador Selecionado"}
+                        </Text>
                         <Text style={[styles.providerLabel, { color: colors.mutedForeground }]}>Em atendimento</Text>
                       </View>
                     </View>
@@ -323,15 +348,49 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
+  headerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarImg: {
+    width: "100%",
+    height: "100%",
+  },
+  avatarImgMini: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 10,
+  },
   initialsAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: "100%",
+    height: "100%",
     alignItems: "center",
     justifyContent: "center",
   },
   initialsText: {
     fontSize: 14,
+  },
+  avatarTitleRow: {
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "flex-start",
+  },
+  clientAvatarMini: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  miniInitials: {
+    fontSize: 14,
+    fontFamily: "Inter_700Bold",
   },
   heroSection: {
     marginBottom: 8,
