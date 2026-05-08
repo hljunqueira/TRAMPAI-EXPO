@@ -48,6 +48,8 @@ app.use(
 // CORS: Restringir em produção
 const allowedOrigins = [
   "https://trampai.com.br",
+  "https://www.trampai.com.br",
+  "https://app.trampai.com.br",
   "https://api.trampai.com.br",
   "http://localhost:3000",
   "http://localhost:8081", // Expo local
