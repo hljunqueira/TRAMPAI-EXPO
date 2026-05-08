@@ -8,6 +8,9 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+// Confiar no proxy reverso (Caddy/Nginx) para o rate-limit funcionar
+app.set("trust proxy", 1);
+
 // Segurança: Headers HTTP
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" } // Necessário para carregar imagens estáticas no mobile
