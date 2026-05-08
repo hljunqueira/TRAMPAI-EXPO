@@ -57,6 +57,16 @@ export default function ClientPerfil() {
   }
 
   function handleLogout() {
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm("Deseja sair da sua conta?");
+      if (confirmed) {
+        logout().then(() => {
+          router.replace("/login");
+        });
+      }
+      return;
+    }
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert("Sair", "Deseja sair da sua conta?", [
       { text: "Cancelar", style: "cancel" },
