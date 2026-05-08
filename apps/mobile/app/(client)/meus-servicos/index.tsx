@@ -262,23 +262,30 @@ export default function MeusServicos() {
 
                 {/* Exclusive Pending Banner */}
                 {isExclusivePending && (
-                  <View style={[styles.proposalsBanner, { backgroundColor: "#e8c08a20", borderColor: "#e8c08a50", borderWidth: 1 }]}>
+                  <TouchableOpacity 
+                    style={[styles.proposalsBanner, { backgroundColor: "#e8c08a20", borderColor: "#e8c08a50", borderWidth: 1 }]}
+                    onPress={() => router.push({ pathname: "/(client)/meus-servicos/interessados", params: { id: item.id } })}
+                  >
                     <MaterialCommunityIcons name="clock-outline" size={18} color="#b8860b" />
                     <Text style={[styles.proposalsText, { color: "#b8860b", fontFamily: "Inter_700Bold", flex: 1 }]}>
                       Um profissional pediu exclusividade. Responda!
                     </Text>
-                  </View>
+                    <MaterialCommunityIcons name="chevron-right" size={18} color="#b8860b" />
+                  </TouchableOpacity>
                 )}
 
                 {/* Conditional Content */}
-                {!isClosed && !inProgress && !isExclusivePending && (
-                  <View style={[styles.proposalsBanner, { backgroundColor: colors.navy + "08" }]}>
+                {!isClosed && !inProgress && !isExclusivePending && proposalsCount > 0 && (
+                  <TouchableOpacity 
+                    style={[styles.proposalsBanner, { backgroundColor: colors.navy + "08" }]}
+                    onPress={() => router.push({ pathname: "/(client)/meus-servicos/interessados", params: { id: item.id } })}
+                  >
                     <MaterialCommunityIcons name="account-group" size={18} color={colors.navy} />
                     <Text style={[styles.proposalsText, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>
                       {proposalsCount} {proposalsCount === 1 ? "proposta recebida" : "propostas recebidas"}
                     </Text>
                     <MaterialCommunityIcons name="chevron-right" size={18} color={colors.navy} style={{ marginLeft: "auto" }} />
-                  </View>
+                  </TouchableOpacity>
                 )}
 
                 {inProgress && item.unlockedByProviders?.[0] && (

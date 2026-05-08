@@ -8,6 +8,8 @@ import {
   View,
   Linking,
   RefreshControl,
+  Modal,
+  ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -29,6 +31,7 @@ export default function MeusLeads() {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState("active");
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedLead, setSelectedLead] = useState<any>(null);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -131,7 +134,11 @@ export default function MeusLeads() {
           </View>
         }
         renderItem={({ item }) => (
-          <View style={styles.card}>
+          <TouchableOpacity 
+            style={styles.card}
+            onPress={() => setSelectedLead(item)}
+            activeOpacity={0.7}
+          >
             <View style={styles.cardMain}>
               <View style={styles.cardHeader}>
                 <View style={styles.cardHeaderLeft}>
@@ -190,10 +197,77 @@ export default function MeusLeads() {
                   <MaterialCommunityIcons name="whatsapp" size={24} color="#fff" />
                 </TouchableOpacity>
               </View>
+              
+              <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: "#00000005", paddingTop: 12 }}>
+                <Text style={{ fontSize: 13, color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }}>Toque para ver descrição e fotos</Text>
+              </View>
             </View>
-          </View>
+          </TouchableOpacity>
         )}
       />
+
+      {/* Modal de Detalhes do Lead */}
+      <Modal 
+        visible={!!selectedLead} 
+        animationType="slide" 
+        transparent 
+        onRequestClose={() => setSelectedLead(null)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setSelectedLead(null)} 
+        />
+        <View style={[styles.modalSheet, { backgroundColor: '#fff' }]}>
+          <View style={styles.modalHandle} />
+          {selectedLead && (
+            <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+              <Text style={[styles.modalTitle, { color: colors.navy, fontFamily: "Inter_800ExtraBold" }]}>{selectedLead.jobTitle}</Text>
+              
+              <View style={styles.modalSection}>
+                <Text style={[styles.modalSectionTitle, { color: colors.primary }]}>Descrição do Serviço</Text>
+                <Text style={[styles.modalDescription, { color: colors.foreground }]}>
+                  {selectedLead.jobDescription || "Nenhuma descrição detalhada disponível."}
+                </Text>
+              </View>
+
+              {selectedLead.jobImages && selectedLead.jobImages.length > 0 && (
+                <View style={styles.modalSection}>
+                  <Text style={[styles.modalSectionTitle, { color: colors.primary }]}>Fotos do Local/Serviço</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
+                    {selectedLead.jobImages.map((img: string, idx: number) => (
+                      <Image key={idx} source={{ uri: img }} style={styles.detailImage} />
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+
+              <View style={[styles.clientInfo, { marginTop: 20, backgroundColor: colors.surface }]}>
+                <View style={[styles.clientAvatar, { backgroundColor: colors.primary + "10" }]}>
+                   <Text style={[styles.miniInitials, { color: colors.primary }]}>{getInitials(selectedLead.clientName)}</Text>
+                </View>
+                <View style={styles.clientDetails}>
+                  <Text style={[styles.clientName, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>{selectedLead.clientName}</Text>
+                  <Text style={{ fontSize: 13, color: colors.mutedForeground }}>Cliente Trampaí</Text>
+                </View>
+                <TouchableOpacity 
+                  style={[styles.whatsappBtn, { backgroundColor: "#25D366" }]}
+                  onPress={() => Linking.openURL(selectedLead.whatsappLink)}
+                >
+                  <MaterialCommunityIcons name="whatsapp" size={20} color="#fff" />
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity 
+                style={[styles.closeBtn, { backgroundColor: colors.navy }]}
+                onPress={() => setSelectedLead(null)}
+              >
+                <Text style={{ color: '#fff', fontFamily: "Inter_700Bold" }}>Fechar Detalhes</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -291,4 +365,13 @@ const styles = StyleSheet.create({
   emptyDesc: { fontSize: 14, textAlign: "center", lineHeight: 22 },
   postBtn: { marginTop: 12, paddingHorizontal: 24, paddingVertical: 14, borderRadius: 100 },
   postBtnText: { color: "#fff" },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
+  modalSheet: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, maxHeight: '85%' },
+  modalHandle: { width: 40, height: 4, backgroundColor: "#E5E7EB", borderRadius: 10, alignSelf: "center", marginBottom: 24 },
+  modalTitle: { fontSize: 24, marginBottom: 20, textAlign: 'center' },
+  modalSection: { marginBottom: 24 },
+  modalSectionTitle: { fontSize: 16, fontFamily: "Inter_700Bold", marginBottom: 8 },
+  modalDescription: { fontSize: 15, lineHeight: 22, opacity: 0.8 },
+  detailImage: { width: 150, height: 150, borderRadius: 16, marginRight: 12, backgroundColor: '#f1f5f9' },
+  closeBtn: { marginTop: 30, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
 });

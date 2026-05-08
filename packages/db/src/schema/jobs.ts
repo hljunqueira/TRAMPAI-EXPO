@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { index, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 import { users } from "./users";
@@ -14,11 +14,19 @@ export const jobs = pgTable("jobs", {
   budget: integer("budget"), // em centavos
   status: text("status", { enum: ["open", "in_progress", "completed", "cancelled", "exclusive_pending"] }).notNull().default("open"),
   location: text("location").notNull(),
+  city: text("city"),
   latitude: text("latitude"), // armazenado como string por precisão ou float
   longitude: text("longitude"),
   images: text("images").array(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    categoryIdx: index("category_idx").on(table.categoryId),
+    cityIdx: index("city_idx").on(table.city),
+    statusIdx: index("status_idx").on(table.status),
+    createdAtIdx: index("created_at_idx").on(table.createdAt),
+  };
 });
 
 // @ts-ignore

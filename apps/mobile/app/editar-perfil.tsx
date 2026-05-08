@@ -14,10 +14,9 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as SecureStore from "expo-secure-store";
-
 import { useAuth, API_BASE_URL } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { storage } from "@/lib/storage";
 
 
 export default function EditarPerfil() {
@@ -40,7 +39,7 @@ export default function EditarPerfil() {
     
     setLoading(true);
     try {
-      const token = await SecureStore.getItemAsync("trampai_auth_token");
+      const token = await storage.getItem("trampai_auth_token");
       const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
         method: "PATCH",
         headers: {

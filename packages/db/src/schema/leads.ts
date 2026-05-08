@@ -13,6 +13,7 @@ export const leads = pgTable("leads", {
   cost: integer("cost").notNull(),
   whatsappLink: text("whatsapp_link").notNull(),
   refundedAt: timestamp("refunded_at"),
+  rejectedAt: timestamp("rejected_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 
 });

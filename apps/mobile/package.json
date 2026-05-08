@@ -36,7 +36,6 @@
     "expo-linking": "~8.0.10",
     "expo-location": "~19.0.8",
     "expo-router": "~6.0.17",
-    "expo-secure-store": "~14.0.1",
     "expo-splash-screen": "~31.0.12",
     "expo-status-bar": "~3.0.9",
     "expo-symbols": "~1.0.8",
@@ -60,6 +59,7 @@
   "dependencies": {
     "@react-native-google-signin/google-signin": "^16.1.2",
     "date-fns": "^4.1.0",
-    "expo-dev-client": "^55.0.30"
+    "expo-dev-client": "^6.0.21",
+    "expo-secure-store": "~15.0.8"
   }
 }

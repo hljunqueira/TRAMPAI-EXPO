@@ -67,7 +67,7 @@ router.post("/payments/checkout", authenticate, async (req: AuthRequest, res: an
       pkgId = pkg.id;
     }
 
-    const paymentMethods = ["card", "boleto"];
+    const paymentMethods = ["card"];
 
     console.log("💳 [Checkout] Criando sessao no Stripe para:", pkgName);
     const session = await stripe.checkout.sessions.create({
@@ -86,8 +86,8 @@ router.post("/payments/checkout", authenticate, async (req: AuthRequest, res: an
         },
       ],
       mode: "payment",
-      success_url: `${process.env.APP_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.APP_URL}/payment-cancel`,
+      success_url: `${process.env.APP_URL}/api/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.APP_URL}/api/payment-cancel`,
       metadata: {
         userId: req.user.userId,
         packageId: pkgId,
@@ -107,6 +107,9 @@ router.post("/payments/checkout", authenticate, async (req: AuthRequest, res: an
 router.post("/payments/webhook", async (req: any, res: any) => {
   const sig = req.headers["stripe-signature"];
   let event;
+
+  console.log("🔔 [Webhook] Recebido pedido do Stripe...");
+  console.log("Headers:", JSON.stringify(req.headers));
 
   try {
     event = stripe.webhooks.constructEvent(
@@ -172,118 +175,95 @@ router.post("/payments/webhook", async (req: any, res: any) => {
   res.json({ received: true });
 });
 
-// --- CAKTO PIX INTEGRATION ---
-
-// Checkout Cakto
-router.post("/payments/cakto/checkout", authenticate, async (req: AuthRequest, res: any) => {
-  try {
-    const { packageId } = req.body;
-    let pkgCredits, baseUrl;
-
-    // Buscar links de pagamento da config
-    const linksJson = await getConfig(CONFIG_KEYS.CAKTO_PAYMENT_LINKS);
-    let caktoLinks: Record<string, string> = {};
-    try {
-      caktoLinks = JSON.parse(linksJson);
-    } catch (e) {
-      console.error("Erro ao parsear CAKTO_PAYMENT_LINKS:", e);
-    }
-
-    if (packageId === "custom") {
-      const customCredits = parseInt(req.body.customCredits, 10);
-      if (!customCredits || isNaN(customCredits) || customCredits < 10) {
-        return res.status(400).json({ error: "Minimo de 10 creditos" });
-      }
-      pkgCredits = customCredits;
-      baseUrl = caktoLinks["custom"];
-    } else {
-      const [pkg] = await db.select().from(creditPackages).where(eq(creditPackages.id, packageId)).limit(1);
-      if (!pkg) return res.status(404).json({ error: "Pacote nao encontrado" });
-
-      pkgCredits = pkg.credits + pkg.bonusCredits;
-      baseUrl = caktoLinks[pkg.id];
-    }
-
-    if (!baseUrl) {
-      return res.status(400).json({ error: "Checkout Cakto nao configurado para este pacote" });
-    }
-
-    // Passamos o userId e credits no SRC para identificar no webhook
-    const checkoutUrl = `${baseUrl}?src=${req.user?.userId}:${pkgCredits}&email=${encodeURIComponent(req.user?.email || "")}`;
-
-    return res.json({ url: checkoutUrl });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Erro ao gerar link de pagamento Pix" });
-  }
+// Rota de Sucesso (Visível para o usuário)
+router.get("/payment-success", async (req, res: any) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Pagamento Confirmado | Trampaí</title>
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+        <script src="https://unpkg.com/lucide@latest"></script>
+        <style>
+            body { 
+                font-family: 'Inter', sans-serif; 
+                display: flex; justify-content: center; align-items: center; 
+                height: 100vh; margin: 0; background-color: #F4F7FE;
+                color: #0B1339; text-align: center;
+            }
+            .card { 
+                background: white; padding: 40px; border-radius: 24px; 
+                box-shadow: 0 10px 30px rgba(0,0,0,0.05); max-width: 400px; width: 90%;
+            }
+            .icon { color: #16A34A; margin-bottom: 20px; }
+            h1 { font-family: 'Outfit', sans-serif; font-size: 24px; margin-bottom: 10px; }
+            p { color: #718096; line-height: 1.5; margin-bottom: 30px; }
+            .btn { 
+                background: #F69926; color: #0B1339; text-decoration: none; 
+                padding: 12px 30px; border-radius: 12px; font-weight: 700;
+                display: inline-block; transition: transform 0.2s;
+            }
+            .btn:hover { transform: scale(1.05); }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <div class="icon"><i data-lucide="check-circle" size="64"></i></div>
+            <h1>Pagamento Confirmado!</h1>
+            <p>Seus créditos foram adicionados à sua conta. Você já pode voltar para o aplicativo e continuar seus trampos.</p>
+            <a href="trampai://" class="btn">Voltar para o App</a>
+        </div>
+        <script>lucide.createIcons();</script>
+    </body>
+    </html>
+  `);
 });
 
-// Webhook Cakto
-router.post("/payments/cakto/webhook", async (req: any, res: any) => {
-  try {
-    const payload = req.body;
-    console.log("🔔 [Cakto Webhook] Recebido:", JSON.stringify(payload, null, 2));
-
-    // Validacao de seguranca (Webhook Secret)
-    const webhookSecret = process.env.CAKTO_WEBHOOK_SECRET;
-    const receivedSecret = payload.fields?.secret || payload.secret;
-
-    if (webhookSecret && receivedSecret !== webhookSecret) {
-      console.warn("🔒 [Cakto Webhook] Secret invalido! Recebido:", receivedSecret);
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    // O evento de compra aprovada na Cakto e 'purchase_approved'
-    // Alguns webhooks da Cakto podem vir dentro de um array ou objeto 'event'
-    const eventType = payload.event?.custom_id || payload.event_type;
-
-    // Na Cakto, o payload costuma vir com os dados da venda em 'data' ou na raiz
-    const sale = payload.data || payload;
-
-    if (eventType === "purchase_approved" || payload.status === "approved" || payload.event === "purchase_approved") {
-      const src = sale.src || ""; // Nosso userId:credits
-      const [userId, creditsStr] = src.split(":");
-      const credits = parseInt(creditsStr, 10);
-
-      if (!userId || !credits) {
-        console.warn("⚠️ [Cakto Webhook] SRC invalido ou ausente:", src);
-        return res.status(200).json({ message: "SRC invalido, ignorando" });
-      }
-
-      console.log(`✅ [Cakto] Pagamento confirmado: ${credits} creditos para ${userId}`);
-
-      await db.transaction(async (tx) => {
-        const [user] = await tx.select().from(users).where(eq(users.id, userId));
-        if (user) {
-          await tx.update(users).set({
-            creditBalance: user.creditBalance + credits,
-            updatedAt: new Date()
-          }).where(eq(users.id, userId));
-
-          await tx.insert(transactions).values({
-            userId: userId,
-            type: "PURCHASE",
-            credits: credits,
-            amountCents: Math.round((sale.amount || sale.price || 0) * 100),
-            description: `Pix via Cakto: ${credits} creditos`,
-          });
-        }
-      });
-
-      await createNotification(
-        userId,
-        "Pix Confirmado! 💎",
-        `Seu Pix foi processado e ${credits} creditos ja estao disponiveis.`,
-        "purchase",
-        { amount: credits.toString() }
-      );
-    }
-
-    return res.status(200).json({ received: true });
-  } catch (err) {
-    console.error("❌ [Cakto Webhook] Erro:", err);
-    return res.status(500).json({ error: "Erro interno" });
-  }
+// Rota de Cancelamento
+router.get("/payment-cancel", async (req, res: any) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Pagamento Cancelado | Trampaí</title>
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+        <script src="https://unpkg.com/lucide@latest"></script>
+        <style>
+            body { 
+                font-family: 'Inter', sans-serif; 
+                display: flex; justify-content: center; align-items: center; 
+                height: 100vh; margin: 0; background-color: #F4F7FE;
+                color: #0B1339; text-align: center;
+            }
+            .card { 
+                background: white; padding: 40px; border-radius: 24px; 
+                box-shadow: 0 10px 30px rgba(0,0,0,0.05); max-width: 400px; width: 90%;
+            }
+            .icon { color: #EF4444; margin-bottom: 20px; }
+            h1 { font-family: 'Outfit', sans-serif; font-size: 24px; margin-bottom: 10px; }
+            p { color: #718096; line-height: 1.5; margin-bottom: 30px; }
+            .btn { 
+                background: #0B1339; color: white; text-decoration: none; 
+                padding: 12px 30px; border-radius: 12px; font-weight: 700;
+                display: inline-block;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <div class="icon"><i data-lucide="x-circle" size="64"></i></div>
+            <h1>Pagamento Cancelado</h1>
+            <p>O processo de pagamento foi interrompido. Nenhuma cobrança foi realizada.</p>
+            <a href="trampai://" class="btn">Voltar para o App</a>
+        </div>
+        <script>lucide.createIcons();</script>
+    </body>
+    </html>
+  `);
 });
 
 export default router;

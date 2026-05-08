@@ -122,7 +122,9 @@ export default function Interessados() {
         }
         renderItem={({ item, index }) => {
           const provider = item.provider;
-          const isTop = index === 0;
+          const rating = parseFloat(provider.rating) || 0;
+          const reviewCount = provider.reviewCount || 0;
+          const isTop = index === 0 && reviewCount > 0;
 
           return (
             <TouchableOpacity 

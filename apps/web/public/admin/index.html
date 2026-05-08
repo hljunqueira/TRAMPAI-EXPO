@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Admin | Trampaí</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --navy: #0B1339;
+            --orange: #F69926;
+            --white: #FFFFFF;
+            --gray: #F4F7FE;
+            --border: #E2E8F0;
+            --text-dark: #2D3748;
+            --text-muted: #718096;
+            --sidebar-width: 260px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--gray);
+            color: var(--text-dark);
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Auth Guard Overlay */
+        #authGuard {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--navy);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 20px;
+        }
+
+        /* Sidebar */
+        aside {
+            width: var(--sidebar-width);
+            background-color: var(--navy);
+            height: 100vh;
+            position: fixed;
+            left: 0; top: 0;
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        .sidebar-logo {
+            margin-bottom: 40px;
+            padding-left: 10px;
+        }
+
+        .sidebar-logo h2 {
+            color: white;
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+        }
+
+        .sidebar-logo span { color: var(--orange); }
+
+        nav {
+            flex: 1;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 15px;
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .nav-item.active {
+            border-left: 4px solid var(--orange);
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+
+        .logout-btn {
+            margin-top: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #ef4444;
+        }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            margin-left: var(--sidebar-width);
+            padding: 40px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .welcome h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 28px;
+            color: var(--navy);
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: white;
+            padding: 8px 20px;
+            border-radius: 50px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.03);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .stat-info h3 {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+        }
+
+        .stat-info p {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--navy);
+        }
+
+        /* Recent Activity Table */
+        .section-card {
+            background: white;
+            padding: 30px;
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.02);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+        }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-success { background: #DCFCE7; color: #166534; }
+        .badge-warning { background: #FEF9C3; color: #854D0E; }
+
+        @media (max-width: 768px) {
+            aside { transform: translateX(-100%); }
+            main { margin-left: 0; padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="authGuard">Carregando...</div>
+
+    <aside>
+        <div class="sidebar-logo">
+            <h2>Trampaí<span>.</span></h2>
+        </div>
+        <nav>
+            <a href="index.html" class="nav-item active"><i data-lucide="layout-dashboard"></i> Dashboard</a>
+            <a href="usuarios.html" class="nav-item"><i data-lucide="users"></i> Usuários</a>
+            <a href="categorias.html" class="nav-item"><i data-lucide="tag"></i> Categorias</a>
+            <a href="servicos.html" class="nav-item"><i data-lucide="briefcase"></i> Serviços</a>
+            <a href="pacotes.html" class="nav-item"><i data-lucide="package"></i> Pacotes</a>
+            <a href="notificacoes.html" class="nav-item"><i data-lucide="bell"></i> Notificações</a>
+            <a href="marketing.html" class="nav-item"><i data-lucide="megaphone"></i> Marketing</a>
+        </nav>
+        <a href="#" class="nav-item logout-btn" id="logoutBtn"><i data-lucide="log-out"></i> Sair</a>
+    </aside>
+
+    <main>
+        <header>
+            <div class="welcome">
+                <p style="color: var(--text-muted); font-size: 14px;">Olá, Admin</p>
+                <h1>Visão Geral do Sistema</h1>
+            </div>
+            <div class="user-profile">
+                <span id="adminName" style="font-weight: 600; font-size: 14px;">Admin</span>
+                <div style="width: 32px; height: 32px; background: var(--orange); border-radius: 50%;"></div>
+            </div>
+        </header>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: #E0E7FF; color: #4338CA;"><i data-lucide="users"></i></div>
+                <div class="stat-info">
+                    <h3>Total Usuários</h3>
+                    <p id="totalUsers">...</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: #FEF3C7; color: #D97706;"><i data-lucide="briefcase"></i></div>
+                <div class="stat-info">
+                    <h3>Serviços Ativos</h3>
+                    <p id="totalJobs">...</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: #DCFCE7; color: #16A34A;"><i data-lucide="dollar-sign"></i></div>
+                <div class="stat-info">
+                    <h3>Faturamento</h3>
+                    <p id="totalRevenue">...</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: #FCE7F3; color: #DB2777;"><i data-lucide="user-check"></i></div>
+                <div class="stat-info">
+                    <h3>Pendentes</h3>
+                    <p id="pendingVerifications">...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-card">
+            <div class="section-header">
+                <h2 style="font-size: 18px; font-family: 'Outfit', sans-serif;">Atividade Recente</h2>
+                <button style="border: none; background: none; color: var(--orange); font-weight: 600; cursor: pointer;">Ver todos</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Usuário</th>
+                        <th>Ação</th>
+                        <th>Data</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="recentActivity">
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 40px; color: var(--text-muted);">Carregando atividade...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script>
+        // Auth Guard
+        (function() {
+            const token = localStorage.getItem('trampai_admin_token');
+            const user = JSON.parse(localStorage.getItem('trampai_admin_user') || '{}');
+            
+            if (!token || user.role !== 'admin') {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            document.getElementById('authGuard').style.display = 'none';
+            document.getElementById('adminName').textContent = user.name || 'Admin';
+        })();
+
+        lucide.createIcons();
+
+        const API_BASE_URL = 'https://api.trampai.com.br';
+        const token = localStorage.getItem('trampai_admin_token');
+
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            localStorage.removeItem('trampai_admin_token');
+            localStorage.removeItem('trampai_admin_user');
+            window.location.href = 'login.html';
+        });
+
+        // Fetch Stats
+        async function loadStats() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/admin/stats`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                
+                document.getElementById('totalUsers').textContent = data.users?.total || 0;
+                document.getElementById('totalJobs').textContent = data.jobs?.total || 0;
+                document.getElementById('totalRevenue').textContent = 'R$ ' + (data.revenue?.totalCents / 100 || 0).toFixed(2);
+                document.getElementById('pendingVerifications').textContent = data.users?.pending || 0;
+
+                // Load recent activity (mock for now or from data)
+                const tbody = document.getElementById('recentActivity');
+                tbody.innerHTML = '';
+                
+                const recent = data.recentJobs || [];
+                if (recent.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">Nenhuma atividade recente.</td></tr>';
+                } else {
+                    recent.forEach(job => {
+                        const row = `
+                            <tr>
+                                <td>${job.user?.name || 'Sistema'}</td>
+                                <td>Postou: ${job.title}</td>
+                                <td>${new Date(job.createdAt).toLocaleDateString()}</td>
+                                <td><span class="badge ${job.status === 'open' ? 'badge-success' : 'badge-warning'}">${job.status}</span></td>
+                            </tr>
+                        `;
+                        tbody.innerHTML += row;
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        loadStats();
+    </script>
+</body>
+</html>

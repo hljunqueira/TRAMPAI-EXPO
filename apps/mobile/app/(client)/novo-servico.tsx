@@ -18,9 +18,9 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import * as SecureStore from "expo-secure-store";
 import { useAuth, API_BASE_URL } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { storage } from "@/lib/storage";
 import { SUGGESTED_CATEGORIES } from "@/constants/categories";
 import { useCreateJob, useListCategories, useListJobs } from "@workspace/api-client-react";
 
@@ -56,6 +56,7 @@ export default function NovoServico() {
   const [images, setImages] = useState<{uri: string, base64?: string | null}[]>([]);
   
   const [loadingCep, setLoadingCep] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
@@ -182,11 +183,11 @@ export default function NovoServico() {
     }
 
     try {
+      setIsSubmitting(true);
       const fullLocation = street ? `${street}, ${number} - ${neighborhood}, ${city}/${state} - CEP: ${cep}` : city;
 
       // 1. Upload das imagens
       const uploadedUrls: string[] = [];
-      const token = await SecureStore.getItemAsync("trampai_auth_token");
 
       for (const img of images) {
         if (img.base64) {
@@ -209,6 +210,7 @@ export default function NovoServico() {
             categoryId: categoryIdToUse,
             budget: 0, 
             location: fullLocation,
+            city: city.trim(),
             latitude,
             longitude,
             images: uploadedUrls,
@@ -221,6 +223,8 @@ export default function NovoServico() {
     } catch (err: any) {
       console.error(err);
       setError("Erro ao postar serviço. Tente novamente.");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -507,11 +511,11 @@ export default function NovoServico() {
             </View>
 
             <TouchableOpacity 
-              style={[styles.submitBtn, { backgroundColor: colors.secondary, marginTop: 12 }]} 
+              style={[styles.submitBtn, { backgroundColor: colors.secondary, marginTop: 12, opacity: (loading || isSubmitting) ? 0.7 : 1 }]} 
               onPress={handleSubmit}
-              disabled={loading}
+              disabled={loading || isSubmitting}
             >
-              {loading ? <ActivityIndicator color="#FFF" /> : (
+              {(loading || isSubmitting) ? <ActivityIndicator color="#FFF" /> : (
                 <>
                   <Text style={[styles.submitBtnText, { color: "#FFF", fontFamily: "Inter_700Bold" }]}>Publicar Serviço Agora</Text>
                   <MaterialCommunityIcons name="rocket-launch" size={20} color="#FFF" />

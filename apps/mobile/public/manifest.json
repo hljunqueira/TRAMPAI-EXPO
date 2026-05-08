@@ -1,0 +1,21 @@
+{
+  "name": "Trampaí",
+  "short_name": "Trampaí",
+  "description": "Serviços locais, do jeito certo.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#21284E",
+  "theme_color": "#21284E",
+  "icons": [
+    {
+      "src": "/assets/images/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/images/icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

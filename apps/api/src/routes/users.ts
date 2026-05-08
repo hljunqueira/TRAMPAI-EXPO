@@ -90,72 +90,6 @@ router.post("/users/me/documents", authenticate, async (req: AuthRequest, res: a
   }
 });
 
-// Placeholder para compra de pacotes (Sprint 2 skip Stripe)
-router.post("/packages/buy", authenticate, async (req: AuthRequest, res: any) => {
-  try {
-    const userId = req.user?.userId;
-    const { packageId, customCredits } = req.body;
-
-    if (!userId) return res.status(401).json({ error: "Não autorizado" });
-
-    const [user] = await db.select().from(users).where(eq(users.id, userId as string));
-    if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
-
-    let creditsToAdd = 0;
-    let amountCents = 0;
-    let description = "";
-
-    if (packageId) {
-      const [pkg] = await db.select().from(creditPackages).where(eq(creditPackages.id, packageId));
-      if (!pkg) return res.status(404).json({ error: "Pacote não encontrado" });
-      creditsToAdd = pkg.credits + (pkg.bonusCredits || 0);
-      amountCents = pkg.priceCents;
-      description = `Compra do pacote: ${pkg.name}`;
-    } else if (customCredits) {
-      creditsToAdd = Number(customCredits);
-      amountCents = creditsToAdd * 100; // R$ 1,00 por crédito
-      description = `Compra personalizada: ${creditsToAdd} créditos`;
-    }
-
-    if (creditsToAdd <= 0) return res.status(400).json({ error: "Quantidade inválida" });
-
-    // Fluxo fake: concede créditos imediatamente (já que o usuário confirmou o PIX no app)
-    // Em produção real, isso esperaria o webhook do Stripe/MercadoPago
-    await db.transaction(async (tx) => {
-      await tx.update(users)
-        .set({ creditBalance: user.creditBalance + creditsToAdd })
-        .where(eq(users.id, userId as string));
-
-      await tx.insert(transactions).values({
-        userId: userId as string,
-        type: "PURCHASE",
-        credits: creditsToAdd,
-        amountCents,
-        description,
-      });
-    });
-
-    // Notificar o usuário sobre a compra
-    (async () => {
-      try {
-        await createNotification(
-          userId as string,
-          "Créditos Adicionados! 💰",
-          `Você recebeu ${creditsToAdd} créditos com sucesso.`,
-          "purchase",
-          { credits: creditsToAdd }
-        );
-      } catch (e) {
-        console.error("Erro ao notificar usuário sobre compra:", e);
-      }
-    })();
-
-    return res.json({ success: true, newBalance: user.creditBalance + creditsToAdd });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Erro ao processar compra" });
-  }
-});
 
 router.get("/leads/me", authenticate, async (req: AuthRequest, res: any) => {
   try {
@@ -179,6 +113,8 @@ router.get("/leads/me", authenticate, async (req: AuthRequest, res: any) => {
         city: users.city,
         neighborhood: users.neighborhood,
         jobLocation: jobs.location,
+        jobDescription: jobs.description,
+        jobImages: jobs.images,
       })
       .from(leads)
       .innerJoin(jobs, eq(leads.jobId, jobs.id))

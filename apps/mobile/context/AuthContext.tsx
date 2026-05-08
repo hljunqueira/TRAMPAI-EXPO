@@ -1,4 +1,5 @@
-import * as SecureStore from "expo-secure-store";
+import { storage } from "@/lib/storage";
+import { Platform } from "react-native";
 import React, {
   createContext,
   ReactNode,
@@ -120,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setBaseUrl(API_BASE_URL);
     setAuthTokenGetter(async () => {
-      return await SecureStore.getItemAsync(TOKEN_KEY);
+      return await storage.getItem(TOKEN_KEY);
     });
     loadSession();
     loadAppConfig();
@@ -128,8 +129,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function loadSession() {
     try {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
-      const userData = await SecureStore.getItemAsync(USER_KEY);
+      const token = await storage.getItem(TOKEN_KEY);
+      const userData = await storage.getItem(USER_KEY);
       if (token && userData) {
         const parsedUser = JSON.parse(userData);
         setUser(parsedUser);
@@ -176,7 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const api = {
     get: async (url: string) => {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      const token = await storage.getItem(TOKEN_KEY);
       const res = await fetch(`${API_BASE_URL}/api${url}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -184,7 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { data: await res.json(), ok: true };
     },
     post: async (url: string, data: any) => {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      const token = await storage.getItem(TOKEN_KEY);
       const res = await fetch(`${API_BASE_URL}/api${url}`, {
         method: "POST",
         headers: {
@@ -197,7 +198,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { data: await res.json(), ok: true };
     },
     patch: async (url: string, data: any) => {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      const token = await storage.getItem(TOKEN_KEY);
       const res = await fetch(`${API_BASE_URL}/api${url}`, {
         method: "PATCH",
         headers: {
@@ -210,7 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { data: await res.json(), ok: true };
     },
     delete: async (url: string) => {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      const token = await storage.getItem(TOKEN_KEY);
       const res = await fetch(`${API_BASE_URL}/api${url}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
@@ -222,7 +223,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function fetchAdminData() {
     try {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      const token = await storage.getItem(TOKEN_KEY);
       if (!token) return;
 
       const [statsRes, usersRes, jobsRes] = await Promise.all([
@@ -243,7 +244,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function fetchMyData() {
     try {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      const token = await storage.getItem(TOKEN_KEY);
       if (!token) return;
 
       const [jobsRes, leadsRes, transRes, userRes, revRes] = await Promise.all([
@@ -261,7 +262,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (userRes.ok) {
         const userData = await userRes.json();
         setUser(userData);
-        await SecureStore.setItemAsync(USER_KEY, JSON.stringify(userData));
+        await storage.setItem(USER_KEY, JSON.stringify(userData));
       }
 
       if (!userRes.ok && userRes.status !== 401) {
@@ -274,7 +275,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function fetchJobById(id: string) {
     try {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      const token = await storage.getItem(TOKEN_KEY);
       const res = await fetch(`${API_BASE_URL}/api/jobs/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       return res.ok ? await res.json() : null;
     } catch (e) {
@@ -284,7 +285,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function banUser(userId: string, reason: string) {
     try {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      const token = await storage.getItem(TOKEN_KEY);
       await fetch(`${API_BASE_URL}/api/admin/users/${userId}/ban`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -298,7 +299,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function unbanUser(userId: string) {
     try {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      const token = await storage.getItem(TOKEN_KEY);
       await fetch(`${API_BASE_URL}/api/admin/users/${userId}/unban`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
@@ -311,7 +312,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function approveVerification(userId: string) {
     try {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      const token = await storage.getItem(TOKEN_KEY);
       await fetch(`${API_BASE_URL}/api/admin/users/${userId}/verify`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -325,7 +326,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function rejectVerification(userId: string, reason: string) {
     try {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      const token = await storage.getItem(TOKEN_KEY);
       await fetch(`${API_BASE_URL}/api/admin/users/${userId}/verify`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -340,8 +341,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function login(data: LoginBody) {
     const response = await loginMutation.mutateAsync({ data });
     if (response.token && response.user) {
-      await SecureStore.setItemAsync(TOKEN_KEY, response.token);
-      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(response.user));
+      await storage.setItem(TOKEN_KEY, response.token);
+      await storage.setItem(USER_KEY, JSON.stringify(response.user));
       setUser(response.user as User);
       const role = response.user.role?.toLowerCase();
       setActiveMode(role === "admin" ? "ADMIN" : role === "provider" ? "PROVIDER" : "CLIENT");
@@ -355,8 +356,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function logout() {
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
-    await SecureStore.deleteItemAsync(USER_KEY);
+    await storage.deleteItem(TOKEN_KEY);
+    await storage.deleteItem(USER_KEY);
     setUser(null);
     setActiveMode("CLIENT");
   }
@@ -371,7 +372,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const updatedUser = await updateMeMutation.mutateAsync({ data });
     if (updatedUser) {
       setUser(updatedUser as User);
-      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(updatedUser));
+      await storage.setItem(USER_KEY, JSON.stringify(updatedUser));
     }
   }
 
@@ -387,15 +388,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     const result = await response.json();
     if (result.token && result.user) {
-      await SecureStore.setItemAsync(TOKEN_KEY, result.token);
-      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(result.user));
+      await storage.setItem(TOKEN_KEY, result.token);
+      await storage.setItem(USER_KEY, JSON.stringify(result.user));
       setUser(result.user as User);
       setActiveMode(result.user.role === "provider" ? "PROVIDER" : "CLIENT");
     }
   }
 
   async function updateJobStatus(jobId: string, status: string) {
-    const token = await SecureStore.getItemAsync(TOKEN_KEY);
+    const token = await storage.getItem(TOKEN_KEY);
     const res = await fetch(`${API_BASE_URL}/api/jobs/${jobId}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -406,7 +407,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function deleteJob(jobId: string) {
-    const token = await SecureStore.getItemAsync(TOKEN_KEY);
+    const token = await storage.getItem(TOKEN_KEY);
     const res = await fetch(`${API_BASE_URL}/api/jobs/${jobId}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },

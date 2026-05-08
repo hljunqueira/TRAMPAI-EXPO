@@ -16,11 +16,10 @@ import {
   TextInput,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
-
 import { useAuth, API_BASE_URL } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { storage } from "@/lib/storage";
 
 interface CreditPackage {
   id: string;
@@ -61,12 +60,12 @@ export default function CarteiraScreen() {
 
   async function fetchData() {
     try {
-      const token = await SecureStore.getItemAsync("trampai_auth_token");
+      const token = await storage.getItem("trampai_auth_token");
       const [pkgsRes, transRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/payments/packages`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch(`${API_BASE_URL}/api/users/me/transactions`, {
+        fetch(`${API_BASE_URL}/api/transactions/me`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -82,13 +81,15 @@ export default function CarteiraScreen() {
 
   async function handleBuy(packageId: string, amount?: number) {
     setPendingPackage({ id: packageId, amount });
-    setShowPaymentModal(true);
+    // Agora chama direto o Stripe sem mostrar o modal de seleção
+    processPayment("stripe", { id: packageId, amount });
   }
 
-  async function processPayment(method: "stripe" | "cakto") {
-    if (!pendingPackage) return;
+  async function processPayment(method: "stripe", pkgOverride?: { id: string, amount?: number }) {
+    const pkg = pkgOverride || pendingPackage;
+    if (!pkg) return;
 
-    const { id: packageId, amount: customAmount } = pendingPackage;
+    const { id: packageId, amount: customAmount } = pkg;
     setShowPaymentModal(false);
 
     // Pequeno delay para garantir que o modal fechou antes de abrir o browser
@@ -96,11 +97,9 @@ export default function CarteiraScreen() {
 
     try {
       setBuying(packageId);
-      const token = await SecureStore.getItemAsync("trampai_auth_token");
+      const token = await storage.getItem("trampai_auth_token");
 
-      // Se for valor personalizado, forçamos Stripe pois o Cakto não aceita valor dinâmico
-      const methodToUse = packageId === "custom" ? "stripe" : method;
-      const endpoint = methodToUse === "stripe" ? "/api/payments/checkout" : "/api/payments/cakto/checkout";
+      const endpoint = "/api/payments/checkout";
 
       const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: "POST",
@@ -119,6 +118,9 @@ export default function CarteiraScreen() {
       if (res.ok && data.url) {
         // Abrir o checkout no navegador interno
         await WebBrowser.openBrowserAsync(data.url);
+        // Ao voltar, atualiza os dados
+        fetchData();
+        fetchMyData();
       } else {
         Alert.alert("Erro", data.error || "Não foi possível iniciar o pagamento.");
       }
@@ -245,9 +247,9 @@ export default function CarteiraScreen() {
                   {item.jobTitle || item.description}
                 </Text>
                 {item.jobTitle && (
-                   <Text style={[styles.transDate, { color: colors.mutedForeground, marginBottom: 2 }]}>
-                     {item.description}
-                   </Text>
+                  <Text style={[styles.transDate, { color: colors.mutedForeground, marginBottom: 2 }]}>
+                    {item.description}
+                  </Text>
                 )}
                 <Text style={[styles.transDate, { color: colors.mutedForeground }]}>
                   {new Date(item.createdAt).toLocaleDateString("pt-BR")}
@@ -342,21 +344,6 @@ export default function CarteiraScreen() {
               Escolha como deseja concluir sua compra
             </Text>
 
-            {pendingPackage?.id !== "custom" && (
-              <TouchableOpacity
-                style={[styles.paymentOption, { borderColor: colors.border }]}
-                onPress={() => processPayment("cakto")}
-              >
-                <View style={[styles.paymentIconContainer, { backgroundColor: '#E7F9F3' }]}>
-                  <MaterialCommunityIcons name="qrcode" size={24} color="#00BFA5" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.paymentOptionTitle, { color: colors.foreground }]}>Pix</Text>
-                  <Text style={[styles.paymentOptionSub, { color: colors.mutedForeground }]}>Aprovação imediata</Text>
-                </View>
-              </TouchableOpacity>
-            )}
-
             <TouchableOpacity
               style={[styles.paymentOption, { borderColor: colors.border, marginTop: 12 }]}
               onPress={() => processPayment("stripe")}
@@ -365,7 +352,7 @@ export default function CarteiraScreen() {
                 <MaterialCommunityIcons name="credit-card-outline" size={24} color="#635BFF" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.paymentOptionTitle, { color: colors.foreground }]}>Cartão / Boleto</Text>
+                <Text style={[styles.paymentOptionTitle, { color: colors.foreground }]}>Cartão de Crédito</Text>
                 <Text style={[styles.paymentOptionSub, { color: colors.mutedForeground }]}>Checkout seguro</Text>
               </View>
             </TouchableOpacity>

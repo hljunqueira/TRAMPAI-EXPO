@@ -1,4 +1,4 @@
-import * as SecureStore from "expo-secure-store";
+import { storage } from "@/lib/storage";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import React from "react";
@@ -38,7 +38,7 @@ export default function ClientDashboard() {
 
   async function checkNotifications() {
     try {
-      const token = await SecureStore.getItemAsync("trampai_auth_token");
+      const token = await storage.getItem("trampai_auth_token");
       const res = await fetch(`${API_BASE_URL}/api/notifications`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -55,7 +55,7 @@ export default function ClientDashboard() {
 
   async function handleRespondExclusive(jobId: string, action: 'ACCEPT' | 'DECLINE') {
     try {
-      const token = await SecureStore.getItemAsync("trampai_auth_token");
+      const token = await storage.getItem("trampai_auth_token");
       // Usar fetch direto para simplicidade ou o api-client se disponível
       const response = await fetch(`${API_BASE_URL}/api/jobs/${jobId}/respond-exclusive`, {
         method: 'POST',
@@ -222,6 +222,24 @@ export default function ClientDashboard() {
                   </View>
                 </View>
                 
+                <View style={styles.exclusiveProviderInfo}>
+                  <View style={[styles.providerAvatar, { backgroundColor: colors.navy + "10" }]}>
+                    {((s as any).unlockedByProviders?.[0])?.provider?.avatarUrl ? (
+                      <Image source={{ uri: ((s as any).unlockedByProviders[0]).provider.avatarUrl }} style={styles.avatarImgMini} />
+                    ) : (
+                      <Text style={[styles.miniInitials, { color: colors.navy }]}>
+                        {getInitials(((s as any).unlockedByProviders?.[0])?.provider?.name)}
+                      </Text>
+                    )}
+                  </View>
+                  <View>
+                    <Text style={[styles.providerName, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>
+                      {((s as any).unlockedByProviders?.[0])?.provider?.name || "Profissional"}
+                    </Text>
+                    <Text style={[styles.providerLabel, { color: colors.mutedForeground }]}>Solicitou exclusividade</Text>
+                  </View>
+                </View>
+
                 <View style={styles.exclusiveActions}>
                   <TouchableOpacity 
                     style={[styles.actionBtn, { backgroundColor: colors.navy }]}
@@ -506,6 +524,37 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   actionBtnText: { fontSize: 14 },
+  exclusiveProviderInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#fff",
+    padding: 12,
+    borderRadius: 16,
+    marginBottom: 16,
+  },
+  providerAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  avatarImgMini: {
+    width: "100%",
+    height: "100%",
+  },
+  miniInitials: {
+    fontSize: 14,
+    fontFamily: "Inter_700Bold",
+  },
+  providerName: {
+    fontSize: 15,
+  },
+  providerLabel: {
+    fontSize: 12,
+  },
   categoriesSection: {
     marginTop: 8,
   },

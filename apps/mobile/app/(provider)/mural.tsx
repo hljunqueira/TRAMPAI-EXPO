@@ -41,34 +41,55 @@ export default function Mural() {
   const [unlockResult, setUnlockResult] = useState<any | null>(null);
   const [unlockError, setUnlockError] = useState("");
   const [unreadCount, setUnreadCount] = useState(0);
-  const [distance, setDistance] = useState<number>(50);
-  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [userCity, setUserCity] = useState<string | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
 
-  const fetchJobs = useCallback(async () => {
-    setIsLoading(true);
+  const fetchJobs = useCallback(async (isInitial = true) => {
+    if (isInitial) {
+      setIsLoading(true);
+      setPage(1);
+      setHasMore(true);
+    } else {
+      setIsFetchingMore(true);
+    }
+
     try {
-      let url = "/jobs";
-      const queryParams = [];
+      const currentPage = isInitial ? 1 : page;
+      let url = `/jobs?page=${currentPage}&limit=10`;
       
-      if (userLocation) {
-        queryParams.push(`lat=${userLocation.lat}`);
-        queryParams.push(`lng=${userLocation.lng}`);
-        queryParams.push(`radius=${distance}`);
-      }
-
-      if (queryParams.length > 0) {
-        url += `?${queryParams.join("&")}`;
+      if (userCity) {
+        url += `&city=${encodeURIComponent(userCity)}`;
       }
 
       const response = await api.get(url);
-      setJobs(response?.data || []);
+      const newJobs = response?.data || [];
+      
+      if (isInitial) {
+        setJobs(newJobs);
+      } else {
+        setJobs(prev => [...prev, ...newJobs]);
+      }
+
+      if (newJobs.length < 10) {
+        setHasMore(false);
+      }
     } catch (e) {
       console.error("Error fetching jobs:", e);
     } finally {
       setIsLoading(false);
+      setIsFetchingMore(false);
     }
-  }, [api, userLocation, distance]);
+  }, [api, userCity, page]);
+
+  const handleLoadMore = () => {
+    if (!isLoading && !isFetchingMore && hasMore) {
+      setPage(prev => prev + 1);
+      fetchJobs(false);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -81,30 +102,54 @@ export default function Mural() {
   async function requestLocation() {
     try {
       setLoadingLocation(true);
+      console.log("📍 Solicitando permissão de localização...");
       const { status } = await Location.requestForegroundPermissionsAsync();
+      
       if (status !== 'granted') {
+        console.warn("📍 Permissão de localização negada.");
+        if (user?.city) setUserCity(user.city);
         setLoadingLocation(false);
         return;
       }
 
-      const location = await Location.getCurrentPositionAsync({});
-      setUserLocation({
-        lat: location.coords.latitude,
-        lng: location.coords.longitude
+      console.log("📍 Obtendo posição atual...");
+      // Timeout de 10 segundos para obter posição
+      const location = await Promise.race([
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+        new Promise<null>((_, reject) => setTimeout(() => reject(new Error("Timeout")), 10000))
+      ]) as any;
+
+      if (!location) throw new Error("Não foi possível obter a localização.");
+
+      console.log("📍 Obtendo endereço (Reverse Geocode)...");
+      const [address] = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude
       });
+
+      if (address) {
+        const city = address.city || address.subregion || address.district || address.region;
+        if (city) {
+          setUserCity(city);
+        } else if (user?.city) {
+          setUserCity(user.city);
+        }
+      } else if (user?.city) {
+        setUserCity(user.city);
+      }
     } catch (e) {
-      console.warn("Error getting location:", e);
+      if (user?.city) setUserCity(user.city);
     } finally {
       setLoadingLocation(false);
     }
   }
 
-  // Recarregar quando a distância ou localização mudar
+  // Recarregar quando a cidade mudar
   useEffect(() => {
-    if (userLocation) {
+    if (userCity) {
       fetchJobs();
     }
-  }, [distance, userLocation, fetchJobs]);
+  }, [userCity, fetchJobs]);
 
   async function shareReferral() {
     try {
@@ -294,7 +339,16 @@ export default function Mural() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={[styles.list, { paddingBottom: 40 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={fetchJobs} tintColor={colors.accent} />}
+        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => fetchJobs(true)} tintColor={colors.accent} />}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          isFetchingMore ? (
+            <View style={{ paddingVertical: 20 }}>
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          ) : null
+        }
         ListHeaderComponent={
           <View style={styles.pageHeader}>
             <View style={styles.titleSection}>
@@ -304,35 +358,28 @@ export default function Mural() {
 
             <View style={[styles.filterCard, { backgroundColor: colors.card, borderColor: colors.border + "30" }]}>
               <View style={styles.filterRow}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <Text style={[styles.filterLabel, { color: colors.primary, fontFamily: "Inter_700Bold", marginBottom: 0 }]}>Raio de Distância</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <Text style={[styles.filterLabel, { color: colors.primary, fontFamily: "Inter_700Bold", marginBottom: 0 }]}>Localização Atual</Text>
                   {loadingLocation && <ActivityIndicator size="small" color={colors.primary} />}
-                  {userLocation && !loadingLocation && <MaterialCommunityIcons name="map-marker-check" size={16} color={colors.secondary} />}
+                  {userCity && !loadingLocation && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <MaterialCommunityIcons name="map-marker-check" size={16} color={colors.secondary} />
+                      <Text style={{ color: colors.secondary, fontFamily: "Inter_700Bold" }}>{userCity}</Text>
+                    </View>
+                  )}
+                  {!userCity && !loadingLocation && (
+                    <TouchableOpacity onPress={requestLocation} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <MaterialCommunityIcons name="map-marker-off" size={16} color={colors.mutedForeground} />
+                      <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_700Bold" }}>Tentar Detectar</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 12 }}>
-                  {[5, 10, 20, 50, 100, 500].map((d) => (
-                    <TouchableOpacity
-                      key={d}
-                      style={[
-                        styles.distanceChip,
-                        { 
-                          backgroundColor: distance === d ? colors.primary : colors.surface,
-                          borderColor: distance === d ? colors.primary : colors.border + "20"
-                        }
-                      ]}
-                      onPress={() => {
-                        setDistance(d);
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      }}
-                    >
-                      <Text style={[
-                        styles.distanceChipText,
-                        { color: distance === d ? "#FFF" : colors.primary, fontFamily: "Inter_600SemiBold" }
-                      ]}>{d >= 500 ? 'Brasil' : `${d}km`}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                <Text style={[styles.pageSub, { color: colors.mutedForeground, fontFamily: "Inter_400Regular", marginBottom: 20, marginTop: -8 }]}>
+                  {loadingLocation ? "Detectando sua localização..." : 
+                   userCity ? `Mostrando serviços em ${userCity}.` : 
+                   "Não conseguimos detectar sua cidade. Verifique o GPS ou use os filtros."}
+                </Text>
 
                 <Text style={[styles.filterLabel, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>O que você procura?</Text>
                 <TouchableOpacity 
@@ -393,6 +440,7 @@ export default function Mural() {
               showUnlock 
               alreadyUnlocked={!!lead}
               unlockType={lead?.type}
+              hideImage={!lead}
               onUnlock={() => openUnlockModal(item)} 
               onSeeDetails={() => handleSeeDetails(item)}
             />
@@ -530,6 +578,24 @@ export default function Mural() {
                     </View>
                   </View>
                 )}
+
+                {/* Descrição e Fotos do Job */}
+                <View style={[styles.jobDetailsSection, { backgroundColor: colors.surface, borderRadius: 16, width: '100%' }]}>
+                  <Text style={[styles.statsTitle, { color: colors.navy, fontFamily: "Inter_700Bold", marginBottom: 12 }]}>Detalhes do Serviço</Text>
+                  <Text style={[styles.jobDescriptionText, { color: colors.foreground }]}>{unlockResult?.job?.description}</Text>
+                  
+                  {unlockResult?.job?.images && unlockResult.job.images.length > 0 && (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 15 }}>
+                      {unlockResult.job.images.map((img: string, idx: number) => (
+                        <Image 
+                          key={idx} 
+                          source={{ uri: img }} 
+                          style={styles.detailImage} 
+                        />
+                      ))}
+                    </ScrollView>
+                  )}
+                </View>
 
                 <TouchableOpacity onPress={() => setSelectedService(null)} style={styles.cancelBtn}>
                   <Text style={[styles.cancelBtnText, { color: colors.mutedForeground, fontFamily: "Inter_500Medium" }]}>Fechar</Text>
@@ -692,4 +758,20 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 24, fontFamily: "Inter_700Bold" },
   statLabel: { fontSize: 12, marginTop: 2 },
   statDivider: { width: 1, height: 30, backgroundColor: "#00000010" },
+  jobDetailsSection: {
+    padding: 20,
+    marginTop: 12,
+  },
+  jobDescriptionText: {
+    fontSize: 14,
+    lineHeight: 20,
+    opacity: 0.8,
+  },
+  detailImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+    marginRight: 10,
+    backgroundColor: "#f1f5f9",
+  },
 });

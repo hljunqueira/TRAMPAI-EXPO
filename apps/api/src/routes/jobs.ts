@@ -12,9 +12,13 @@ import { and, ilike } from "drizzle-orm";
 
 const router = Router();
 
-router.get("/jobs", async (req, res) => {
+router.get("/jobs", authenticate, async (req: AuthRequest, res) => {
   try {
-    const { lat, lng, radius, categoryId } = req.query;
+    const userId = req.user?.userId;
+    const { city, categoryId, page = "1", limit = "20" } = req.query;
+    const p = parseInt(page as string) || 1;
+    const l = parseInt(limit as string) || 20;
+    const offset = (p - 1) * l;
 
     let whereClause = eq(jobs.status, "open");
 
@@ -23,17 +27,9 @@ router.get("/jobs", async (req, res) => {
       whereClause = and(whereClause, eq(jobs.categoryId, categoryId as string)) as any;
     }
 
-    // Filtro por Distância (Haversine)
-    if (lat && lng && radius) {
-      const latitude = parseFloat(lat as string);
-      const longitude = parseFloat(lng as string);
-      const dist = parseFloat(radius as string);
-
-      // 6371 é o raio da terra em km
-      whereClause = and(
-        whereClause,
-        sql`(6371 * acos(cos(radians(${latitude})) * cos(radians(NULLIF(${jobs.latitude}, '')::numeric)) * cos(radians(NULLIF(${jobs.longitude}, '')::numeric) - radians(${longitude})) + sin(radians(${latitude})) * sin(radians(NULLIF(${jobs.latitude}, '')::numeric)))) <= ${dist}`
-      ) as any;
+    // Filtro por Cidade
+    if (city) {
+      whereClause = and(whereClause, ilike(jobs.city, `%${city}%`)) as any;
     }
 
     const allJobs = await db
@@ -46,8 +42,6 @@ router.get("/jobs", async (req, res) => {
         budget: jobs.budget,
         status: jobs.status,
         location: jobs.location,
-        latitude: jobs.latitude,
-        longitude: jobs.longitude,
         images: jobs.images,
         createdAt: jobs.createdAt,
         category: {
@@ -58,18 +52,47 @@ router.get("/jobs", async (req, res) => {
         client: {
           id: users.id,
           name: users.name,
-          email: users.email,
-          role: users.role,
           avatarUrl: users.avatarUrl,
         },
+        unlockedType: leads.type,
       })
       .from(jobs)
       .innerJoin(categories, eq(jobs.categoryId, categories.id))
       .innerJoin(users, eq(jobs.clientId, users.id))
+      .leftJoin(leads, and(eq(leads.jobId, jobs.id), eq(leads.providerId, userId || "")))
       .where(whereClause)
-      .orderBy(desc(jobs.createdAt));
+      .orderBy(desc(jobs.createdAt))
+      .limit(l)
+      .offset(offset);
 
-    return res.json(allJobs);
+    // Redação de dados (Server-side Blind Mode)
+    const redactedJobs = allJobs.map(job => {
+      const isExclusive = job.unlockedType === "EXCLUSIVE";
+      const isPlus = job.unlockedType === "PLUS";
+      const isNormal = job.unlockedType === "NORMAL";
+      const isUnlocked = !!job.unlockedType;
+
+      // Se for EXCLUSIVE, vê TUDO.
+      // Se for PLUS ou NORMAL ou NADA, aplicamos redação.
+      
+      return {
+        ...job,
+        // Só vê descrição e fotos se for EXCLUSIVE
+        description: isExclusive ? job.description : "Descrição oculta (Disponível apenas no plano Exclusivo)",
+        images: isExclusive ? job.images : [], // Remove fotos reais se não for exclusivo
+        location: isExclusive ? job.location : "Localização oculta (Disponível apenas no plano Exclusivo)",
+        client: {
+          ...job.client,
+          // Só vê o nome real se for EXCLUSIVE ou PLUS (Plus libera histórico, então nome faz sentido?)
+          // O usuário disse: "no basico esomente o telefone que tem que aparecer".
+          // Vamos esconder o nome para NORMAL e PLUS também para ser seguro?
+          // "no plus aparece tudo que o exclusivo tem" -> indica que Plus deve ter menos.
+          name: isExclusive ? job.client.name : "Cliente Oculto",
+        }
+      };
+    });
+
+    return res.json(redactedJobs);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Erro ao listar trampos" });
@@ -78,11 +101,31 @@ router.get("/jobs", async (req, res) => {
 
 router.post("/jobs", authenticate, async (req: AuthRequest, res: any) => {
   try {
-    const { title, description, categoryId, budget, location, latitude, longitude, images } = req.body;
+    const { title, description, categoryId, budget, location, city, latitude, longitude, images } = req.body;
     const clientId = req.user?.userId;
 
     if (!clientId) {
       return res.status(401).json({ error: "Usuário não autenticado" });
+    }
+
+    // Trava de duplicidade (Idempotência simples)
+    // Evita que o mesmo usuário poste o mesmo conteúdo em menos de 1 minuto
+    const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
+    const [existingJob] = await db.select()
+      .from(jobs)
+      .where(
+        and(
+          eq(jobs.clientId, clientId),
+          eq(jobs.title, title),
+          eq(jobs.description, sanitizeDescription(description)),
+          sql`${jobs.createdAt} > ${oneMinuteAgo}`
+        )
+      )
+      .limit(1);
+
+    if (existingJob) {
+      console.warn(`[Jobs] Tentativa de duplicidade detectada para o usuário ${clientId}`);
+      return res.status(409).json({ error: "Você já postou este serviço recentemente. Aguarde um instante." });
     }
 
     const [newJob] = await db.insert(jobs).values({
@@ -92,6 +135,7 @@ router.post("/jobs", authenticate, async (req: AuthRequest, res: any) => {
       clientId,
       budget,
       location,
+      city,
       latitude: latitude?.toString(),
       longitude: longitude?.toString(),
       images,
@@ -114,7 +158,7 @@ router.post("/jobs", authenticate, async (req: AuthRequest, res: any) => {
           and(
             eq(users.role, "provider"),
             sql`${categoryId}::text = ANY(${users.providerCategories})`,
-            location ? ilike(users.city, `%${location}%`) : sql`true`
+            city ? ilike(users.city, `%${city}%`) : sql`true`
           )
         );
         
@@ -500,7 +544,7 @@ router.get("/jobs/:id", authenticate, async (req: AuthRequest, res: any) => {
       })
       .from(leads)
       .innerJoin(users, eq(leads.providerId, users.id))
-      .where(eq(leads.jobId, jobId as string));
+      .where(and(eq(leads.jobId, jobId as string), sql`${leads.rejectedAt} IS NULL`));
 
     // Fetch client reviews
     const clientReviews = await db
@@ -653,7 +697,40 @@ router.delete("/jobs/:id", authenticate, async (req: AuthRequest, res: any) => {
     return res.json({ success: true, message: "Serviço excluído com sucesso" });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "Erro ao excluir serviço" });
+    return res.status(500).json({ error: "Erro interno no servidor" });
+  }
+});
+
+router.post("/jobs/:id/reject-lead", authenticate, async (req: AuthRequest, res: any) => {
+  try {
+    const jobId = req.params.id;
+    const { providerId } = req.body;
+    const clientId = req.user?.userId;
+
+    // Verificar se o job pertence ao cliente
+    const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId as string));
+    if (!job) return res.status(404).json({ error: "Serviço não encontrado" });
+    if (job.clientId !== clientId && req.user?.role !== "admin") {
+      return res.status(403).json({ error: "Acesso negado" });
+    }
+
+    // Buscar o lead
+    const [lead] = await db.select().from(leads)
+      .where(and(eq(leads.jobId, jobId as string), eq(leads.providerId, providerId as string)));
+    
+    if (!lead) return res.status(404).json({ error: "Proposta não encontrada" });
+
+    // Marcar como rejeitado (seja NORMAL, PLUS ou EXCLUSIVE)
+    // Se for EXCLUSIVE e estivesse pendente, o cliente poderia usar o respond-exclusive para estorno
+    // Mas aqui é uma rejeição "limpa a tela" para os demais planos.
+    await db.update(leads)
+      .set({ rejectedAt: new Date() })
+      .where(eq(leads.id, lead.id));
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erro ao rejeitar proposta" });
   }
 });
 

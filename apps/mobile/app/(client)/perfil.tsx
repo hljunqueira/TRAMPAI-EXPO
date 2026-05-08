@@ -30,14 +30,18 @@ export default function ClientPerfil() {
       "Selecionar Foto",
       "Escolha a origem da sua foto de perfil",
       [
-        { text: "Câmera", onPress: async () => {
-          const url = await takePhoto();
-          if (url) updateAvatar(url);
-        }},
-        { text: "Galeria", onPress: async () => {
-          const url = await pickImage();
-          if (url) updateAvatar(url);
-        }},
+        {
+          text: "Câmera", onPress: async () => {
+            const url = await takePhoto();
+            if (url) updateAvatar(url);
+          }
+        },
+        {
+          text: "Galeria", onPress: async () => {
+            const url = await pickImage();
+            if (url) updateAvatar(url);
+          }
+        },
         { text: "Cancelar", style: "cancel" },
       ]
     );
@@ -80,12 +84,12 @@ export default function ClientPerfil() {
 
   const initials = user?.name
     ? user.name
-        .trim()
-        .split(" ")
-        .slice(0, 2)
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
+      .trim()
+      .split(" ")
+      .slice(0, 2)
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
     : "?";
 
   return (
@@ -95,12 +99,12 @@ export default function ClientPerfil() {
           <Text style={[styles.headerLogo, { fontFamily: "Inter_800ExtraBold", color: colors.primary }]}>Perfil</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity 
-            onPress={handleSwitchMode} 
-            style={{ 
-              flexDirection: 'row', 
-              alignItems: 'center', 
-              gap: 6, 
+          <TouchableOpacity
+            onPress={handleSwitchMode}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
               backgroundColor: colors.primary + "08",
               paddingHorizontal: 12,
               paddingVertical: 6,
@@ -138,7 +142,7 @@ export default function ClientPerfil() {
 
           <View style={{ alignItems: 'center' }}>
             <Text style={[styles.userName, { color: colors.primary, fontFamily: "Inter_800ExtraBold", textAlign: 'center' }]}>{user?.name}</Text>
-            
+
             <View style={[styles.badgesRowBelow, { marginTop: 4 }]}>
               {(!user?.reviewCount || user.reviewCount === 0) && (
                 <View style={[styles.ratingChip, { backgroundColor: colors.secondary + "15" }]}>
@@ -190,7 +194,7 @@ export default function ClientPerfil() {
         </View>
 
         <View style={styles.quickActionsVertical}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.primaryActionFull, { backgroundColor: colors.secondary + "20" }]}
             onPress={() => router.push("/editar-perfil")}
           >
@@ -201,8 +205,8 @@ export default function ClientPerfil() {
             </View>
             <MaterialCommunityIcons name="chevron-right" size={20} color={colors.primary + "40"} />
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={[styles.secondaryActionFull, { borderColor: colors.primary + "15", backgroundColor: colors.card }]}
             onPress={handleSwitchMode}
           >
@@ -249,11 +253,11 @@ export default function ClientPerfil() {
                       <Text style={[styles.reviewerName, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>{rev.fromUserName}</Text>
                       <View style={styles.starsRow}>
                         {[1, 2, 3, 4, 5].map((star) => (
-                          <MaterialCommunityIcons 
-                            key={star} 
-                            name="star" 
-                            size={12} 
-                            color={star <= rev.rating ? colors.secondary : colors.border} 
+                          <MaterialCommunityIcons
+                            key={star}
+                            name="star"
+                            size={12}
+                            color={star <= rev.rating ? colors.secondary : colors.border}
                           />
                         ))}
                       </View>
@@ -276,8 +280,8 @@ export default function ClientPerfil() {
           )}
         </View>
 
-        <TouchableOpacity 
-          style={styles.logoutBtnFull} 
+        <TouchableOpacity
+          style={styles.logoutBtnFull}
           onPress={handleLogout}
         >
           <MaterialCommunityIcons name="logout" size={22} color="#dc2626" />
@@ -349,14 +353,14 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, marginBottom: 12 },
   emptyPortfolio: { alignItems: "center", justifyContent: "center", paddingVertical: 24, borderWidth: 1, borderColor: "#00000008", borderRadius: 16, backgroundColor: "#FDFBF7", gap: 8 },
   emptyText: { fontSize: 13 },
-  logoutBtnFull: { 
-    marginHorizontal: 20, 
-    flexDirection: "row", 
-    alignItems: "center", 
-    justifyContent: "center", 
-    padding: 16, 
-    borderRadius: 20, 
-    gap: 12, 
+  logoutBtnFull: {
+    marginHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+    borderRadius: 20,
+    gap: 12,
     marginBottom: 40,
     backgroundColor: "#fee2e2",
     borderColor: "#fecaca",

@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import * as SecureStore from "expo-secure-store";
+import { storage } from "@/lib/storage";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -56,7 +56,7 @@ export default function AdminPackages() {
 
   async function loadPackages() {
     try {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      const token = await storage.getItem(TOKEN_KEY);
       const res = await fetch(`${API_BASE_URL}/api/admin/packages`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -79,7 +79,7 @@ export default function AdminPackages() {
     }
 
     try {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      const token = await storage.getItem(TOKEN_KEY);
       const isNew = !editingPkg.id;
       const url = isNew ? `${API_BASE_URL}/api/admin/packages` : `${API_BASE_URL}/api/admin/packages/${editingPkg.id}`;
       const method = isNew ? "POST" : "PATCH";
@@ -105,7 +105,7 @@ export default function AdminPackages() {
 
   async function toggleActive(pkg: Package) {
     try {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      const token = await storage.getItem(TOKEN_KEY);
       const res = await fetch(`${API_BASE_URL}/api/admin/packages/${pkg.id}`, {
         method: "PATCH",
         headers: {

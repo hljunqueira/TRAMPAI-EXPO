@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login | Trampaí</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --navy: #0B1339;
+            --orange: #F69926;
+            --white: #FFFFFF;
+            --gray: #F4F7FE;
+            --text-dark: #2D3748;
+            --text-muted: #718096;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--navy);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .login-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 24px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            color: var(--white);
+            font-family: 'Outfit', sans-serif;
+            font-size: 32px;
+            font-weight: 800;
+        }
+
+        .logo span {
+            color: var(--orange);
+        }
+
+        .logo i {
+            color: var(--orange);
+            margin-left: 5px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-wrapper i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 15px 12px 45px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: var(--white);
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--orange);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: var(--orange);
+            border: none;
+            border-radius: 12px;
+            color: var(--navy);
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(246, 153, 38, 0.4);
+        }
+
+        .btn-login:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            text-align: center;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .loader {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--navy);
+            border-top: 3px solid transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="logo">
+            <h1>Trampaí<span>.</span> <i data-lucide="settings"></i></h1>
+            <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-top: 5px;">Painel Administrativo</p>
+        </div>
+
+        <div id="errorMessage" class="error-message"></div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label>E-mail</label>
+                <div class="input-wrapper">
+                    <i data-lucide="mail" size="18"></i>
+                    <input type="email" id="email" placeholder="admin@trampai.com.br" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Senha</label>
+                <div class="input-wrapper">
+                    <i data-lucide="lock" size="18"></i>
+                    <input type="password" id="password" placeholder="••••••••" required>
+                </div>
+            </div>
+
+            <button type="submit" id="submitBtn" class="btn-login">
+                <span id="btnText">Acessar Painel</span>
+                <div id="loader" class="loader"></div>
+            </button>
+        </form>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        const API_BASE_URL = 'https://api.trampai.com.br';
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const submitBtn = document.getElementById('submitBtn');
+            const btnText = document.getElementById('btnText');
+            const loader = document.getElementById('loader');
+            const errorMessage = document.getElementById('errorMessage');
+
+            // Reset UI
+            errorMessage.style.display = 'none';
+            submitBtn.disabled = true;
+            btnText.style.display = 'none';
+            loader.style.display = 'block';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.token && data.user.role === 'admin') {
+                    // Store token and user
+                    localStorage.setItem('trampai_admin_token', data.token);
+                    localStorage.setItem('trampai_admin_user', JSON.stringify(data.user));
+                    
+                    // Redirect
+                    window.location.href = 'index.html';
+                } else {
+                    errorMessage.textContent = data.error || 'Acesso negado. Verifique suas credenciais.';
+                    errorMessage.style.display = 'block';
+                }
+            } catch (error) {
+                errorMessage.textContent = 'Erro ao conectar com o servidor.';
+                errorMessage.style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+                btnText.style.display = 'block';
+                loader.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -16,10 +16,9 @@ import {
   Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as SecureStore from "expo-secure-store";
-
 import { useAuth, API_BASE_URL } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { storage } from "@/lib/storage";
 
 export default function DetalhesProposta() {
   const colors = useColors();
@@ -57,7 +56,7 @@ export default function DetalhesProposta() {
 
   const handleRespond = async (action: "ACCEPT" | "REJECT") => {
     try {
-      const token = await SecureStore.getItemAsync("trampai_auth_token");
+      const token = await storage.getItem("trampai_auth_token");
       const res = await fetch(`${API_BASE_URL}/api/jobs/${job.id}/respond-exclusive`, {
         method: "POST",
         headers: {
@@ -73,6 +72,31 @@ export default function DetalhesProposta() {
       } else {
         const error = await res.json();
         Alert.alert("Erro", error.error || "Erro ao responder proposta");
+      }
+    } catch (e) {
+      console.error(e);
+      Alert.alert("Erro", "Erro na conexão com o servidor");
+    }
+  };
+
+  const handleRejectLead = async () => {
+    try {
+      const token = await storage.getItem("trampai_auth_token");
+      const res = await fetch(`${API_BASE_URL}/api/jobs/${job.id}/reject-lead`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ providerId: selectedLead?.provider?.id })
+      });
+
+      if (res.ok) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.back();
+      } else {
+        const error = await res.json();
+        Alert.alert("Erro", error.error || "Erro ao recusar proposta");
       }
     } catch (e) {
       console.error(e);
@@ -158,7 +182,7 @@ export default function DetalhesProposta() {
             </View>
             <View style={styles.profileInfo}>
               <View style={styles.nameRow}>
-                <Text style={[styles.name, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>{provider.name}</Text>
+                <Text style={[styles.name, { color: colors.navy, fontFamily: "Inter_700Bold" }]} numberOfLines={2}>{provider.name}</Text>
                 <View style={[styles.ratingChip, { backgroundColor: "#FFDD7E" }]}>
                   <MaterialCommunityIcons name="star" size={12} color="#B45309" />
                   <Text style={[styles.ratingText, { fontFamily: "Inter_700Bold" }]}>{provider.rating || "5.0"}</Text>
@@ -270,10 +294,18 @@ export default function DetalhesProposta() {
                 <Text style={styles.availabilityText}>{provider.availability || "Imediato"}</Text>
               </View>
             </View>
-            <TouchableOpacity style={[styles.whatsappBtn, { backgroundColor: "#25D366" }]} onPress={handleOpenWhatsApp}>
-              <MaterialCommunityIcons name="whatsapp" size={22} color="#fff" />
-              <Text style={[styles.whatsappBtnText, { color: "#fff", fontFamily: "Inter_700Bold" }]}>Abrir WhatsApp</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <TouchableOpacity 
+                style={[styles.rejectBtn, { flex: 1, borderColor: "#ef4444" }]} 
+                onPress={handleRejectLead}
+              >
+                <Text style={[styles.rejectBtnText, { color: "#ef4444", fontFamily: "Inter_700Bold", fontSize: 14 }]}>Recusar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.whatsappBtn, { flex: 2, backgroundColor: "#25D366" }]} onPress={handleOpenWhatsApp}>
+                <MaterialCommunityIcons name="whatsapp" size={20} color="#fff" />
+                <Text style={[styles.whatsappBtnText, { color: "#fff", fontFamily: "Inter_700Bold", fontSize: 14 }]}>WhatsApp</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </View>
@@ -330,8 +362,19 @@ const styles = StyleSheet.create({
   avatar: { width: 100, height: 100, borderRadius: 50, borderWidth: 3, borderColor: "#fff" },
   verifiedBadge: { position: "absolute", bottom: 2, right: 2, width: 24, height: 24, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#fff" },
   profileInfo: { alignItems: "center" },
-  nameRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
-  name: { fontSize: 22 },
+  nameRow: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    justifyContent: "center",
+    gap: 8, 
+    marginBottom: 4,
+    paddingHorizontal: 10,
+  },
+  name: { 
+    fontSize: 22, 
+    textAlign: "center",
+    maxWidth: "80%",
+  },
   ratingChip: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
   ratingText: { fontSize: 13, color: "#B45309" },
   ratingCount: { fontSize: 11, color: "#B45309", opacity: 0.7 },

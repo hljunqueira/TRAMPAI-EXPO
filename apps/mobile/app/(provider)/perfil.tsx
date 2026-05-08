@@ -51,8 +51,8 @@ export default function ProviderPerfil() {
   const [pendingImageUrl, setPendingImageUrl] = React.useState("");
   const [isPaidUpload, setIsPaidUpload] = React.useState(false);
 
-  const [localDoc, setLocalDoc] = React.useState<{uri: string, base64: string} | null>(null);
-  const [localSelfie, setLocalSelfie] = React.useState<{uri: string, base64: string} | null>(null);
+  const [localDoc, setLocalDoc] = React.useState<{ uri: string, base64: string } | null>(null);
+  const [localSelfie, setLocalSelfie] = React.useState<{ uri: string, base64: string } | null>(null);
   const [isSubmittingVerification, setIsSubmittingVerification] = React.useState(false);
 
   const myLeads = leads.filter((l) => l.providerId === user?.id);
@@ -89,7 +89,7 @@ export default function ProviderPerfil() {
       const code = user?.referralCode || "INDIQUE26";
       const referralLink = `https://trampai.com.br?ref=${code}`;
       const message = `Ei! Use meu código *${code}* no Trampaí para ganhar ${appConfig?.REFERRAL_BONUS || 10} créditos de bônus e oferecer seus serviços para milhares de clientes! 🚀\n\nBaixe agora: ${referralLink}`;
-      
+
       const result = await Share.share({
         message,
         url: referralLink, // iOS usa url separado
@@ -141,14 +141,18 @@ export default function ProviderPerfil() {
       "Selecionar Foto",
       "Escolha a origem da sua foto de perfil",
       [
-        { text: "Câmera", onPress: async () => {
-          const url = await takePhoto();
-          if (url) updateAvatar(url);
-        }},
-        { text: "Galeria", onPress: async () => {
-          const url = await pickImage();
-          if (url) updateAvatar(url);
-        }},
+        {
+          text: "Câmera", onPress: async () => {
+            const url = await takePhoto();
+            if (url) updateAvatar(url);
+          }
+        },
+        {
+          text: "Galeria", onPress: async () => {
+            const url = await pickImage();
+            if (url) updateAvatar(url);
+          }
+        },
         { text: "Cancelar", style: "cancel" },
       ]
     );
@@ -223,12 +227,12 @@ export default function ProviderPerfil() {
 
     setIsSubmittingVerification(true);
     try {
-      const updateRes = await api.patch("/auth/me", { 
-        documentUrl: localDoc.uri, 
-        selfieUrl: localSelfie.uri, 
-        verificationStatus: 'PENDING' 
+      const updateRes = await api.patch("/auth/me", {
+        documentUrl: localDoc.uri,
+        selfieUrl: localSelfie.uri,
+        verificationStatus: 'PENDING'
       });
-      
+
       if (updateRes.ok) {
         Alert.alert("Sucesso", "Documentos enviados para análise!");
         setVerificationModalVisible(false);
@@ -316,12 +320,12 @@ export default function ProviderPerfil() {
           <Text style={[styles.headerLogo, { fontFamily: "Inter_800ExtraBold", color: colors.primary }]}>Perfil</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity 
-            onPress={handleSwitchMode} 
-            style={{ 
-              flexDirection: 'row', 
-              alignItems: 'center', 
-              gap: 6, 
+          <TouchableOpacity
+            onPress={handleSwitchMode}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
               backgroundColor: colors.primary + "08",
               paddingHorizontal: 12,
               paddingVertical: 6,
@@ -416,7 +420,7 @@ export default function ProviderPerfil() {
           </View>
         </View>
 
-        <VerificationSection 
+        <VerificationSection
           status={user?.verificationStatus as any}
           onPress={() => setVerificationModalVisible(true)}
         />
@@ -425,8 +429,8 @@ export default function ProviderPerfil() {
           <TouchableOpacity style={[styles.primaryActionFull, { backgroundColor: "#e8c08a" }]} onPress={() => router.push("/editar-perfil")}>
             <MaterialCommunityIcons name="account-edit" size={22} color={colors.primary} />
             <View style={{ flex: 1 }}>
-               <Text style={[styles.actionText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Editar Perfil</Text>
-               <Text style={{ color: colors.primary, fontSize: 11, opacity: 0.8 }}>Atualize seus dados pessoais e contato</Text>
+              <Text style={[styles.actionText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Editar Perfil</Text>
+              <Text style={{ color: colors.primary, fontSize: 11, opacity: 0.8 }}>Atualize seus dados pessoais e contato</Text>
             </View>
             <MaterialCommunityIcons name="chevron-right" size={20} color={colors.primary + "40"} />
           </TouchableOpacity>
@@ -434,19 +438,19 @@ export default function ProviderPerfil() {
           <TouchableOpacity style={[styles.secondaryActionFull, { borderColor: colors.primary + "15", backgroundColor: "#fff" }]} onPress={() => router.push("/(provider)/carteira")}>
             <MaterialCommunityIcons name="wallet" size={22} color={colors.primary} />
             <View style={{ flex: 1 }}>
-               <Text style={[styles.actionText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Minha Carteira</Text>
-               <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Saldo de créditos: {user?.creditBalance || 0}</Text>
+              <Text style={[styles.actionText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Minha Carteira</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Saldo de créditos: {user?.creditBalance || 0}</Text>
             </View>
             <MaterialCommunityIcons name="chevron-right" size={20} color={colors.primary + "40"} />
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={[styles.outlineActionFull, { borderColor: colors.primary + "15", backgroundColor: "#fff" }]} onPress={handleSwitchMode}>
             <MaterialCommunityIcons name="swap-horizontal" size={22} color={colors.primary} />
             <View style={{ flex: 1 }}>
-               <Text style={[styles.actionText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>
-                 {user?.role === "admin" ? "Painel Admin" : "Sou Cliente"}
-               </Text>
-               <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Alternar visão do aplicativo</Text>
+              <Text style={[styles.actionText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>
+                {user?.role === "admin" ? "Painel Admin" : "Sou Cliente"}
+              </Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Alternar visão do aplicativo</Text>
             </View>
             <MaterialCommunityIcons name="chevron-right" size={20} color={colors.primary + "40"} />
           </TouchableOpacity>
@@ -456,7 +460,7 @@ export default function ProviderPerfil() {
           <View style={styles.sectionHeaderRow}>
             <Text style={[styles.sectionTitle, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Sobre o Profissional</Text>
             <TouchableOpacity onPress={() => { setTempBio(user?.providerBio || ""); setBioModalVisible(true); }}>
-               <Text style={[styles.seeAll, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>Editar</Text>
+              <Text style={[styles.seeAll, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}>Editar</Text>
             </TouchableOpacity>
           </View>
           <Text style={[styles.sectionDesc, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
@@ -464,7 +468,7 @@ export default function ProviderPerfil() {
           </Text>
         </View>
 
-        <PortfolioSection 
+        <PortfolioSection
           portfolioImages={user?.portfolioImages || []}
           hasUnlockedPortfolio={user?.hasUnlockedPortfolio}
           onAddPress={() => setPortfolioModalVisible(true)}
@@ -475,19 +479,19 @@ export default function ProviderPerfil() {
         />
 
 
-        <ReferralSection 
+        <ReferralSection
           referralCode={user?.referralCode || ""}
           bonus={appConfig?.REFERRAL_BONUS || "10"}
           onShare={shareReferral}
         />
 
-        <ReviewsSection 
+        <ReviewsSection
           reviews={reviews}
           reviewCount={user?.reviewCount}
         />
 
-        <TouchableOpacity 
-          style={[styles.logoutBtnFull, { backgroundColor: "#fee2e2", borderColor: "#fecaca", borderWidth: 1 }]} 
+        <TouchableOpacity
+          style={[styles.logoutBtnFull, { backgroundColor: "#fee2e2", borderColor: "#fecaca", borderWidth: 1 }]}
           onPress={handleLogout}
         >
           <MaterialCommunityIcons name="logout" size={22} color="#dc2626" />
@@ -549,7 +553,7 @@ export default function ProviderPerfil() {
             <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
               <Text style={[styles.modalTitle, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>Legenda da Foto</Text>
               <Text style={[styles.modalSub, { color: colors.mutedForeground }]}>Adicione uma breve descrição para este trabalho em seu portfólio.</Text>
-              
+
               <TextInput
                 style={[styles.bioInput, { borderColor: colors.border, height: 80 }]}
                 value={tempPortfolioDesc}
@@ -622,10 +626,10 @@ export default function ProviderPerfil() {
           <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
             <Text style={[styles.modalTitle, { color: colors.primary, fontFamily: "Inter_800ExtraBold" }]}>Verificar Identidade</Text>
             <Text style={[styles.modalSub, { color: colors.mutedForeground }]}>Precisamos de uma foto do seu documento (RG ou CNH) e uma selfie segurando o documento para sua segurança.</Text>
-            
+
             <View style={styles.uploadRow}>
-              <TouchableOpacity 
-                style={[styles.uploadBox, { backgroundColor: colors.card, borderColor: colors.border }, localDoc ? { borderColor: colors.secondary, borderStyle: 'solid' } : {}]} 
+              <TouchableOpacity
+                style={[styles.uploadBox, { backgroundColor: colors.card, borderColor: colors.border }, localDoc ? { borderColor: colors.secondary, borderStyle: 'solid' } : {}]}
                 onPress={() => pickVerificationImage('documentUrl', 'gallery')}
               >
                 {localDoc ? (
@@ -637,14 +641,14 @@ export default function ProviderPerfil() {
                   </>
                 )}
                 {localDoc && (
-                   <View style={[styles.checkBadge, { backgroundColor: colors.secondary }]}>
-                     <MaterialCommunityIcons name="check" size={12} color="#FFF" />
-                   </View>
+                  <View style={[styles.checkBadge, { backgroundColor: colors.secondary }]}>
+                    <MaterialCommunityIcons name="check" size={12} color="#FFF" />
+                  </View>
                 )}
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={[styles.uploadBox, { backgroundColor: colors.card, borderColor: colors.border }, localSelfie ? { borderColor: colors.secondary, borderStyle: 'solid' } : {}]} 
+              <TouchableOpacity
+                style={[styles.uploadBox, { backgroundColor: colors.card, borderColor: colors.border }, localSelfie ? { borderColor: colors.secondary, borderStyle: 'solid' } : {}]}
                 onPress={() => pickVerificationImage('selfieUrl', 'camera')}
               >
                 {localSelfie ? (
@@ -656,18 +660,18 @@ export default function ProviderPerfil() {
                   </>
                 )}
                 {localSelfie && (
-                   <View style={[styles.checkBadge, { backgroundColor: colors.secondary }]}>
-                     <MaterialCommunityIcons name="check" size={12} color="#FFF" />
-                   </View>
+                  <View style={[styles.checkBadge, { backgroundColor: colors.secondary }]}>
+                    <MaterialCommunityIcons name="check" size={12} color="#FFF" />
+                  </View>
                 )}
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[
-                styles.modalBtnFull, 
+                styles.modalBtnFull,
                 { backgroundColor: (localDoc && localSelfie) ? colors.navy : colors.border, marginTop: 24 }
-              ]} 
+              ]}
               onPress={submitVerification}
               disabled={!localDoc || !localSelfie || isSubmittingVerification}
             >
@@ -680,8 +684,8 @@ export default function ProviderPerfil() {
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              onPress={() => setVerificationModalVisible(false)} 
+            <TouchableOpacity
+              onPress={() => setVerificationModalVisible(false)}
               style={styles.modalCancelFull}
               disabled={isSubmittingVerification}
             >
@@ -734,13 +738,13 @@ const styles = StyleSheet.create({
   sectionHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
   seeAll: { fontSize: 12 },
   portfolioImg: { width: 100, height: 100, borderRadius: 12 },
-  emptyPortfolio: { 
-    alignItems: "center", 
-    justifyContent: "center", 
-    paddingVertical: 24, 
-    borderWidth: 1, 
-    borderRadius: 16, 
-    gap: 8 
+  emptyPortfolio: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 24,
+    borderWidth: 1,
+    borderRadius: 16,
+    gap: 8
   },
   emptyText: { fontSize: 13 },
   reviewCard: { gap: 16 },
@@ -777,40 +781,40 @@ const styles = StyleSheet.create({
   modalActionsFull: { width: "100%", gap: 12 },
   modalBtnFull: { width: "100%", height: 54, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   modalCancelFull: { width: "100%", height: 50, alignItems: "center", justifyContent: "center" },
-  logoutBtnFull: { 
-    marginHorizontal: 20, 
-    flexDirection: "row", 
-    alignItems: "center", 
-    justifyContent: "center", 
-    padding: 16, 
-    borderRadius: 20, 
-    gap: 12, 
-    marginBottom: 40 
+  logoutBtnFull: {
+    marginHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+    borderRadius: 20,
+    gap: 12,
+    marginBottom: 40
   },
   logoutBtnText: { fontSize: 16 },
   uploadRow: { flexDirection: "row", gap: 16 },
-  uploadBox: { 
-    flex: 1, 
-    height: 140, 
-    borderRadius: 20, 
-    alignItems: "center", 
-    justifyContent: "center", 
-    gap: 12, 
-    borderStyle: "dashed", 
-    borderWidth: 2, 
+  uploadBox: {
+    flex: 1,
+    height: 140,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    borderStyle: "dashed",
+    borderWidth: 2,
     overflow: 'hidden'
   },
   uploadLabel: { fontSize: 11, textAlign: "center", paddingHorizontal: 8 },
-  checkBadge: { 
-    position: 'absolute', 
-    top: 10, 
-    right: 10, 
-    width: 24, 
-    height: 24, 
-    borderRadius: 12, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    borderWidth: 2, 
+  checkBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
     borderColor: '#FFF',
     elevation: 4,
     shadowColor: '#000',

@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { SimpleChart } from "@/components/admin/SimpleChart";
-import * as SecureStore from "expo-secure-store";
+import { storage } from "@/lib/storage";
 import { API_BASE_URL } from "@/context/AuthContext";
 
 
@@ -38,7 +38,7 @@ export default function AdminDashboard() {
 
   async function checkNotifications() {
     try {
-      const token = await SecureStore.getItemAsync("trampai_auth_token");
+      const token = await storage.getItem("trampai_auth_token");
       const res = await fetch(`${API_BASE_URL}/api/notifications`, {
         headers: { Authorization: `Bearer ${token}` },
       });

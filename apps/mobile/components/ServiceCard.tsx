@@ -25,6 +25,7 @@ interface Props {
   onClose?: () => void;
   showClose?: boolean;
   onSeeDetails?: () => void;
+  hideImage?: boolean;
 }
 
 export function ServiceCard({
@@ -36,6 +37,7 @@ export function ServiceCard({
   onClose,
   showClose,
   onSeeDetails,
+  hideImage,
 }: Props) {
   const colors = useColors();
   
@@ -52,12 +54,13 @@ export function ServiceCard({
     ? uploadedImages[0] 
     : (CATEGORY_IMAGES[categoryName] || DEFAULT_IMAGE);
 
+  const isUnlockedExclusive = alreadyUnlocked && unlockType === "EXCLUSIVE";
   const isUnlockedPlus = alreadyUnlocked && (unlockType === "PLUS" || unlockType === "EXCLUSIVE");
   
   let displayLocation = locationText;
-  if (isJob && !isUnlockedPlus) {
-    // Esconde endereço completo se não estiver desbloqueado com PLUS/EXCLUSIVE
-    displayLocation = "Localização oculta (Desbloqueie com Plus)";
+  if (isJob && !isUnlockedExclusive) {
+    // Esconde endereço completo se não estiver desbloqueado com EXCLUSIVE
+    displayLocation = "Localização oculta (Desbloqueie com exclusivo 5 cr)";
   }
 
   return (
@@ -99,9 +102,16 @@ export function ServiceCard({
                 <MaterialCommunityIcons name="account" size={14} color={colors.primary} />
               )}
             </View>
-            <Text style={[styles.clientName, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>
-              {(service as any).client?.name || "Cliente"}
-            </Text>
+            {!isUnlockedPlus && (
+              <Text style={[styles.clientName, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>
+                Cliente Oculto
+              </Text>
+            )}
+            {isUnlockedPlus && (
+              <Text style={[styles.clientName, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>
+                {(service as any).client?.name || "Cliente"}
+              </Text>
+            )}
           </View>
 
           <Text
@@ -118,15 +128,30 @@ export function ServiceCard({
             </Text>
           </View>
 
-          <Text
-            style={[styles.description, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}
-            numberOfLines={2}
-          >
-            {service.description}
-          </Text>
+          {isUnlockedExclusive && (
+            <Text
+              style={[styles.description, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}
+              numberOfLines={2}
+            >
+              {service.description}
+            </Text>
+          )}
+          {!isUnlockedExclusive && (
+            <Text
+              style={[styles.description, { color: colors.mutedForeground, fontFamily: "Inter_400Italic" }]}
+              numberOfLines={1}
+            >
+              Descrição oculta (Desbloqueie com Exclusivo)
+            </Text>
+          )}
         </View>
 
-        <Image source={{ uri: imageUrl }} style={styles.serviceImg} />
+        {isUnlockedExclusive && <Image source={{ uri: imageUrl }} style={styles.serviceImg} />}
+        {!isUnlockedExclusive && (
+          <View style={[styles.serviceImg, { alignItems: 'center', justifyContent: 'center' }]}>
+            <MaterialCommunityIcons name="image-lock" size={32} color={colors.mutedForeground + "40"} />
+          </View>
+        )}
       </View>
 
       {isClosed ? (
@@ -144,7 +169,18 @@ export function ServiceCard({
               >
                 <MaterialCommunityIcons name="lock-open-outline" size={18} color={colors.navy} />
                 <Text style={[styles.unlockBtnText, { color: colors.navy, fontFamily: "Inter_700Bold" }]}>
-                  Desbloquear (1 cr)
+                  Básico (1 cr)
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.plusBtn, { backgroundColor: colors.secondary }]}
+                onPress={onUnlock}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons name="shield-check-outline" size={18} color="#fff" />
+                <Text style={[styles.plusBtnText, { color: "#fff", fontFamily: "Inter_700Bold" }]}>
+                  Plus (3 cr)
                 </Text>
               </TouchableOpacity>
               
@@ -155,7 +191,7 @@ export function ServiceCard({
               >
                 <MaterialCommunityIcons name="star" size={18} color="#fff" />
                 <Text style={[styles.exclusiveBtnText, { color: "#fff", fontFamily: "Inter_700Bold" }]}>
-                  Exclusivo (3 cr)
+                  Exclusivo (5 cr)
                 </Text>
               </TouchableOpacity>
             </View>
@@ -279,6 +315,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   unlockBtnText: {
+    fontSize: 14,
+  },
+  plusBtn: {
+    flexDirection: "row",
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    gap: 8,
+  },
+  plusBtnText: {
     fontSize: 14,
   },
   exclusiveBtn: {
