@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
