@@ -4,33 +4,263 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Política de Privacidade - Trampaí</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0b1339;
+            color: #e2e1d4;
+            font-family: 'Inter', sans-serif;
+            line-height: 1.7;
+            font-size: 16px;
+        }
+
+        header {
+            background: #21284e;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+            font-weight: 800;
+            color: #F69926;
+            text-decoration: none;
+        }
+
+        .logo span { color: #ffffff; }
+
+        main {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 60px 24px 80px;
+        }
+
+        .badge {
+            display: inline-block;
+            background: rgba(246, 153, 38, 0.15);
+            color: #F69926;
+            border: 1px solid rgba(246, 153, 38, 0.3);
+            padding: 4px 14px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: clamp(32px, 5vw, 48px);
+            font-weight: 800;
+            color: #ffffff;
+            line-height: 1.1;
+            margin-bottom: 12px;
+        }
+
+        .last-updated {
+            color: #76767f;
+            font-size: 14px;
+            margin-bottom: 48px;
+        }
+
+        h2 {
+            font-family: 'Inter', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: #9bf1f5;
+            margin-top: 48px;
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(155, 241, 245, 0.15);
+        }
+
+        h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #bdc4f3;
+            margin-top: 24px;
+            margin-bottom: 10px;
+        }
+
+        p { margin-bottom: 16px; color: #c7c5cf; }
+
+        ul {
+            list-style: none;
+            margin-bottom: 16px;
+        }
+
+        ul li {
+            color: #c7c5cf;
+            padding: 6px 0 6px 24px;
+            position: relative;
+        }
+
+        ul li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: #F69926;
+            font-weight: 600;
+        }
+
+        .highlight-box {
+            background: rgba(246, 153, 38, 0.08);
+            border: 1px solid rgba(246, 153, 38, 0.2);
+            border-left: 3px solid #F69926;
+            border-radius: 8px;
+            padding: 20px 24px;
+            margin: 24px 0;
+        }
+
+        .highlight-box p { margin-bottom: 0; color: #e2e1d4; }
+
+        .contact-card {
+            background: #21284e;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 28px;
+            margin-top: 48px;
+        }
+
+        .contact-card h2 { border: none; margin-top: 0; }
+
+        a { color: #F69926; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        footer {
+            text-align: center;
+            padding: 32px 24px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            color: #46464e;
+            font-size: 14px;
+        }
+    </style>
 </head>
-<body style="background: #0F1329; color: white; font-family: 'Inter', sans-serif; line-height: 1.6; padding: 40px 20px;">
-    <div style="max-width: 800px; margin: 0 auto;">
-        <h1 style="font-family: 'Outfit', sans-serif; color: #F69926; font-size: 36px; margin-bottom: 30px;">Política de Privacidade</h1>
-        
-        <p>A sua privacidade é importante para nós. É política do Trampaí respeitar a sua privacidade em relação a qualquer informação sua que possamos coletar no aplicativo Trampaí e outros sites que possuímos e operamos.</p>
+<body>
 
-        <h2 style="color: #5EB4B8; margin-top: 30px;">1. Coleta de Informações</h2>
-        <p>Solicitamos informações pessoais apenas quando realmente precisamos delas para lhe fornecer um serviço. Fazemo-lo por meios justos e legais, com o seu conhecimento e consentimento. Também informamos por que estamos coletando e como será usado.</p>
+<header>
+    <a href="index.html" class="logo">Tramp<span>aí</span></a>
+</header>
 
-        <h2 style="color: #5EB4B8; margin-top: 30px;">2. Uso de Dados</h2>
-        <p>Apenas retemos as informações coletadas pelo tempo necessário para fornecer o serviço solicitado. Quando armazenamos dados, protegemos dentro de meios comercialmente aceitáveis ​​para evitar perdas e roubos, bem como acesso, divulgação, cópia, uso ou modificação não autorizados.</p>
+<main>
+    <div class="badge">Legal</div>
+    <h1>Política de Privacidade</h1>
+    <p class="last-updated">Última atualização: 12 de maio de 2026</p>
 
-        <h2 style="color: #5EB4B8; margin-top: 30px;">3. Compartilhamento de Dados</h2>
-        <p>Não compartilhamos informações de identificação pessoal publicamente ou com terceiros, exceto quando exigido por lei.</p>
-
-        <h2 style="color: #5EB4B8; margin-top: 30px;">4. Seus Direitos</h2>
-        <p>Você é livre para recusar a nossa solicitação de informações pessoais, entendendo que talvez não possamos fornecer alguns dos serviços desejados.</p>
-
-        <h2 style="color: #5EB4B8; margin-top: 30px;">5. Contato</h2>
-        <p>O uso continuado de nosso aplicativo será considerado como aceitação de nossas práticas em torno de privacidade e informações pessoais. Se você tiver alguma dúvida sobre como lidamos com dados do usuário e informações pessoais, entre em contato conosco.</p>
-
-        <div style="margin-top: 50px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
-            <a href="index.html" style="color: #F69926; text-decoration: none;">&larr; Voltar para a Home</a>
-        </div>
+    <div class="highlight-box">
+        <p>Esta Política de Privacidade descreve como o <strong>Trampaí</strong> coleta, usa e protege suas informações pessoais, em conformidade com a <strong>Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018)</strong>.</p>
     </div>
+
+    <h2>1. Quem somos</h2>
+    <p>O Trampaí é um aplicativo de marketplace de serviços locais que conecta prestadores de serviços ("Trampoeiros") a clientes que buscam soluções rápidas e confiáveis em suas regiões. O controlador dos dados pessoais é o operador do aplicativo Trampaí.</p>
+
+    <h2>2. Dados que coletamos</h2>
+
+    <h3>2.1 Dados fornecidos por você</h3>
+    <ul>
+        <li>Nome completo e foto de perfil</li>
+        <li>Endereço de e-mail e número de telefone</li>
+        <li>CPF (para prestadores, fins de verificação de identidade)</li>
+        <li>Endereço e localização (para exibição de serviços próximos)</li>
+        <li>Descrições de serviços, portfólio e imagens de trabalhos realizados</li>
+        <li>Avaliações e comentários publicados</li>
+    </ul>
+
+    <h3>2.2 Dados coletados automaticamente</h3>
+    <ul>
+        <li>Identificadores de dispositivo (para notificações push)</li>
+        <li>Dados de uso e navegação dentro do app (telas acessadas, tempo de sessão)</li>
+        <li>Endereço IP e informações do sistema operacional</li>
+        <li>Dados de geolocalização aproximada (somente quando o app está em uso)</li>
+    </ul>
+
+    <h3>2.3 Login social</h3>
+    <p>Se você optar por fazer login com o Google, receberemos seu nome, e-mail e foto de perfil associados à conta Google, com seu consentimento expresso.</p>
+
+    <h2>3. Como usamos seus dados</h2>
+    <ul>
+        <li>Criar e gerenciar sua conta no aplicativo</li>
+        <li>Conectar clientes com prestadores de serviços próximos</li>
+        <li>Exibir seu perfil e portfólio para potenciais clientes</li>
+        <li>Enviar notificações sobre propostas, mensagens e atualizações de serviços</li>
+        <li>Melhorar a qualidade e segurança da plataforma</li>
+        <li>Cumprir obrigações legais e regulatórias</li>
+        <li>Prevenir fraudes e atividades suspeitas</li>
+    </ul>
+
+    <h2>4. Base legal para o tratamento (LGPD)</h2>
+    <p>O tratamento de seus dados pessoais é fundamentado nas seguintes bases legais:</p>
+    <ul>
+        <li><strong>Consentimento</strong> — para uso de geolocalização e notificações push</li>
+        <li><strong>Execução de contrato</strong> — para prestação dos serviços da plataforma</li>
+        <li><strong>Legítimo interesse</strong> — para melhoria da plataforma e prevenção de fraudes</li>
+        <li><strong>Cumprimento de obrigação legal</strong> — quando exigido por lei</li>
+    </ul>
+
+    <h2>5. Compartilhamento de dados</h2>
+    <p>Não vendemos seus dados pessoais. Podemos compartilhá-los apenas com:</p>
+    <ul>
+        <li><strong>Outros usuários:</strong> seu perfil público (nome, foto, avaliações) é visível para outros usuários da plataforma</li>
+        <li><strong>Provedores de infraestrutura:</strong> Supabase (banco de dados e autenticação), armazenados no Brasil e/ou União Europeia</li>
+        <li><strong>Autoridades legais:</strong> quando exigido por ordem judicial ou obrigação legal</li>
+    </ul>
+
+    <h2>6. Retenção de dados</h2>
+    <p>Seus dados são mantidos enquanto sua conta estiver ativa. Após o encerramento da conta, os dados são anonimizados ou excluídos em até <strong>90 dias</strong>, salvo obrigação legal de retenção por prazo superior.</p>
+
+    <h2>7. Seus direitos (LGPD)</h2>
+    <p>Você tem os seguintes direitos em relação aos seus dados:</p>
+    <ul>
+        <li>Confirmar a existência de tratamento de dados</li>
+        <li>Acessar seus dados pessoais armazenados</li>
+        <li>Corrigir dados incompletos, inexatos ou desatualizados</li>
+        <li>Solicitar a anonimização, bloqueio ou eliminação de dados desnecessários</li>
+        <li>Portabilidade dos dados a outro fornecedor</li>
+        <li>Revogar o consentimento a qualquer momento</li>
+        <li><strong>Solicitar a exclusão total da sua conta e dados associados</strong> (<a href="excluir-conta.html">Clique aqui para solicitar a exclusão</a>)</li>
+    </ul>
+    <p>Para exercer qualquer um desses direitos, entre em contato pelo e-mail listado na seção de contato.</p>
+
+    <h2>8. Segurança</h2>
+    <p>Adotamos medidas técnicas e organizacionais para proteger seus dados, incluindo:</p>
+    <ul>
+        <li>Transmissão criptografada via HTTPS/TLS</li>
+        <li>Autenticação segura via Supabase Auth</li>
+        <li>Controle de acesso baseado em perfis (Row-Level Security)</li>
+        <li>Monitoramento contínuo de atividades suspeitas</li>
+    </ul>
+
+    <h2>9. Cookies e tecnologias similares</h2>
+    <p>O aplicativo mobile não utiliza cookies de rastreamento de terceiros. Utilizamos armazenamento local seguro (<em>Secure Store</em>) exclusivamente para manter sua sessão ativa de forma segura no dispositivo.</p>
+
+    <h2>10. Menores de idade</h2>
+    <p>O Trampaí não é destinado a menores de 18 anos. Não coletamos conscientemente dados de menores. Se identificarmos uma conta criada por menor de idade, ela será encerrada imediatamente.</p>
+
+    <h2>11. Alterações nesta política</h2>
+    <p>Podemos atualizar esta política periodicamente. Em caso de mudanças significativas, você será notificado pelo app ou por e-mail com pelo menos 15 dias de antecedência. O uso continuado do aplicativo após as alterações implica aceitação da nova política.</p>
+
+    <div class="contact-card">
+        <h2>12. Contato — Encarregado de Dados (DPO)</h2>
+        <p>Para dúvidas, solicitações ou exercício dos seus direitos, entre em contato:</p>
+        <ul>
+            <li><strong>E-mail:</strong> <a href="mailto:privacidade@trampai.com.br">privacidade@trampai.com.br</a></li>
+            <li><strong>Aplicativo:</strong> Menu → Configurações → Privacidade e Dados</li>
+        </ul>
+        <p style="margin-top: 16px;">Autoridade Nacional de Proteção de Dados (ANPD): <a href="https://www.gov.br/anpd" target="_blank" rel="noopener">www.gov.br/anpd</a></p>
+    </div>
+</main>
+
+<footer>
+    <p>© 2026 Trampaí — Todos os direitos reservados.</p>
+    <p style="margin-top: 8px;"><a href="index.html">← Voltar para a Home</a></p>
+</footer>
+
 </body>
 </html>

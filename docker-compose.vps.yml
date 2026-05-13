@@ -1,0 +1,186 @@
+version: "3.8"
+
+# ================================================
+#  TRAMPAÍ — Docker Compose para VPS
+#  Portas alocadas (sem conflito com outros projetos):
+#    API:              3007
+#    Supabase Kong:    8030
+#    Supabase Studio:  8031
+#    Postgres:         5437
+# ================================================
+
+services:
+
+  # ── API BACKEND ──────────────────────────────
+  trampai-api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: trampai-api
+    restart: unless-stopped
+    ports:
+      - "3007:3000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      APP_URL: ${APP_URL}
+      PORT: 3000
+      NODE_ENV: production
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+    depends_on:
+      supabase-db-trampai:
+        condition: service_healthy
+    networks:
+      - trampai-network
+    volumes:
+      - trampai-api-uploads:/app/public/uploads
+
+  # ── TRAMPAI LANDING PAGE ─────────────────────
+  trampai-web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: trampai-web
+    restart: unless-stopped
+    ports:
+      - "3008:80"
+    networks:
+      - trampai-network
+
+  # ── SUPABASE DATABASE ─────────────────────────
+  supabase-db-trampai:
+    image: supabase/postgres:15.1.1.78
+    container_name: supabase-db-trampai
+    restart: unless-stopped
+    ports:
+      - "5437:5432"
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+    volumes:
+      - supabase-db-trampai-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - trampai-network
+
+  # ── SUPABASE KONG (API Gateway) ───────────────
+  supabase-kong-trampai:
+    image: kong:2.8.1
+    container_name: supabase-kong-trampai
+    restart: unless-stopped
+    ports:
+      - "8030:8000"
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+    networks:
+      - trampai-network
+
+  # ── SUPABASE AUTH ─────────────────────────────
+  supabase-auth-trampai:
+    image: supabase/gotrue:v2.161.0
+    container_name: supabase-auth-trampai
+    restart: unless-stopped
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: ${APP_URL}
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgresql://supabase_auth_admin:Tramp%40i2025!Secure@supabase-db-trampai:5432/postgres
+      GOTRUE_SITE_URL: ${APP_URL}
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_JWT_EXPIRY: 3600
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_SMTP_HOST: smtp.resend.com
+      GOTRUE_SMTP_PORT: 465
+      GOTRUE_SMTP_USER: resend
+      GOTRUE_SMTP_PASS: ${RESEND_API_KEY}
+      GOTRUE_SMTP_SENDER_NAME: Trampaí
+      GOTRUE_MAILER_AUTOCONFIRM: "false"
+      GOTRUE_EXTERNAL_GOOGLE_ENABLED: "true"
+      GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOTRUE_EXTERNAL_GOOGLE_SECRET: ${GOOGLE_CLIENT_SECRET}
+    depends_on:
+      supabase-db-trampai:
+        condition: service_healthy
+    networks:
+      - trampai-network
+
+  # ── SUPABASE REST ─────────────────────────────
+  supabase-rest-trampai:
+    image: postgrest/postgrest:v11.1.0
+    container_name: supabase-rest-trampai
+    restart: unless-stopped
+    environment:
+      PGRST_DB_URI: postgresql://authenticator:Tramp%40i2025!Secure@supabase-db-trampai:5432/postgres
+      PGRST_DB_SCHEMAS: public,storage,graphql_public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+    depends_on:
+      supabase-db-trampai:
+        condition: service_healthy
+    networks:
+      - trampai-network
+
+  # ── SUPABASE STUDIO (UI) ──────────────────────
+  supabase-studio-trampai:
+    image: supabase/studio:2026.02.16-sha-26c615c
+    container_name: supabase-studio-trampai
+    restart: unless-stopped
+    ports:
+      - "8031:3000"
+    environment:
+      STUDIO_PG_META_URL: http://supabase-meta-trampai:8080
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DEFAULT_ORGANIZATION_NAME: Trampaí
+      DEFAULT_PROJECT_NAME: trampai
+      SUPABASE_URL: http://supabase-kong-trampai:8000
+      SUPABASE_PUBLIC_URL: ${APP_URL}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      LOGFLARE_LOGGER_BACKEND_API_KEY: ${SUPABASE_ANON_KEY}
+      LOGFLARE_API_URL: http://analytics:4000
+      NEXT_PUBLIC_ENABLE_LOGS: "true"
+      NEXT_ANALYTICS_BACKEND_PROVIDER: postgres
+    networks:
+      - trampai-network
+
+  # ── SUPABASE META (Gerenciador DB) ────────────
+  supabase-meta-trampai:
+    image: supabase/postgres-meta:v0.95.2
+    container_name: supabase-meta-trampai
+    restart: unless-stopped
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: supabase-db-trampai
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: postgres
+      PG_META_DB_USER: supabase_admin
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
+    networks:
+      - trampai-network
+
+volumes:
+  supabase-db-trampai-data:
+  trampai-api-uploads:
+
+networks:
+  trampai-network:
+    driver: bridge

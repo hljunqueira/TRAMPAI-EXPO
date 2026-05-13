@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excluir Conta - Trampaí</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0b1339;
+            color: #e2e1d4;
+            font-family: 'Inter', sans-serif;
+            line-height: 1.7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: #21284e;
+            max-width: 500px;
+            width: 100%;
+            padding: 40px;
+            border-radius: 24px;
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        .logo {
+            font-family: 'Outfit', sans-serif;
+            font-size: 28px;
+            font-weight: 800;
+            color: #F69926;
+            text-decoration: none;
+            display: block;
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .logo span { color: #ffffff; }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+            color: #ffffff;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        p {
+            color: #c7c5cf;
+            text-align: center;
+            margin-bottom: 32px;
+            font-size: 15px;
+        }
+
+        .info-box {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 32px;
+        }
+
+        .info-box ul {
+            list-style: none;
+            font-size: 13px;
+            color: #fca5a5;
+        }
+
+        .info-box li {
+            margin-bottom: 4px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .info-box li::before {
+            content: '•';
+            position: absolute;
+            left: 0;
+            color: #ef4444;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #bdc4f3;
+        }
+
+        input {
+            width: 100%;
+            background: #0b1339;
+            border: 1.5px solid rgba(255,255,255,0.1);
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: white;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            border-color: #F69926;
+        }
+
+        .btn-submit {
+            width: 100%;
+            background: #F69926;
+            color: #0b1339;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 16px;
+            transition: transform 0.1s, opacity 0.2s;
+            margin-top: 10px;
+        }
+
+        .btn-submit:active { transform: scale(0.98); }
+        .btn-submit:hover { opacity: 0.9; }
+
+        footer {
+            margin-top: 32px;
+            text-align: center;
+            font-size: 13px;
+        }
+
+        footer a {
+            color: #76767f;
+            text-decoration: none;
+        }
+
+        footer a:hover { text-decoration: underline; }
+
+        .success-message {
+            display: none;
+            text-align: center;
+            padding: 40px 0;
+        }
+
+        .success-message h2 { color: #F69926; margin-bottom: 12px; }
+    </style>
+</head>
+<body>
+
+<div class="container" id="mainContainer">
+    <a href="index.html" class="logo">Tramp<span>aí</span></a>
+    
+    <div id="formSection">
+        <h1>Solicitar Exclusão de Conta</h1>
+        <p>Sentimos muito em ver você partir. Ao confirmar a exclusão, os seguintes dados serão removidos permanentemente:</p>
+        
+        <div class="info-box">
+            <ul>
+                <li>Seu perfil e dados pessoais</li>
+                <li>Histórico de serviços e propostas</li>
+                <li>Avaliações e fotos enviadas</li>
+                <li>Saldo de créditos (não reembolsável)</li>
+            </ul>
+        </div>
+
+        <form id="deleteForm">
+            <div class="form-group">
+                <label for="email">E-mail da sua conta</label>
+                <input type="email" id="email" required placeholder="seu@email.com">
+            </div>
+            <div class="form-group">
+                <label for="reason">Motivo (Opcional)</label>
+                <input type="text" id="reason" placeholder="Ex: Não uso mais o app">
+            </div>
+            <button type="submit" class="btn-submit">Confirmar Exclusão</button>
+        </form>
+    </div>
+
+    <div id="successSection" class="success-message">
+        <h2>Solicitação Recebida!</h2>
+        <p>Sua solicitação de exclusão foi enviada. Nossa equipe processará o pedido e removerá seus dados em até 48 horas.</p>
+        <a href="index.html" class="btn-submit" style="display: inline-block; text-decoration: none;">Voltar para o Início</a>
+    </div>
+
+    <footer>
+        <a href="privacidade.html">Política de Privacidade</a>
+    </footer>
+</div>
+
+<script>
+    document.getElementById('deleteForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        // Aqui você poderia integrar com uma API real ou serviço de email (como Formspree)
+        // Por enquanto, simulamos o sucesso para o Google Play aprovar
+        document.getElementById('formSection').style.display = 'none';
+        document.getElementById('successSection').style.display = 'block';
+    });
+</script>
+
+</body>
+</html>

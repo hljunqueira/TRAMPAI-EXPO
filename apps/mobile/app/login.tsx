@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -7,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -100,6 +102,7 @@ export default function LoginScreen() {
       <ScrollView 
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.logoSection}>
@@ -126,6 +129,9 @@ export default function LoginScreen() {
                 value={name}
                 onChangeText={setName}
                 autoCapitalize="words"
+                autoComplete="name"
+                textContentType="name"
+                returnKeyType="next"
               />
             </View>
           )}
@@ -139,6 +145,9 @@ export default function LoginScreen() {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              autoComplete="email"
+              textContentType="emailAddress"
+              returnKeyType="next"
             />
           </View>
 
@@ -150,6 +159,10 @@ export default function LoginScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+              autoComplete="password"
+              textContentType="password"
+              returnKeyType="done"
+              onSubmitEditing={handleSubmit}
             />
             {!isRegister && (
               <TouchableOpacity 
@@ -170,6 +183,9 @@ export default function LoginScreen() {
                 value={referralCode}
                 onChangeText={setReferralCode}
                 autoCapitalize="characters"
+                autoComplete="off"
+                returnKeyType="done"
+                onSubmitEditing={handleSubmit}
               />
             </View>
           )}
@@ -201,7 +217,11 @@ export default function LoginScreen() {
               <ActivityIndicator color="#21284E" />
             ) : (
               <>
-                <MaterialCommunityIcons name="google" size={20} color="#EA4335" />
+                <Image 
+                  source="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png" 
+                  style={{ width: 22, height: 22 }}
+                  contentFit="contain"
+                />
                 <Text style={styles.googleBtnText}>Entrar com Google</Text>
               </>
             )}
@@ -362,7 +382,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   googleBtnText: {
     color: "#21284E",
@@ -374,7 +394,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginTop: 8,
-    paddingVertical: 10,
+    paddingVertical: 4,
+    marginBottom: 12,
   },
   switchLabel: {
     color: "rgba(255,255,255,0.7)",
@@ -419,17 +440,23 @@ const styles = StyleSheet.create({
   },
   footer: {
     alignItems: "center",
-    marginBottom: 20,
+    marginTop: 32,
+    marginBottom: 40,
+    width: "100%",
   },
   termsText: {
-    color: "rgba(255,255,255,0.4)",
+    color: "rgba(255,255,255,0.5)",
     fontSize: 12,
     fontFamily: "Inter_400Regular",
-    marginBottom: 4,
+    textAlign: "center",
+    marginBottom: 6,
   },
   footerLinks: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    flexWrap: "wrap",
+    gap: 4,
   },
   termsLink: {
     color: "#5EB4B8",
